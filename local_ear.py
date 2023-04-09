@@ -124,8 +124,9 @@ class LocalEar:
         ProjectLogger().info(f'{recognized_speaker} : {request}')
         ProjectLogger().info(f'ChatGPT : {answer}')
         spoken_chunk = np.frombuffer(audio, dtype=np.int16)
-        self.intake.put(spoken_chunk)
-        # self.source.set_feedback(spoken_chunk, self._out_sample_rate)
+        if len(spoken_chunk) > 0:
+            self.intake.put(spoken_chunk)
+            # self.source.set_feedback(spoken_chunk, self._out_sample_rate)
 
     def _audio_request_handler(self):
         with ThreadPoolExecutor(max_workers=4) as executor:

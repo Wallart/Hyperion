@@ -13,6 +13,7 @@ from flask import Flask, Response, request, g, stream_with_context
 from voice_processing.voice_transcriber import VoiceTranscriber, TRANSCRIPT_MODELS
 
 import argparse
+import numpy as np
 
 
 class Brain:
@@ -58,7 +59,7 @@ class Brain:
             if request_obj.audio_answer is None:
                 # if text answer not empty but audio is, means speech synthesis api call failed
                 ProjectLogger().warning('Speech synthesis failed.')
-                continue
+                request_obj.audio_answer = np.zeros((0,))
 
             yield frame_encode(request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
