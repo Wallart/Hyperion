@@ -17,7 +17,7 @@ CHAT_MODELS = ['gpt-3.5-turbo', 'gpt-3.5-turbo-0301', 'gpt-4']
 
 class ChatGPT(Consumer, Producer):
 
-    def __init__(self, name, model, no_memory, clear, cache_dir='~/.hyperion'):
+    def __init__(self, name, model, no_memory, clear, prompt='base', cache_dir='~/.hyperion'):
         super().__init__()
 
         ProjectLogger().info(f'{name} using {model} as chat backend. No memory -> {no_memory}')
@@ -46,7 +46,7 @@ class ChatGPT(Consumer, Producer):
         sentences_path = os.path.join(self._resources_dir, 'default_sentences')
         self._deaf_sentences = self._load_file(os.path.join(sentences_path, 'deaf'))
         self._error_sentences = self._load_file(os.path.join(sentences_path, 'dead'))
-        self._global_context = self._load_prompt('base')
+        self._global_context = self._load_prompt(base)
 
         openai.api_key = self._load_api_key()
         # self._working_memory = []
