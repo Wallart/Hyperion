@@ -3,7 +3,8 @@
 from time import time, sleep
 from daemonocle import Daemon
 from utils.logger import ProjectLogger
-from utils.utils import get_ctx, frame_encode
+from utils.utils import get_ctx
+from utils.protocol import frame_encode
 from flask import Flask, Response, request, g
 from audio import int16_to_float32, float32_to_int16
 from voice_processing.voice_detector import VoiceDetector

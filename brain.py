@@ -4,12 +4,13 @@ from time import time
 from daemonocle import Daemon
 from utils.logger import ProjectLogger
 from utils.request import RequestObject
-from utils.utils import get_ctx, frame_encode
+from utils.utils import get_ctx
+from utils.protocol import frame_encode
 from analysis.chat_gpt import ChatGPT, CHAT_MODELS
 from flask_log_request_id import RequestID, current_request_id
 from voice_processing.voice_synthesizer import VoiceSynthesizer
-from voice_processing.voice_transcriber import VoiceTranscriber, TRANSCRIPT_MODELS
 from flask import Flask, Response, request, g, stream_with_context
+from voice_processing.voice_transcriber import VoiceTranscriber, TRANSCRIPT_MODELS
 
 import os
 import argparse

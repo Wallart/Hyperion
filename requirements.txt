@@ -31,5 +31,9 @@ requests_toolbelt
 # Cold storage
 tinydb
 
-# GUI
+# other
+urlextract
+bs4
+lxml
+readability-lxml
 #textual[dev]

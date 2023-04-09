@@ -8,6 +8,7 @@ from transformers import GPT2TokenizerFast
 from utils.request import RequestObject
 from utils.threading import Consumer, Producer
 from concurrent.futures import ThreadPoolExecutor
+from utils.external_resources_parsing import fetch_urls
 
 import os
 import queue
@@ -30,7 +31,7 @@ class ChatGPT(Consumer, Producer):
         self._no_memory = no_memory
         # 5% less than max tokens because we don't know exactly what are tokens.
         # Usually they are words, sometimes it's just a letter or a comma.
-        self._max_ctx_tokens = MAX_TOKENS - (MAX_TOKENS * .05)
+        self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
 
         root_dir = os.path.dirname(os.path.dirname(__file__))
         self._resources_dir = os.path.join(root_dir, 'resources')
@@ -112,6 +113,7 @@ class ChatGPT(Consumer, Producer):
     def _process_request(self, request_obj):
         try:
             t0 = time()
+            request_obj.text_request = fetch_urls(request_obj.text_request)
             ProjectLogger().info('Requesting ChatGPT...')
             chat_input = f'{request_obj.user} : {request_obj.text_request}'
             ProjectLogger().info(f'{chat_input}')

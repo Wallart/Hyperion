@@ -4,7 +4,8 @@ from audio.io.audio_input import AudioInput
 from audio.io.source.in_file import InFile
 from audio.io.source.in_device import InDevice
 from audio.io.audio_output import AudioOutput
-from utils.utils import get_ctx, frame_decode
+from utils.utils import get_ctx
+from utils.protocol import frame_decode
 # from audio.audio_file import AudioFile
 from utils.logger import ProjectLogger
 from concurrent.futures import ThreadPoolExecutor
