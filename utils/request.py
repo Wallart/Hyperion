@@ -1,3 +1,4 @@
+from time import time
 from audio import int16_to_float32
 
 import numpy as np
@@ -11,7 +12,7 @@ class RequestObject:
         self.identifier = identifier
         self.user = user
 
-        self.timestamp = None
+        self.timestamp = time()
 
         self.text_request = None
         self.audio_request = None
