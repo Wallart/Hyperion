@@ -25,17 +25,21 @@ class NetworkEar:
         self.target_url = f'http://{target_url}'
         self.dummy_file = dummy_file if dummy_file is None else os.path.expanduser(dummy_file)
 
-        self.recognizer = VoiceRecognizer(ctx)
-        self.detector = VoiceDetector(ctx, sample_rate, activation_threshold=.9)
+        recognizer = VoiceRecognizer(ctx)
+        detector = VoiceDetector(ctx, sample_rate, activation_threshold=.9)
 
-        self.intake = self.detector.create_intake()
-        self.sink = self.detector.pipe(self.recognizer).create_sink()
+        self.intake = detector.create_intake()
+        self.sink = detector.pipe(recognizer).create_sink()
+        self.threads = [recognizer, detector]
 
     def boot(self):
-        self.detector.start()
-        self.recognizer.start()
+        try:
+            _ = [t.start() for t in self.threads]
+            app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
+        except KeyboardInterrupt as interrupt:
+            _ = [t.stop() for t in self.threads]
 
-        app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
+        _ = [t.join() for t in self.threads]
 
     def dummy_response(self):
         def generator(n):
