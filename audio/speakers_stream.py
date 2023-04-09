@@ -1,5 +1,6 @@
 from utils.threading import Consumer
 
+import numpy as np
 import sounddevice as sd
 
 

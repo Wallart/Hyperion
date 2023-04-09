@@ -1,7 +1,10 @@
+openai
 torch==1.13.1
+fairseq
+datasets
 transformers
 speechbrain
-datasets
+phonemizer
 # Visualization
 matplotlib
 # Sound processing

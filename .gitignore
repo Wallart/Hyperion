@@ -3,3 +3,4 @@
 pretrained_models/
 model_checkpoints/
 __pycache__/
+resources/api_key.txt

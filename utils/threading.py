@@ -1,6 +1,6 @@
 from queue import Queue
 from threading import Thread
-from types import FunctionType
+
 
 class Consumer(Thread):
 
@@ -20,10 +20,11 @@ class Producer(Thread):
         self.daemon = True
         self._out_queues = []
 
-    def register(self, consumer: Consumer):
+    def pipe(self, consumer: Consumer):
         queue = Queue()
         self._out_queues.append(queue)
         consumer.set_in_queue(queue)
+        return consumer
 
     def create_queue(self):
         queue = Queue()

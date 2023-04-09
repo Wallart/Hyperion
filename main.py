@@ -1,19 +1,19 @@
-from queue import Queue
 from functools import partial
-
 from speechbrain.dataio.preprocess import AudioNormalizer
 
-from utils.utils import LivePlotter, SpeakersStream
+from chat_gpt import ChatGPT
+from utils.utils import LivePlotter
+from audio.speakers_stream import SpeakersStream
 from audio.audio_file import AudioFile
 from audio.microphone import Microphone
 from audio.audio_stream import AudioStream
 from voice_processing.voice_detector import VoiceDetector
+from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
 from time import sleep
+from queue import Queue
 
-import torch
 import logging
-import numpy as np
 
 
 if __name__ == '__main__':
@@ -26,30 +26,43 @@ if __name__ == '__main__':
     with audio_clazz(duration_ms=512) as source:
         # Threaded operations
         input_stream = AudioStream(source)
-        output_stream = SpeakersStream(source.sample_rate(), source.channels())
+        # output_stream = SpeakersStream(source.sample_rate(), source.channels())
         detector = VoiceDetector(source.sample_rate(), activation_threshold=.7)
         transcriber = VoiceTranscriber()
+        synthesizer = VoiceSynthesizer()
+        output_stream = SpeakersStream(synthesizer.sample_rate, source.channels())
 
         # other
+        chat = ChatGPT()
         plotter = LivePlotter(source.name(), source.chunk_duration(), source.chunk_size())
 
-        input_stream.register(detector)
-        input_stream.register(output_stream)
-        detector.register(transcriber)
-        # normalizer = AudioNormalizer()
+        # Pipeline part 1
+        input_stream.pipe(detector).pipe(transcriber)
+        # Pipeline part 2
+        synthesizer.pipe(output_stream)
 
         try:
             input_stream.start()
             output_stream.start()
             detector.start()
             transcriber.start()
+            # synthesizer.start()
 
-            q1 = input_stream.create_queue()
+            # q1 = input_stream.create_queue()
+            q2 = transcriber.create_queue()
+            q3 = Queue()
+            synthesizer.set_in_queue(q3)
+
+            synthesizer.start()
+
             sleep(5)
             logging.info('STARTED !')
 
             while True:
-                plotter.draw(q1.get(), None, None)
+                # plotter.draw(q1.get(), None, None)
+                response = chat.answer(q2.get())
+                print(response)
+                q3.put(response)
 
         except KeyboardInterrupt as e:
             logging.error('Interruption received.')
