@@ -50,7 +50,7 @@ class NetworkEar:
             for _ in range(n):
                 wav, _ = librosa.load(self.dummy_file, sr=24000)
                 wav = float32_to_int16(wav)
-                yield frame_encode('Mon chien', 'est le plus beau', wav)
+                yield frame_encode(0, 'Mon chien', 'est le plus beau', wav)
                 sleep(1)
 
         return Response(response=generator(1), mimetype='application/octet-stream')
