@@ -29,8 +29,9 @@ class ChatGPT(Consumer, Producer):
         self._model = model
         self._botname = name
         self._no_memory = no_memory
-        # self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
-        self._max_ctx_tokens = MAX_TOKENS
+        # Seems that we have to reserve some tokens for chat completion...
+        self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
+        # self._max_ctx_tokens = MAX_TOKENS
 
         root_dir = os.path.dirname(os.path.dirname(__file__))
         self._resources_dir = os.path.join(root_dir, 'resources')
@@ -180,5 +181,5 @@ class ChatGPT(Consumer, Producer):
 
 
 if __name__ == '__main__':
-    chat = ChatGPT()
+    chat = ChatGPT('TOTO', 'gpt-3.5-turbo', False, False)
     chat.answer('En quelle année est né Nicolas Sarkozy ?', stream=False)
