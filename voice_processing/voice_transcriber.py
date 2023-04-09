@@ -42,7 +42,7 @@ class VoiceTranscriber(Consumer, Producer):
         _, probs = self._asr.detect_language(mel)
         lang = max(probs, key=probs.get)
         score = probs[lang]
-        logging.info(f'Detected language: {lang} {score * 100}')
+        logging.info(f'Detected language: {lang} {round(score, 4)}')
 
         # decode the audio
         options = whisper.DecodingOptions(fp16=False)
