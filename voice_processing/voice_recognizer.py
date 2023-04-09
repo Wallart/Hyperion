@@ -12,7 +12,7 @@ import numpy as np
 
 class VoiceRecognizer(Consumer, Producer):
 
-    def __init__(self, recog_threshold=0.7):
+    def __init__(self, recog_threshold=0.25):
         super().__init__()
 
         self.sample_rate = 16000  # Model is using 16kHZ samples
@@ -28,21 +28,34 @@ class VoiceRecognizer(Consumer, Producer):
         if type(audio_chunk) == np.ndarray:
             audio_chunk = torch.tensor(audio_chunk)
 
-        list_speakers = os.listdir(self._speakers_sample_dir)
+        audio_chunk = audio_chunk.unsqueeze(0)
+        list_speakers = [e for e in os.listdir(self._speakers_sample_dir) if os.path.isdir(os.path.join(self._speakers_sample_dir, e))]
+
+        computed_scores = {}
         for speaker in list_speakers:
             speaker_file_samples = glob(os.path.join(self._speakers_sample_dir, speaker, '*.wav'))
+            if len(speaker_file_samples) == 0:
+                continue
+
             speaker_references = [self.load_wavfile(f) for f in speaker_file_samples]
             smallest_ref = min([len(r) for r in speaker_references])
-            speaker_references = [r[:smallest_ref, ...] for r in speaker_references]
+            speaker_references = [r[:smallest_ref] for r in speaker_references]
 
             speaker_references = np.stack(speaker_references, axis=0)
-            audio_chunk = audio_chunk.unsqueeze(0).repeat(len(speaker_references), 1)
+            audio_chunk = audio_chunk.repeat(len(speaker_references), 1)
 
-            scores, prediction = self._recog.verify_batch(torch.tensor(speaker_references), audio_chunk)
-            if (prediction.int().sum() > 0).item():
-                return speaker[0].upper() + speaker[1:]
+            scores, _ = self._recog.verify_batch(torch.tensor(speaker_references), audio_chunk)
+            computed_scores[speaker] = round(scores.max().item(), 4)
 
-        return 'Unknown'
+        speaker_idx = np.argmax(list(computed_scores.values()))
+        speaker = list_speakers[speaker_idx]
+        best_score = computed_scores[speaker]
+
+        logging.info(f'Speakers scores : {computed_scores}')
+        if best_score < self._recog_threshold:
+            return 'Unknown'
+
+        return speaker[0].upper() + speaker[1:]
 
     def run(self):
         while True:
