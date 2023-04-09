@@ -2,6 +2,7 @@ numpy
 openai
 torch==1.13.1
 openai-whisper
+tiktoken
 
 # TTS
 gTTS

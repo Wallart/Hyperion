@@ -4,7 +4,6 @@ from threading import Lock
 from tinydb import TinyDB, Query
 from analysis import MAX_TOKENS, acquire_mutex
 from utils.logger import ProjectLogger
-from transformers import GPT2TokenizerFast
 from utils.request import RequestObject
 from utils.threading import Consumer, Producer
 from concurrent.futures import ThreadPoolExecutor
@@ -14,8 +13,9 @@ import os
 import queue
 import random
 import openai
+import tiktoken
 
-CHAT_MODELS = ['gpt-3.5-turbo', 'gpt-3.5-turbo-0301', 'gpt-4']
+CHAT_MODELS = ['gpt-3.5-turbo', 'gpt-4']
 
 
 class ChatGPT(Consumer, Producer):
@@ -29,17 +29,15 @@ class ChatGPT(Consumer, Producer):
         self._model = model
         self._botname = name
         self._no_memory = no_memory
-        # 5% less than max tokens because we don't know exactly what are tokens.
-        # Usually they are words, sometimes it's just a letter or a comma.
-        self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
+        # self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
+        self._max_ctx_tokens = MAX_TOKENS
 
         root_dir = os.path.dirname(os.path.dirname(__file__))
         self._resources_dir = os.path.join(root_dir, 'resources')
         self._cache_dir = os.path.expanduser(cache_dir)
         os.makedirs(self._cache_dir, exist_ok=True)
 
-        # TODO Replace by openai tiktoken library
-        self._tokenizer = GPT2TokenizerFast.from_pretrained('gpt2', cache_dir=os.path.join(self._cache_dir, 'tokenizer'))
+        self._tokenizer = tiktoken.encoding_for_model(self._model)
         db_path = os.path.join(self._cache_dir, 'prompts_db.json')
         if clear and os.path.exists(db_path):
             ProjectLogger().info('Cleared persistent memory.')
@@ -78,7 +76,7 @@ class ChatGPT(Consumer, Producer):
         return message.replace('{name}', self._botname)
 
     def _tokens_count(self, ctx):
-        return sum([len(self._tokenizer.tokenize(l['content'])) for l in ctx])
+        return sum([len(self._tokenizer.encode(l['content'])) for l in ctx])
 
     @staticmethod
     def _build_context_line(role, content):
