@@ -11,6 +11,8 @@ import logging
 import numpy as np
 import sounddevice as sd
 
+from voice_processing.voice_recognizer import VoiceRecognizer
+
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
 
@@ -22,18 +24,22 @@ if __name__ == '__main__':
     with audio_clazz(duration_ms=512) as source:
         stream = AudioStream(source)
         detector = VoiceDetector(source.sample_rate(), activation_threshold=.9)
-        # speakers = SpeakersStream(OUT_SAMPLE_RATE, source.channels())
+        recognizer = VoiceRecognizer()
+        speakers = SpeakersStream(OUT_SAMPLE_RATE, source.channels())
 
-        sink = stream.pipe(detector).create_sink()
-        # intake = speakers.create_intake()
+        sink = stream.pipe(detector).pipe(recognizer).create_sink()
+        intake = speakers.create_intake()
 
         stream.start()
         detector.start()
-        # speakers.start()
+        recognizer.start()
+        speakers.start()
 
         while True:
-            audio_chunk = sink.get().numpy()
-            sd.stop()
+            audio_chunk, recognized = sink.get()
+            audio_chunk = audio_chunk.numpy()
+            if not recognized:
+                continue
 
             try:
                 t0 = time()
@@ -43,8 +49,9 @@ if __name__ == '__main__':
                     logging.warning(f'Something went wrong. HTTP {res.status_code}')
                 else:
                     spoken_response = np.frombuffer(res.content, dtype=np.float32)
-                    sd.play(spoken_response, blocking=False, samplerate=OUT_SAMPLE_RATE)
-                    # intake.put(spoken_response)
+                    # sd.stop()
+                    # sd.play(spoken_response, blocking=False, samplerate=OUT_SAMPLE_RATE)
+                    intake.put(spoken_response)
                 logging.info(f'Request processed in {time() - t0:.3f} sec(s).')
             except Exception as e:
                 logging.warning(f'Request canceled : {e}')
