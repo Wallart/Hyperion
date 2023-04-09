@@ -15,7 +15,7 @@ import os
 import argparse
 
 
-APP_NAME = os.path.basename(__file__)
+APP_NAME = os.path.basename(__file__).split('.')[0]
 app = Flask(__name__)
 RequestID(app)
 socketio = SocketIO(app)
@@ -36,13 +36,13 @@ def name():
     return brain.name, 200
 
 
-@app.route('/audio', methods=['POST'])
-def http_audio_stream():
+@app.route('/speech', methods=['POST'])
+def http_speech_stream():
     request_id = current_request_id()
     speech = request.files['speech'].read()
     speaker = request.files['speaker'].read().decode('utf-8')
 
-    stream = brain.handle_audio(request_id, speaker, speech)
+    stream = brain.handle_speech(request_id, speaker, speech)
 
     if brain.frozen:
         return 'I\'m a teapot', 418
@@ -50,13 +50,24 @@ def http_audio_stream():
     return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 
-@socketio.on('audio')
-def sio_audio_stream(data):
+@socketio.on('speech')
+def sio_speech_stream(data):
     request_id = request.sid
     speaker = data['speaker']
     speech = data['speech']
 
-    stream = brain.handle_audio(request_id, speaker, speech)
+    stream = brain.handle_speech(request_id, speaker, speech)
+    for frame in stream:
+        emit('answer', dict(requester=speaker, answer=frame), to=request_id)
+        socketio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
+
+
+@socketio.on('audio')
+def sio_audio_stream(audio):
+    request_id = request.sid
+
+    speaker, speech = brain.handle_audio(audio)
+    stream = brain.handle_speech(request_id, speaker, speech)
     for frame in stream:
         emit('answer', dict(requester=speaker, answer=frame), to=request_id)
         socketio.sleep(0)  # force flush all emit calls. Should we import geventlet ?

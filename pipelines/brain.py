@@ -1,9 +1,12 @@
 from flask_socketio import emit
+from audio import int16_to_float32
 from analysis.chat_gpt import ChatGPT
 from utils.logger import ProjectLogger
 from utils.protocol import frame_encode
 from utils.request import RequestObject
 from analysis.command_detector import CommandDetector, ACTIONS
+from voice_processing.voice_detector import VoiceDetector
+from voice_processing.voice_recognizer import VoiceRecognizer
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
 
@@ -18,6 +21,13 @@ class Brain:
         self.debug = opts.debug
         self.frozen = False
 
+        # speech detection block
+        self.detector = VoiceDetector(ctx[-1:], 16000, activation_threshold=.9)
+        self.recognizer = VoiceRecognizer(ctx[-1:])
+
+        self.audio_intake = self.detector.create_intake()
+        self.speech_sink = self.detector.pipe(self.recognizer).create_sink()
+
         self.transcriber = VoiceTranscriber(ctx, opts.whisper)
         self.chat = ChatGPT(opts.name, opts.gpt, opts.no_memory, opts.clear, opts.prompt)
         self.synthesizer = VoiceSynthesizer()
@@ -29,10 +39,10 @@ class Brain:
         self.transcriber.pipe(self.commands)
         self.cmd_sink = self.commands.create_sink()
 
-        self.audio_intake = self.transcriber.create_intake()
+        self.speech_intake = self.transcriber.create_intake()
         self.text_intake = self.chat.get_intake()
 
-        self.threads = [self.transcriber, self.commands, self.chat, self.synthesizer]
+        self.threads = [self.transcriber, self.commands, self.chat, self.synthesizer, self.recognizer, self.detector]
 
     def start(self, socketio, flask_app):
         try:
@@ -62,12 +72,12 @@ class Brain:
 
             yield frame_encode(request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
-    def handle_audio(self, request_id, speaker, speech):
+    def handle_speech(self, request_id, speaker, speech):
         request_obj = RequestObject(request_id, speaker)
         request_obj.set_audio_request(speech)
 
         sink = self.synthesizer.create_identified_sink(request_id)
-        self.audio_intake.put(request_obj)
+        self.speech_intake.put(request_obj)
 
         detected_cmd = self.cmd_sink.drain()
         if detected_cmd == ACTIONS.SLEEP.value:
@@ -96,3 +106,13 @@ class Brain:
 
         stream = self.sink_streamer(sink)
         return stream
+
+    def handle_audio(self, audio):
+        buffer = np.frombuffer(audio, dtype=np.int16)
+        buffer = int16_to_float32(buffer)
+
+        self.audio_intake.put(buffer)
+        self.audio_intake.put(None)  # end of speech
+
+        speech, speaker = self.speech_sink.drain()
+        return speaker, speech.numpy()
