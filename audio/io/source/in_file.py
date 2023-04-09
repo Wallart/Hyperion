@@ -9,7 +9,7 @@ import librosa
 class InFile(AudioSource):
 
     def __init__(self, wav_file, sample_rate, duration_ms=512):
-        super().__init__(sample_rate, duration_ms)
+        super().__init__()
         self.opened = False
         self.sample_rate = sample_rate
 
@@ -21,9 +21,10 @@ class InFile(AudioSource):
     def close(self):
         self.opened = False
 
-    def run(self):
+    def open(self):
         self.opened = True
 
+    def _init_generator(self):
         i = 0
         while self.opened:
             end_index = min(i + self._chunk_size, len(self._wav))
