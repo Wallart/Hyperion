@@ -24,6 +24,7 @@ def audio_stream():
     else:
         logging.info(f'User : {transcription}')
         response = chat.answer(transcription)
+        logging.info(f'ChatGPT : {response}')
 
     intake_2.put(response)
     wav = sink_2.get()
