@@ -5,6 +5,7 @@ from pygments.lexers import PythonLexer
 from pygments.formatters import HtmlFormatter
 
 import os
+import json
 import queue
 import threading
 import customtkinter
@@ -16,13 +17,20 @@ customtkinter.set_default_color_theme('blue')  # Themes: 'blue' (standard), 'gre
 
 
 class ChatWindow(customtkinter.CTk):
-    def __init__(self, bot_name, title='Chat window'):
+    def __init__(self, bot_name, title='Chat window', savedir='~/.hyperion'):
         super().__init__()
+
+        self._gui_params = {}
+        self._savefile = os.path.expanduser(os.path.join(savedir, 'gui_params.json'))
+        if os.path.isfile(self._savefile):
+            with open(self._savefile) as f:
+                self._gui_params = json.load(f)
 
         self._running = True
         self._in_message_queue = queue.Queue()
         self._out_message_queue = queue.Queue()
         self._previous_speaker = None
+        self._previous_text = None
         self._code_block = False
         self.bot_name = bot_name
 
@@ -45,11 +53,13 @@ class ChatWindow(customtkinter.CTk):
 
         # create textbox
         self.textbox = customtkinter.CTkTextbox(self, state=tk.DISABLED, border_color='#55595c', border_width=2)
-        self.textbox.grid(row=0, column=1, columnspan=3, padx=(7, 7), pady=(10, 0), sticky='nsew')
+        self.textbox.grid(row=0, column=0, columnspan=4, padx=(7, 7), pady=(10, 0), sticky='nsew')
 
         # color tags
         self.textbox.tag_config('bot', foreground='#f2cb5a')
         self.textbox.tag_config('author', foreground='#2969d9')
+        self.textbox.tag_config('pending', foreground='#989899')
+
         # code colors
         self.textbox.tag_config('Token.Keyword', foreground='#CC7A00')
         self.textbox.tag_config('Token.Keyword.Constant', foreground='#CC7A00')
@@ -67,9 +77,15 @@ class ChatWindow(customtkinter.CTk):
         self.textbox.tag_config('Token.Literal.String.Single', foreground='#248F24')
         self.textbox.tag_config('Token.Literal.String.Double', foreground='#248F24')
 
-        self.entry = customtkinter.CTkEntry(self, placeholder_text='Send a message...')
-        self.entry.grid(row=1, column=1, columnspan=1, padx=(7, 4), pady=(10, 10), sticky='nsew')
-        self.entry.bind('<Return>', self.on_send)
+        self.name_entry = customtkinter.CTkEntry(self, placeholder_text='Username', width=100)
+        self.name_entry.grid(row=1, column=0, columnspan=1, padx=(7, 0), pady=(10, 10), sticky='nsew')
+        self.name_entry.bind('<FocusOut>', self.on_focus_out)
+        if 'username' in self._gui_params:
+            self.name_entry.insert(0, self._gui_params['username'])
+
+        self.text_entry = customtkinter.CTkEntry(self, placeholder_text='Send a message...')
+        self.text_entry.grid(row=1, column=1, columnspan=1, padx=(4, 4), pady=(10, 10), sticky='nsew')
+        self.text_entry.bind('<Return>', self.on_send)
 
         self.clear_button = customtkinter.CTkButton(self, fg_color='transparent', border_width=0, text='', width=20, image=self.trash_icon, command=self.on_clear, hover_color='#313436')
         self.clear_button.grid(row=1, column=2, padx=(0, 0), pady=(10, 10), sticky='nsew')
@@ -80,11 +96,21 @@ class ChatWindow(customtkinter.CTk):
         self._handler = threading.Thread(target=self.message_handler, daemon=True)
         self._handler.start()
 
+    def on_focus_out(self, event):
+        username = self.name_entry.get()
+        if len(username) > 0:
+            self._gui_params['username'] = username
+            with open(self._savefile, 'w') as f:
+                f.write(json.dumps(self._gui_params))
+
     def on_send(self, event):
-        typed_message = self.entry.get()
-        self.entry.delete('0', 'end')
-        self._out_message_queue.put(typed_message)
-        # self._insert_message('Unknown', typed_message)
+        username = self.name_entry.get()
+        username = 'Unknown' if username == '' else username
+
+        typed_message = self.text_entry.get()
+        self.text_entry.delete('0', 'end')
+        self._out_message_queue.put((username, typed_message))
+        self._insert_message(username, typed_message, pending=True)
 
     def on_clear(self):
         self.textbox.configure(state=tk.NORMAL)
@@ -94,17 +120,26 @@ class ChatWindow(customtkinter.CTk):
     def on_gear(self):
         pass
 
-    def _insert_message(self, author, message, with_delay=False):
+    def _insert_message(self, author, message, with_delay=False, pending=False):
+        if message == self._previous_text:
+            lastline_index = self.textbox.index('end-1c linestart')
+            line, col = lastline_index.split('.')
+            line = int(line) - 1
+            self.textbox.tag_remove('pending', f'{line}.{col}', tk.END)
+            return
+
         if author != self._previous_speaker:
-            self._textbox_write(f'{author} : ', is_name=True)
+            self._textbox_write(f'{author} : ', is_name=True, pending=pending)
+
         self._previous_speaker = author
+        self._previous_text = message
 
         if with_delay:
             for char in message:
                 self._textbox_write(char)
                 sleep(0.03)
         else:
-            self._textbox_write(message)
+            self._textbox_write(message, pending=pending)
 
         # self._colorize_code()
         self._textbox_write('\n')
@@ -126,16 +161,22 @@ class ChatWindow(customtkinter.CTk):
     #     if lastline.endswith('```\n'):
     #         self._code_block = False
 
-    def _textbox_write(self, text, is_name=False):
+    def _textbox_write(self, text, is_name=False, pending=False):
         self.textbox.configure(state=tk.NORMAL)
         self.textbox.insert(tk.END, text)
         self.textbox.configure(state=tk.DISABLED)
         self.textbox.see(tk.END)  # AUTO SCROLL
+
+        lastline_index = self.textbox.index('end-1c linestart')
+        line, col = lastline_index.split('.')
+
         if is_name:
-            lastline_index = self.textbox.index('end-1c linestart')
-            line, col = lastline_index.split('.')
             tag = 'bot' if self.bot_name == text[:-3] else 'author'
             self.textbox.tag_add(tag, lastline_index, f'{line}.{len(text)-3}')
+
+        if pending:
+            # start_idx = 0#len(self._previous_speaker) + 3
+            self.textbox.tag_add('pending', lastline_index, tk.END)
 
     def queue_message(self, author, message):
         self._in_message_queue.put((author, message))
