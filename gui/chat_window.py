@@ -1,5 +1,5 @@
-from time import sleep
 from gui import UIAction
+from time import time, sleep
 from PIL import Image, ImageTk
 from pygments import lex, highlight
 from pygments.lexers import PythonLexer
@@ -36,7 +36,6 @@ class ChatWindow(customtkinter.CTk):
         self._previous_speaker = None
         self._previous_text = None
         self._code_block = False
-        self._interrupt = False
         self._interrupt_stamp = 0
         self.bot_name = bot_name
 
@@ -146,7 +145,7 @@ class ChatWindow(customtkinter.CTk):
         typed_message = self.text_entry.get()
         self.text_entry.delete('0', 'end')
         self._out_message_queue.put((UIAction.SEND_MESSAGE, username, typed_message))
-        self._insert_message(username, typed_message, pending=True)
+        self._insert_message(time(), username, typed_message, pending=True)
 
     def on_clear(self):
         self.textbox.configure(state=tk.NORMAL)
@@ -165,7 +164,7 @@ class ChatWindow(customtkinter.CTk):
         with open(self._savefile, 'w') as f:
             f.write(json.dumps(self._gui_params))
 
-    def _insert_message(self, author, message, with_delay=False, pending=False):
+    def _insert_message(self, timestamp, author, message, with_delay=False, pending=False):
         if message == self._previous_text:
             # found = self.textbox.tag_ranges('pending')
             lastline_index = self.textbox.index('end-1c linestart')
@@ -182,7 +181,7 @@ class ChatWindow(customtkinter.CTk):
 
         if with_delay:
             for char in message:
-                if self._interrupt and self.bot_name == author:
+                if timestamp <= self._interrupt_stamp and self.bot_name == author:
                     break
                 self._textbox_write(char)
                 sleep(0.03)
@@ -237,7 +236,6 @@ class ChatWindow(customtkinter.CTk):
     def mute(self, timestamp):
         # TODO not thread safe ?
         self._interrupt_stamp = timestamp
-        self._interrupt = True
 
     def message_handler(self):
         while self._running:
@@ -249,9 +247,9 @@ class ChatWindow(customtkinter.CTk):
                     continue
 
                 if idx == 0:
-                    self._insert_message(requester, request)
+                    self._insert_message(timestamp, requester, request)
 
-                self._insert_message(self.bot_name, answer, with_delay=True)
+                self._insert_message(timestamp, self.bot_name, answer, with_delay=True)
             except queue.Empty:
                 continue
 
