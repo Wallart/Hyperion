@@ -43,7 +43,7 @@ def main(args):
     listener = Listener(ctx, args)
     ProjectLogger().info(f'Opening connection to {args.target_url}')
     sio.connect(f'ws://{args.target_url}')
-    listener.start()
+    listener.start(sio)
 
 
 if __name__ == '__main__':

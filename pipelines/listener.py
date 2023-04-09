@@ -55,7 +55,7 @@ class Listener:
             self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
             self.threads.extend([self._audio_handler, self._text_handler])
 
-    def start(self):
+    def start(self, sio):
         self.running = True
         try:
             _ = [t.start() for t in self.threads]
@@ -68,6 +68,7 @@ class Listener:
 
         # _ = [t.join() for t in self.threads]
         _ = [t.join() for t in self.threads[1:]]
+        sio.disconnect()
 
     def stop(self):
         self.running = False
@@ -153,16 +154,19 @@ class Listener:
     def _audio_request_handler(self):
         with ThreadPoolExecutor(max_workers=4) as executor:
             while self.running:
-                data = self.sink.drain()
-                if self._recog:
-                    speech_chunk, recognized_speaker = data
-                    if recognized_speaker == 'Unknown':
-                        ProjectLogger().info('Request ignored.')
-                        continue
+                try:
+                    data = self.sink.drain()
+                    if self._recog:
+                        speech_chunk, recognized_speaker = data
+                        if recognized_speaker == 'Unknown':
+                            ProjectLogger().info('Request ignored.')
+                            continue
 
-                    _ = executor.submit(self._process_speech_request, recognized_speaker, speech_chunk.numpy())
-                else:
-                    _ = executor.submit(self._process_audio_request, data.numpy())
+                        _ = executor.submit(self._process_speech_request, recognized_speaker, speech_chunk.numpy())
+                    else:
+                        _ = executor.submit(self._process_audio_request, data.numpy())
+                except queue.Empty:
+                    continue
 
         ProjectLogger().info('Audio request handler stopped.')
 
