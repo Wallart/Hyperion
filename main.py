@@ -2,7 +2,7 @@ from functools import partial
 from speechbrain.dataio.preprocess import AudioNormalizer
 
 from chat_gpt import ChatGPT
-from utils.utils import LivePlotter
+from utils.utils import LivePlotter, TypeWriter
 from audio.speakers_stream import SpeakersStream
 from audio.audio_file import AudioFile
 from audio.microphone import Microphone
@@ -20,17 +20,18 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
 
     # audio_clazz = partial(AudioFile, '~/Desktop/709c2426101b93ce09d033eac48a56efe1a79e99.wav')
-    # audio_clazz = partial(AudioFile, '~/Desktop/test.wav')
+    # audio_clazz = partial(AudioFile, '~/datasets/test.wav')
     audio_clazz = partial(Microphone, device_idx=0)
 
     with audio_clazz(duration_ms=512) as source:
         # Threaded operations
         input_stream = AudioStream(source)
         # output_stream = SpeakersStream(source.sample_rate(), source.channels())
-        detector = VoiceDetector(source.sample_rate(), activation_threshold=.7)
+        detector = VoiceDetector(source.sample_rate(), activation_threshold=.9)
         transcriber = VoiceTranscriber()
         synthesizer = VoiceSynthesizer()
         output_stream = SpeakersStream(synthesizer.sample_rate, source.channels())
+        writer = TypeWriter()
 
         # other
         chat = ChatGPT()
@@ -50,10 +51,13 @@ if __name__ == '__main__':
 
             # q1 = input_stream.create_queue()
             q2 = transcriber.create_queue()
-            q3 = Queue()
-            synthesizer.set_in_queue(q3)
+            q3 = transcriber.create_queue()
+            q4 = Queue()
+            synthesizer.set_in_queue(q4)
+            writer.set_in_queue(q3)
 
             synthesizer.start()
+            writer.start()
 
             sleep(5)
             logging.info('STARTED !')
@@ -61,8 +65,8 @@ if __name__ == '__main__':
             while True:
                 # plotter.draw(q1.get(), None, None)
                 response = chat.answer(q2.get())
-                print(response)
-                q3.put(response)
+                print(f'ChatGPT : {response}')
+                q4.put(response)
 
         except KeyboardInterrupt as e:
             logging.error('Interruption received.')

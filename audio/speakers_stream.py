@@ -1,5 +1,7 @@
+from time import time
 from utils.threading import Consumer
 
+import logging
 import numpy as np
 import sounddevice as sd
 
@@ -18,4 +20,6 @@ class SpeakersStream(Consumer):
         self._speakers.start()
         while True:
             audio = self._in_queue.get()
+            t0 = time()
             self._speakers.write(audio)
+            logging.info(f'{self.__class__.__name__} {time() - t0} exec. time')

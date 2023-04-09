@@ -1,4 +1,6 @@
-from time import time
+from sys import stdout
+from time import time, sleep
+from utils.threading import Consumer
 
 import wave
 import numpy as np
@@ -13,6 +15,38 @@ def save_to_file(path, data, sample_width, sampling_rate=16000):
         wf.setsampwidth(sample_width)
         wf.setframerate(sampling_rate)
         wf.writeframes(data)
+
+
+class TypeWriter(Consumer):
+
+    @staticmethod
+    def sanitize(transcription):
+        transcription = list(transcription)
+        for i in range(len(transcription)):
+            transcription[i] = transcription[i].lower() if i > 0 else transcription[i].upper()
+            in_sentence_with_letters_around = 0 < i < len(transcription) - 1 and transcription[i - 1] != '' and transcription[i + 1] != ''
+            one_letter_word = i - 2 < 0 or transcription[i - 2] == ' '
+            is_space = transcription[i] == ' '
+            valid_letter = transcription[i - 1].lower() in 'jmstcndl'
+            if is_space and in_sentence_with_letters_around and one_letter_word and valid_letter:
+                transcription[i] = '\''
+        return ''.join(transcription)
+
+    @staticmethod
+    def display(transcription):
+        if len(transcription) > 0:
+            stdout.write('User : ')
+            stdout.flush()
+            for char in transcription:
+                stdout.write(char)
+                stdout.flush()
+                sleep(.05)
+            print('.')
+
+    def run(self) -> None:
+        while True:
+            text = self._in_queue.get()
+            TypeWriter.display(text)
 
 
 class LivePlotter:

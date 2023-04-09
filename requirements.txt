@@ -1,10 +1,13 @@
 openai
+openai-whisper
 torch==1.13.1
-fairseq
+gTTS
+pydub
+# fairseq
 datasets
 transformers
 speechbrain
-phonemizer
+# phonemizer
 # Visualization
 matplotlib
 # Sound processing
