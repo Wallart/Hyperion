@@ -93,7 +93,7 @@ class LocalEar:
     def mainloop(self):
         with ThreadPoolExecutor(max_workers=4) as executor:
             while True:
-                data = self.sink.get()
+                data = self.sink.drain()
                 audio_chunk, recognized_speaker = data, 'Unknown'
                 if not self._no_recog:
                     audio_chunk, recognized_speaker = data

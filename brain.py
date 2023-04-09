@@ -3,8 +3,9 @@
 from time import time
 from daemonocle import Daemon
 from utils.logger import ProjectLogger
+from utils.request import RequestObject
 from utils.utils import get_ctx, frame_encode
-from brain.chat_gpt import ChatGPT, CHAT_MODELS
+from analysis.chat_gpt import ChatGPT, CHAT_MODELS
 from flask_log_request_id import RequestID, current_request_id
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
@@ -12,7 +13,6 @@ from flask import Flask, Response, request, g, stream_with_context
 
 import os
 import argparse
-import numpy as np
 
 
 class Brain:
@@ -21,13 +21,16 @@ class Brain:
         self.port = port
         self.debug = debug
 
-        transcriber = VoiceTranscriber(ctx)
-        self.synthesizer = VoiceSynthesizer()
+        self.transcriber = VoiceTranscriber(ctx)
         self.chat = ChatGPT(name, model, memory, clear, prompt)
+        self.synthesizer = VoiceSynthesizer()
 
-        self.intake_1, self.sink_1 = transcriber.create_intake(), transcriber.create_sink()
-        self.intake_2, self.sink_2a, self.sink_2b = self.chat.create_intake(), self.chat.create_sink(), self.chat.pipe(self.synthesizer).create_sink()
-        self.threads = [transcriber, self.synthesizer, self.chat]
+        self.transcriber.pipe(self.chat).pipe(self.synthesizer)
+
+        self.audio_intake = self.transcriber.create_intake()
+        self.text_intake = self.chat.get_intake()
+
+        self.threads = [self.transcriber, self.chat, self.synthesizer]
 
     def boot(self):
         try:
@@ -38,53 +41,34 @@ class Brain:
 
         _ = [t.join() for t in self.threads]
 
-    def sink_streamer(self, user_request, text_sink, audio_sink):
+    def sink_streamer(self, sink):
+        request_id = current_request_id()
         while True:
-            text_answer_id, audio_answer_id = None, None
-            text_answer, audio_answer = None, None
+            request_obj = sink.drain()
 
-            while audio_answer_id != current_request_id():
-                text_answer, text_answer_id = text_sink.get()
-                audio_answer, audio_answer_id, creation_date = audio_sink.get()
-                if audio_answer_id == current_request_id():
-                    break
-
-                ProjectLogger().warning(f'Expired answer -> {text_answer}')
-
-            if text_answer is None:
-                # ChatGPT sent a stop token.
+            if request_obj.text_answer is None and request_obj.audio_answer is None and request_obj.termination:
+                self.synthesizer.delete_identified_sink(request_id)
                 return
 
-            if audio_answer is None:
+            if request_obj.audio_answer is None:
                 # if text answer not empty but audio is, means speech synthesis api call failed
                 ProjectLogger().warning('Speech synthesis failed.')
-                return
+                continue
 
-            # seems impossible...
-            if text_answer_id != audio_answer_id:
-                ProjectLogger().error('Text request_id differs from Audio request_id.')
-                return
-
-            encoded_frame = frame_encode(user_request, text_answer, audio_answer)
-            yield encoded_frame
+            yield frame_encode(request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
     def handle_audio(self):
+        request_id = current_request_id()
         speech = request.files['speech'].read()
         speaker = request.files['speaker'].read().decode('utf-8')
 
-        audio_chunk = np.frombuffer(speech, dtype=np.float32)
-        self.intake_1.put((audio_chunk, current_request_id()))
-        transcription, request_id = self.sink_1.get()
+        request_obj = RequestObject(request_id, speaker)
+        request_obj.set_audio_request(speech)
 
-        chat_input = None if transcription is None else f'{speaker} : {transcription}'
-        transcription = '' if transcription is None else transcription
-        if chat_input is None:
-            ProjectLogger().info(f'{speaker} : <UNKNOWN>')
-        else:
-            ProjectLogger().info(chat_input)
+        sink = self.synthesizer.create_identified_sink(request_id)
+        self.audio_intake.put(request_obj)
 
-        self.intake_2.put((chat_input, request_id))
-        stream = self.sink_streamer(transcription, self.sink_2a, self.sink_2b)
+        stream = self.sink_streamer(sink)
         return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
     def handle_chat(self):
@@ -95,11 +79,13 @@ class Brain:
         if user is None or message is None:
             return 'Invalid chat request', 500
 
-        chat_input = f'{user} : {message}'
-        ProjectLogger().info(chat_input)
+        request_obj = RequestObject(request_id, user)
+        request_obj.set_text_request(message)
 
-        self.intake_2.put((chat_input, request_id))
-        stream = self.sink_streamer(message, self.sink_2a, self.sink_2b)
+        sink = self.synthesizer.create_identified_sink(request_id)
+        self.text_intake.put(request_obj)
+
+        stream = self.sink_streamer(sink)
         return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 

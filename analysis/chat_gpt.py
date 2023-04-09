@@ -1,14 +1,16 @@
-import queue
 from time import time
+from copy import deepcopy
 from threading import Lock
 from tinydb import TinyDB, Query
+from analysis import MAX_TOKENS, acquire_mutex
 from utils.logger import ProjectLogger
-from brain import MAX_TOKENS, acquire_mutex
 from transformers import GPT2TokenizerFast
+from utils.request import RequestObject
 from utils.threading import Consumer, Producer
 from concurrent.futures import ThreadPoolExecutor
 
 import os
+import queue
 import random
 import openai
 
@@ -99,62 +101,70 @@ class ChatGPT(Consumer, Producer):
     def _clear_context(self):
         raise NotImplemented()
 
-    def answer(self, input, role='user', stream=True):
+    def answer(self, chat_input, role='user', stream=True):
         response = openai.ChatCompletion.create(
             model=self._model,
-            messages=self._add_to_context(ChatGPT._build_context_line(role, input)),
+            messages=self._add_to_context(ChatGPT._build_context_line(role, chat_input)),
             stream=stream
         )
         return response
 
-    def _process_request(self, request, request_id):
+    def _process_request(self, request_obj):
         try:
             t0 = time()
-            ProjectLogger().info(f'Requesting ChatGPT...')
-            chunked_response = self.answer(request)
+            ProjectLogger().info('Requesting ChatGPT...')
+            chat_input = f'{request_obj.user} : {request_obj.text_request}'
+            ProjectLogger().info(f'{chat_input}')
+            chunked_response = self.answer(chat_input)
             ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
 
             memory = ''
             sentence = ''
+            sentence_num = 0
             for chunk in chunked_response:
                 if chunk['choices'][0]['finish_reason'] == 'stop':
                     break
 
-                anwser = chunk['choices'][0]['delta']
-                if 'content' in anwser:
-                    content = anwser['content']
+                answer = chunk['choices'][0]['delta']
+                if 'content' in answer:
+                    content = answer['content']
                     sentence += content
                     memory += content
                     if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
                         sentence = sentence.strip()
-                        self._dispatch((sentence, request_id))
+
+                        new_request_obj = deepcopy(request_obj)
+                        new_request_obj.text_answer = sentence
+                        self._dispatch(new_request_obj)
                         ProjectLogger().info(f'ChatGPT : {sentence}')
                         sentence = ''
+                        sentence_num += 1
 
             self._add_to_context(ChatGPT._build_context_line('assistant', memory))
 
         except Exception as e:
             ProjectLogger().error(f'ChatGPT had a stroke. {e}')
             placeholder = self._error_sentences[random.randint(0, len(self._error_sentences) - 1)]
-            self._dispatch((placeholder, request_id))
-            # TODO Make it thread safe
-            # self._clear_context()
+            request_obj.text_answer = placeholder
+            self._dispatch(request_obj)
 
         # To close streaming response
-        self._dispatch((None, request_id))
+        self._dispatch(RequestObject(request_obj.identifier, request_obj.user, termination=True))
 
     def run(self) -> None:
         with ThreadPoolExecutor(max_workers=4) as executor:
             while self.running:
                 try:
-                    request, request_id = self._in_queue.get(timeout=self._timeout)
-                    if request is None:
+                    request_obj = self._consume()
+                    if request_obj.text_request == '':
                         placeholder = self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)]
-                        self._dispatch((placeholder, request_id))
-                        self._dispatch((None, request_id))  # To close streaming response
+                        request_obj.text_answer = placeholder
+                        self._dispatch(request_obj)
+                        # To close streaming response
+                        self._dispatch(RequestObject(request_obj.identifier, request_obj.user, termination=True))
                         continue
 
-                    future = executor.submit(self._process_request, request, request_id)
+                    future = executor.submit(self._process_request, request_obj)
                 except queue.Empty:
                     continue
 

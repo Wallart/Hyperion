@@ -30,14 +30,8 @@ class VoiceTranscriber(Consumer, Producer):
         if type(voice_chunk) == np.ndarray:
             voice_chunk = torch.tensor(voice_chunk)
 
-        # Better performances but less flexible than whisper (franglais)
-        # wav = voice_chunk.unsqueeze(0)#.unsqueeze(-1)
-        # wav_len = torch.ones((1,))
-        # output = self._asr2.transcribe_batch(wav, wav_len)
-        # transcription = VoiceTranscriber.sanitize(output[0][0])
-        # VoiceTranscriber.display(transcription)
-
         # pad/trim it to fit 30 seconds
+        # I cannot speak without breathing more thant 12 seconds.
         audio = whisper.pad_or_trim(voice_chunk)
         # make log-mel spectrogram
         mel = whisper.log_mel_spectrogram(audio).to(self._asr.device)
@@ -45,31 +39,30 @@ class VoiceTranscriber(Consumer, Producer):
         _, probs = self._asr.detect_language(mel)
         lang = max(probs, key=probs.get)
         score = probs[lang]
-        ProjectLogger().info(f'Detected language: {lang} {round(score, 4)}')
+        ProjectLogger().info(f'Detected language -> {lang.upper()} {score * 100:.2f}%')
 
         # decode the audio
         options = whisper.DecodingOptions(fp16=False)
         transcription = whisper.decode(self._asr, mel, options).text
-        # VoiceTranscriber.display(transcription)
-
-        # output = self._asr2.transcribe_batch(wav, wav_len)
-        # transcription = VoiceTranscriber.sanitize(output[0][0])
-        # VoiceTranscriber.display(transcription)
+        ProjectLogger().info(f'Transcription -> {transcription}')
         return transcription, lang, score
 
     def run(self):
         while self.running:
             try:
-                voice_chunk, request_id = self._in_queue.get(timeout=self._timeout)
+                request_obj = self._consume()
+
                 ProjectLogger().info('Transcribing voice...')
                 t0 = time()
-                text, lang, score = self.transcribe(voice_chunk)
+                text, lang, score = self.transcribe(request_obj.audio_request)
 
+                request_obj.text_request = text
+                request_obj.request_lang = lang
                 if score < self._confidence_threshold:
-                    ProjectLogger().info(f'Score ({score}) too low for : {text}')
-                    self._dispatch((None, request_id))
-                else:
-                    self._dispatch((text, request_id))
+                    ProjectLogger().info(f'Score too low !')
+                    request_obj.text_request = ''
+
+                self._dispatch(request_obj)
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:
                 continue
