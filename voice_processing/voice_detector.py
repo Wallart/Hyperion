@@ -20,7 +20,6 @@ class VoiceDetector(Consumer, Producer):
             'savedir': os.path.expanduser(model_path),
             # 'run_opts': {'device': ctx[0]}
         }
-        ProjectLogger().info(opts)
         self._vad = VAD.from_hparams(**opts).to(ctx[0])
 
         self._buffer = None

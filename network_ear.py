@@ -103,7 +103,7 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Hyperion\'s brain')
+    parser = argparse.ArgumentParser(description='Hyperion\'s network ear')
     parser.add_argument('-p', '--port', type=int, default=9998, help='Listening port')
     parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
     parser.add_argument('--target-url', type=str, default='localhost:9999', help='Brain target URL')
