@@ -1,6 +1,5 @@
 from brain.chat_gpt import ChatGPT
 from flask import Flask, Response, request
-from voice_processing.voice_detector import VoiceDetector
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
 
@@ -64,10 +63,9 @@ if __name__ == '__main__':
 
     intake_1, sink_1 = transcriber.create_intake(), transcriber.create_sink()
     intake_2, sink_2a, sink_2b = chat.create_intake(), chat.create_sink(), chat.pipe(synthesizer).create_sink()
-    # intake_2, sink_2 = synthesizer.create_intake(), synthesizer.create_sink()
 
     transcriber.start()
     synthesizer.start()
     chat.start()
 
-    app.run(host='0.0.0.0', debug=True, threaded=True, port=9999)
+    app.run(host='0.0.0.0', debug=False, threaded=True, port=9999)
