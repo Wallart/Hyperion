@@ -15,14 +15,14 @@ import numpy as np
 
 
 class Brain:
-    def __init__(self, ctx, port, debug, name, model, memory, host='0.0.0.0'):
+    def __init__(self, ctx, port, debug, name, model, memory, clear, host='0.0.0.0'):
         self.host = host
         self.port = port
         self.debug = debug
 
         self.transcriber = VoiceTranscriber(ctx)
         self.synthesizer = VoiceSynthesizer()
-        self.chat = ChatGPT(name, model, memory)
+        self.chat = ChatGPT(name, model, memory, clear)
 
         self.intake_1, self.sink_1 = self.transcriber.create_intake(), self.transcriber.create_sink()
         self.intake_2, self.sink_2a, self.sink_2b = self.chat.create_intake(), self.chat.create_sink(), self.chat.pipe(self.synthesizer).create_sink()
@@ -94,7 +94,7 @@ def main():
     try:
         global brain
         ctx = get_ctx(args)
-        brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.no_memory)
+        brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.no_memory, args.clear)
         brain.boot()
     except Exception as e:
         ProjectLogger().error(f'Fatal error occurred : {e}')
@@ -105,6 +105,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port.')
     parser.add_argument('--debug', action='store_true', help='Enables flask debugging.')
     parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon.')
+    parser.add_argument('--clear', action='store_true', help='Clean persistent memory at startup')
     parser.add_argument('--no-memory', action='store_true', help='Start bot without persistent memory.')
     parser.add_argument('--name', type=str, default='Hypérion', help='Set bot name.')
     parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')

@@ -16,7 +16,7 @@ CHAT_MODELS = ['gpt-3.5-turbo', 'gpt-3.5-turbo-0301', 'gpt-4']
 
 class ChatGPT(Consumer, Producer):
 
-    def __init__(self, name, model, no_memory, cache_dir='~/.hyperion'):
+    def __init__(self, name, model, no_memory, clear, cache_dir='~/.hyperion'):
         super().__init__()
 
         ProjectLogger().info(f'{name} using {model} as chat backend. No memory -> {no_memory}')
@@ -35,7 +35,12 @@ class ChatGPT(Consumer, Producer):
         os.makedirs(self._cache_dir, exist_ok=True)
 
         self._tokenizer = GPT2TokenizerFast.from_pretrained('gpt2', cache_dir=os.path.join(self._cache_dir, 'tokenizer'))
-        self._db = TinyDB(os.path.join(self._cache_dir, 'prompts_db.json'))
+        db_path = os.path.join(self._cache_dir, 'prompts_db.json')
+        if clear and os.path.exists(db_path):
+            ProjectLogger().info('Cleared persistent memory.')
+            os.remove(db_path)
+
+        self._db = TinyDB(db_path)
 
         sentences_path = os.path.join(self._resources_dir, 'default_sentences')
         self._deaf_sentences = self._load_file(os.path.join(sentences_path, 'deaf'))
