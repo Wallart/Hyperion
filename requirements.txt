@@ -23,13 +23,14 @@ noisereduce
 sounddevice
 
 # HTTP server side
- flask
-eventlet
+flask
 flask-socketio
-simple-websocket
-gevent-websocket
-# flask-sock
 flask_log_request_id
+# for improved socketio websockets
+simple-websocket
+# These flask backend are monothreaded. Causing locks
+# eventlet
+# gevent-websocket
 # HTTP client side
 requests
 requests_toolbelt

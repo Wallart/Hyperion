@@ -18,7 +18,7 @@ import argparse
 APP_NAME = os.path.basename(__file__).split('.')[0]
 app = Flask(__name__)
 RequestID(app)
-sio = SocketIO(app)
+sio = SocketIO(app, async_mode='threading')
 
 
 @sio.on('connect')
