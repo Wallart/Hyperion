@@ -57,7 +57,11 @@ class SoundDeviceResource(ABC):
         while True:
             devices_dict = self.list_devices()
             print(devices_dict)
-            self._device_idx = int(input(f'Select {self.device_type.lower()} device :'))
-            if self._device_idx in devices_dict:
-                self._device_name = devices_dict[self._device_idx]
-                break
+            self.device_idx = input(f'Select {self.device_type.lower()} device :')
+            try:
+                self.device_idx = int(self.device_idx)
+                if self.device_idx in devices_dict:
+                    self.device_name = devices_dict[self.device_idx]
+                    break
+            except ValueError:
+                continue
