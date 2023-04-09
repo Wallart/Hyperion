@@ -37,4 +37,6 @@ def float64_to_int16(audio):
 
 
 def rms_to_db(rms):
-    return 20 * math.log10(rms)
+    if rms > 0:
+        return 20 * math.log10(rms)
+    return rms
