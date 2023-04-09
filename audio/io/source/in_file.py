@@ -1,5 +1,4 @@
 from time import sleep
-from librosa import resample
 from utils.logger import ProjectLogger
 from audio.io.source import AudioSource
 
