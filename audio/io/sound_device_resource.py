@@ -16,9 +16,11 @@ class SoundDeviceResource(ABC):
         self.output = output
 
         self.device_type = 'Output' if self.output else 'Input'
+        self.default_device = sd.default.device[0] if 'Input' else sd.default.device[1]
         self.device_idx = None
         self.device_name = None
         try:
+            device_idx = self.default_device if device_idx == -1 else device_idx
             device = sd.query_devices(device_idx, kind=self.device_type.lower())
             self.device_idx = device['index']
             self.device_name = device['name']
