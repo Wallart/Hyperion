@@ -1,8 +1,11 @@
 from queue import Queue
 from librosa import resample
+from functools import partial
 from utils.logger import ProjectLogger
 from audio.io.source import AudioSource
-from audio.aec.time_domain_adaptive_filters.apa import apa
+from audio.aec.nonlinear_adaptive_filters import *
+from audio.aec.time_domain_adaptive_filters import *
+from audio.aec.frequency_domain_adaptive_filters import *
 from audio.io.sound_device_resource import SoundDeviceResource
 from audio import float32_to_int16, float64_to_int16, find_offset, int16_to_float32
 
@@ -31,6 +34,7 @@ class InDevice(SoundDeviceResource, AudioSource):
 
         if not self._feedback_queue.empty():
             extract = self._feedback_queue.get()
+            self._feedback_queue.task_done()
             self._current_feedback = extract if self._current_feedback is None else np.concatenate([self._current_feedback, extract])
 
         if len(self._current_feedback) > self.chunk_size:
@@ -47,8 +51,8 @@ class InDevice(SoundDeviceResource, AudioSource):
         return found_chunk
 
     @staticmethod
-    def acoustic_echo_cancellation(chunk, feedback_chunk):
-        aec_ed = apa(feedback_chunk, chunk, N=256, P=5, mu=0.1)
+    def acoustic_echo_cancellation(chunk, feedback_chunk, algorithm=partial(apa, N=256, P=5, mu=0.1)):
+        aec_ed = algorithm(feedback_chunk, chunk)
         aec_ed = np.clip(aec_ed, -1, 1)
         aec_ed = float64_to_int16(aec_ed)
         return aec_ed
