@@ -1,9 +1,8 @@
 from time import time
+from pyaudio import PyAudio, paInt16
 from utils.threading import Consumer
 
 import logging
-import numpy as np
-import sounddevice as sd
 
 
 class SpeakersStream(Consumer):
@@ -11,18 +10,23 @@ class SpeakersStream(Consumer):
     def __init__(self, sample_rate, channels):
         super().__init__()
         self.sample_rate = sample_rate
-        self._speakers = sd.OutputStream(sample_rate, channels=channels, dtype=np.int16)
+        self._pyaudio = PyAudio()
 
-    # def __del__(self):
-    #     self._speakers.stop()
-    #     self._speakers.close()
+        opts = {
+            'input': False,
+            'output': True,
+            'start': False,
+            'format': paInt16,
+            'channels': channels,
+            'rate': self.sample_rate
+        }
+        self._stream = self._pyaudio.open(**opts)
 
     def run(self) -> None:
-        self._speakers.start()
+        self._stream.start_stream()
         while True:
             audio = self._in_queue.get()
             t0 = time()
 
-            self._speakers.write(audio[100:])
-            # sd.play(audio, blocking=False, samplerate=self.sample_rate)
+            self._stream.write(audio, len(audio))
             logging.info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
