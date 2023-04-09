@@ -52,6 +52,7 @@ class ChatWindow(customtkinter.CTk):
         image = Image.open(os.path.join(image_dir, 'icon.png')).resize((512, 512))
         self.iconphoto(True, ImageTk.PhotoImage(image))
         self.bind('<Configure>', self.on_configure)
+        self.protocol('WM_DELETE_WINDOW', self.on_close)
 
         self.grid_columnconfigure(1, weight=1)
         # self.grid_columnconfigure((2, 3), weight=0)
@@ -105,12 +106,18 @@ class ChatWindow(customtkinter.CTk):
         self._handler = threading.Thread(target=self.message_handler, daemon=True)
         self._handler.start()
 
+    def on_close(self):
+        self._running = False
+        self._out_message_queue.put(None)
+        self.destroy()
+
     def on_configure(self, event):
-        self._gui_params['x'] = event.x
-        self._gui_params['y'] = event.y
-        self._gui_params['width'] = event.width
-        self._gui_params['height'] = event.height
-        self._save_config()
+        if self._running:
+            self._gui_params['x'] = event.x
+            self._gui_params['y'] = event.y
+            self._gui_params['width'] = event.width
+            self._gui_params['height'] = event.height
+            self._save_config()
 
     def on_focus_out(self, event):
         username = self.name_entry.get()
