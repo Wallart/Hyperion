@@ -19,22 +19,27 @@ import numpy as np
 
 class LocalEar:
 
-    def __init__(self, ctx, target_url, in_idx, out_idx, dummy_file=None):
+    def __init__(self, ctx, target_url, in_idx, out_idx, no_recog=False, dummy_file=None):
         self._ctx = ctx
         self._in_sample_rate = 16000
         self._out_sample_rate = 24000
         self._target_url = f'http://{target_url}'
         self._dummy_file = dummy_file if dummy_file is None else os.path.expanduser(dummy_file)
+        self._no_recog = no_recog
 
         source = InDevice(in_idx, self._in_sample_rate) if self._dummy_file is None else InFile(self._dummy_file, self._in_sample_rate)
         audio_in = AudioInput(source)
         detector = VoiceDetector(ctx, self._in_sample_rate, activation_threshold=.9)
-        recognizer = VoiceRecognizer(ctx)
         audio_out = AudioOutput(out_idx, self._out_sample_rate)
-
-        self.sink = audio_in.pipe(detector).pipe(recognizer).create_sink()
         self.intake = audio_out.create_intake()
-        self.threads = [audio_in, detector, recognizer, audio_out]
+
+        if no_recog:
+            self.sink = audio_in.pipe(detector).create_sink()
+            self.threads = [audio_in, detector, audio_out]
+        else:
+            recognizer = VoiceRecognizer(ctx)
+            self.sink = audio_in.pipe(detector).pipe(recognizer).create_sink()
+            self.threads = [audio_in, detector, recognizer, audio_out]
 
     def boot(self):
         try:
@@ -48,7 +53,7 @@ class LocalEar:
 
     def _process_request(self, recognized_speaker, audio_chunk):
         t0 = time()
-        ProjectLogger().info('Processing Julien\'s request...')
+        ProjectLogger().info(f'Processing {recognized_speaker}\'s request...')
         payload = [
             ('speaker', ('speaker', recognized_speaker, 'text/plain')),
             ('speech', ('speech', audio_chunk.tobytes(), 'application/octet-stream'))
@@ -88,9 +93,12 @@ class LocalEar:
     def mainloop(self):
         with ThreadPoolExecutor(max_workers=4) as executor:
             while True:
-                audio_chunk, recognized_speaker = self.sink.get()
+                data = self.sink.get()
+                audio_chunk, recognized_speaker = data, 'Unknown'
+                if not self._no_recog:
+                    audio_chunk, recognized_speaker = data
                 audio_chunk = audio_chunk.numpy()
-                if recognized_speaker == 'Unknown':
+                if recognized_speaker == 'Unknown' and not self._no_recog:
                     ProjectLogger().info('Request ignored.')
                     continue
 
@@ -103,7 +111,7 @@ APP_NAME = 'hyperion_local_ear'
 def main():
     try:
         ctx = get_ctx(args)
-        ear = LocalEar(ctx, args.target_url, args.in_idx, args.out_idx, dummy_file=args.dummy_file)
+        ear = LocalEar(ctx, args.target_url, args.in_idx, args.out_idx, args.no_recog, dummy_file=args.dummy_file)
         ear.boot()
     except Exception as e:
         ProjectLogger().error(f'Fatal error occurred : {e}')
@@ -119,6 +127,7 @@ if __name__ == '__main__':
     parser.add_argument('--target-url', type=str, default='localhost:9999', help='Brain target URL')
     parser.add_argument('--dummy-file', type=str, help='Play file instead of Brain\'s responses')
     parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
+    parser.add_argument('--no-recog', action='store_true', help='Start bot without user recognition.')
     args = parser.parse_args()
 
     _ = ProjectLogger(args, APP_NAME)
