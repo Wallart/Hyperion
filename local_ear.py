@@ -1,4 +1,4 @@
-from time import time, sleep
+from time import time
 from gui.chat_window import ChatWindow
 from audio.io.audio_input import AudioInput
 from audio.io.source.in_file import InFile
@@ -41,11 +41,6 @@ class LocalEar:
         audio_out = AudioOutput(opts.out_idx, self._out_sample_rate)
         self.intake = audio_out.create_intake()
 
-        if not opts.no_gui:
-            self._gui = ChatWindow(self._bot_name, self._bot_name)
-            self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=False)
-            self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
-
         if opts.no_recog:
             self.sink = audio_in.pipe(detector).create_sink()
             self.threads = [audio_in, detector, audio_out]
@@ -53,6 +48,12 @@ class LocalEar:
             recognizer = VoiceRecognizer(ctx)
             self.sink = audio_in.pipe(detector).pipe(recognizer).create_sink()
             self.threads = [audio_in, detector, recognizer, audio_out]
+
+        if not opts.no_gui:
+            self._gui = ChatWindow(self._bot_name, self._bot_name)
+            self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=False)
+            self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
+            self.threads.extend([self._audio_handler, self._text_handler])
 
     def boot(self):
         try:
@@ -153,8 +154,6 @@ class LocalEar:
         if self._opts.no_gui:
             self._audio_request_handler()
         else:
-            self._audio_handler.start()
-            self._text_handler.start()
             self._gui.mainloop()
 
 
