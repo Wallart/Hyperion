@@ -93,6 +93,7 @@ class Listener:
             res = requests.post(**opts)
             if res.status_code != 200:
                 ProjectLogger().warning(f'Something went wrong. HTTP {res.status_code}')
+                ProjectLogger().error(res.content)
                 return
 
             # TODO Ugly should be added in communication protocol
@@ -142,7 +143,7 @@ class Listener:
         audio = decoded_frame['PCM']
 
         if not self._opts.no_gui:
-            self._gui.queue_message(idx, recognized_speaker, answer)
+            self._gui.queue_message(idx, recognized_speaker, request, answer)
 
         ProjectLogger().info(f'{recognized_speaker} : {request}')
         ProjectLogger().info(f'ChatGPT : {answer}')

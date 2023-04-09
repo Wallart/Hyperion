@@ -209,8 +209,8 @@ class ChatWindow(customtkinter.CTk):
             # start_idx = 0#len(self._previous_speaker) + 3
             self.textbox.tag_add('pending', lastline_index, tk.END)
 
-    def queue_message(self, idx, requester, message):
-        self._in_message_queue.put((idx, requester, message))
+    def queue_message(self, idx, requester, request, answer):
+        self._in_message_queue.put((idx, requester, request, answer))
 
     def drain_message(self):
         message = self._out_message_queue.get(timeout=0.1)
@@ -227,13 +227,14 @@ class ChatWindow(customtkinter.CTk):
     def message_handler(self):
         while self._running:
             try:
-                idx, requester, text = self._in_message_queue.get(timeout=0.1)
+                idx, requester, request, answer = self._in_message_queue.get(timeout=0.1)
                 self._in_message_queue.task_done()
-                author = self.bot_name
+
                 if idx == 0:
-                    author = requester
                     self.unmute()
-                self._insert_message(author, text, with_delay=True)
+                    self._insert_message(requester, request)
+
+                self._insert_message(self.bot_name, answer, with_delay=True)
             except queue.Empty:
                 continue
 
