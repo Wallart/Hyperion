@@ -35,6 +35,7 @@ class VoiceSynthesizer(Consumer, Producer):
     def run(self) -> None:
         while True:
             text = self._in_queue.get()
+            logging.info(f'Synthesizing speech...')
             t0 = time()
 
             tts = gTTS(text, lang='fr', slow=False)

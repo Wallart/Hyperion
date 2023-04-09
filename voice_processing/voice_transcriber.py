@@ -10,11 +10,15 @@ import numpy as np
 
 class VoiceTranscriber(Consumer, Producer):
 
-    def __init__(self, model_path=None):
+    def __init__(self, model_size='small', confidence_threshold=.7, model_path=None):
         super().__init__()
 
+        self._confidence_threshold = confidence_threshold
+        valid_sizes = ['tiny', 'base', 'small', 'medium', 'large']
+        assert model_size in valid_sizes
+
         # small gère mieux le franglais que base
-        self._asr = whisper.load_model('small')
+        self._asr = whisper.load_model('medium')
 
         # self._asr2 = EncoderASR.from_hparams(source='speechbrain/asr-wav2vec2-commonvoice-fr', savedir=model_path)
         # self._asr3 = EncoderDecoderASR.from_hparams(source='speechbrain/asr-crdnn-commonvoice-fr', savedir=model_path)
@@ -36,7 +40,9 @@ class VoiceTranscriber(Consumer, Producer):
         mel = whisper.log_mel_spectrogram(audio).to(self._asr.device)
         # detect the spoken language
         _, probs = self._asr.detect_language(mel)
-        logging.info(f'Detected language: {max(probs, key=probs.get)}')
+        lang = max(probs, key=probs.get)
+        score = probs[lang]
+        logging.info(f'Detected language: {lang} {score * 100}')
 
         # decode the audio
         options = whisper.DecodingOptions(fp16=False)
@@ -46,13 +52,18 @@ class VoiceTranscriber(Consumer, Producer):
         # output = self._asr2.transcribe_batch(wav, wav_len)
         # transcription = VoiceTranscriber.sanitize(output[0][0])
         # VoiceTranscriber.display(transcription)
-        return transcription
+        return transcription, lang, score
 
     def run(self):
         while True:
             voice_chunk = self._in_queue.get()
-            logging.info(f'Transcription started.')
+            logging.info('Transcribing voice...')
             t0 = time()
-            result = self.transcribe(voice_chunk)
-            self._dispatch(result)
+            text, lang, score = self.transcribe(voice_chunk)
+
+            if score < self._confidence_threshold:
+                logging.info(f'Score ({score}) too low for : {text}')
+                self._dispatch(None)
+            else:
+                self._dispatch(text)
             logging.info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')

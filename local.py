@@ -1,10 +1,7 @@
 from functools import partial
-from speechbrain.dataio.preprocess import AudioNormalizer
-
-from chat_gpt import ChatGPT
+from brain.chat_gpt import ChatGPT
 from utils.utils import LivePlotter, TypeWriter
 from audio.speakers_stream import SpeakersStream
-from audio.audio_file import AudioFile
 from audio.microphone import Microphone
 from audio.audio_stream import AudioStream
 from voice_processing.voice_detector import VoiceDetector
@@ -50,10 +47,9 @@ if __name__ == '__main__':
             # synthesizer.start()
 
             # q1 = input_stream.create_queue()
-            q2 = transcriber.create_queue()
-            q3 = transcriber.create_queue()
-            q4 = Queue()
-            synthesizer.set_in_queue(q4)
+            q2 = transcriber.create_sink()
+            q3 = transcriber.create_sink()
+            q4 = synthesizer.create_intake()
             writer.set_in_queue(q3)
 
             synthesizer.start()

@@ -12,6 +12,11 @@ class Consumer(Thread):
     def set_in_queue(self, queue):
         self._in_queue = queue
 
+    def create_intake(self):
+        queue = Queue()
+        self.set_in_queue(queue)
+        return queue
+
 
 class Producer(Thread):
 
@@ -26,7 +31,7 @@ class Producer(Thread):
         consumer.set_in_queue(queue)
         return consumer
 
-    def create_queue(self):
+    def create_sink(self):
         queue = Queue()
         self._out_queues.append(queue)
         return queue
