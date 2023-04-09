@@ -52,14 +52,13 @@ class VoiceDetector(Consumer, Producer):
     def run(self):
         while self.running:
             try:
-                task = self._in_queue.get(timeout=self._timeout)
+                task = self._consume()
                 t0 = time()
                 if task is None:  # silence token received
                     self._flush()
                 elif self._detect(task):
                     ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} DETECT exec. time')
 
-                self._in_queue.task_done()
             except queue.Empty:
                 continue
 

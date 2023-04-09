@@ -89,13 +89,11 @@ class VoiceRecognizer(Consumer, Producer):
     def run(self):
         while self.running:
             try:
-                audio_chunk = self._in_queue.get(timeout=self._timeout)
+                audio_chunk = self._consume()
                 t0 = time()
                 recognized_speaker = self.recognize(audio_chunk)
                 ProjectLogger().info(f'{recognized_speaker}\'s speaking...')
                 self._dispatch((audio_chunk, recognized_speaker))
-
-                self._in_queue.task_done()
                 ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:
                 continue
