@@ -101,7 +101,7 @@ class LocalEar:
             ('speaker', ('speaker', recognized_speaker, 'text/plain')),
             ('speech', ('speech', audio_chunk.tobytes(), 'application/octet-stream'))
         ]
-        self._process_request('audio', recognized_speaker, payload)
+        self._process_request('speech', recognized_speaker, payload)
 
     def _process_text_request(self, author, text):
         payload = {
@@ -146,8 +146,8 @@ class LocalEar:
         while True:
             try:
                 # one thread is enough for text
-                text = self._gui.drain_message()
-                self._process_text_request('Unknown', text)
+                username, text = self._gui.drain_message()
+                self._process_text_request(username, text)
             except queue.Empty:
                 continue
 
