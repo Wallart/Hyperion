@@ -72,7 +72,7 @@ class NetworkEar:
         audio_chunk, recognized_speaker = data, 'Unknown'
         if not self._no_recog:
             audio_chunk, recognized_speaker = data
-        audio_chunk = audio_chunk.numpy()
+        audio_chunk = audio_chunk.numpy()  # TODO Convert to int16
         # if recognized_speaker == 'Unknown':
         #     return Response(response='Unknown speaker', status=204, mimetype='text/plain')
 

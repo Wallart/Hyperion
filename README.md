@@ -1,18 +1,21 @@
-AUDIO TO TEXT ->
-Please git lfs this repo
-https://huggingface.co/LeBenchmark/wav2vec2-FR-7K-large/tree/main
+# Hyperion 
 
-TTS -> FAIRSEQ Install
+ChatGPT based vocal assistant.
 
-git clone https://github.com/pytorch/fairseq
-cd fairseq
-pip install --editable ./
+## Description
 
-# on MacOS:
-# CFLAGS="-stdlib=libc++" pip install --editable ./
+Hyperion offers natural vocal interation with OpenAI's GPT models.
+The followings features are supported :
+- Vocal recognition
+- Speech-to-text
+- Text-to-Speech
+- Keyword spotting
 
-# to install the latest stable release (0.10.x)
-# pip install fairseq
+## Usage
 
-
-brew install espeak
+### Install Python dependencies. (Python 3.10)
+pip install -r requirements.txt
+### Start the server
+python3 hyperion_server.py start
+### Start the client
+python3 hyperion_client.py --target-url <SERVER_URL>
