@@ -90,16 +90,16 @@ class Brain:
     def handle_chat(self):
         request_id = current_request_id()
         user = request.form['user']
-        sentence = request.form['sentence']
+        message = request.form['message']
 
-        if user is None or sentence is None:
+        if user is None or message is None:
             return 'Invalid chat request', 500
 
-        chat_input = f'{user} : {sentence}'
+        chat_input = f'{user} : {message}'
         ProjectLogger().info(chat_input)
 
         self.intake_2.put((chat_input, request_id))
-        stream = self.sink_streamer(sentence, self.sink_2a, self.sink_2b)
+        stream = self.sink_streamer(message, self.sink_2a, self.sink_2b)
         return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 
