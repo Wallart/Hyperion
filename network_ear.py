@@ -66,7 +66,7 @@ class NetworkEar:
         self.intake.put(buffer)
         self.intake.put(None)  # end of speech
 
-        data = self.sink.get()
+        data = self.sink.drain()
         audio_chunk, recognized_speaker = data, 'Unknown'
         if not self._no_recog:
             audio_chunk, recognized_speaker = data
