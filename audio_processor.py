@@ -10,7 +10,6 @@ from voice_processing.voice_recognizer import VoiceRecognizer
 import requests
 import logging
 import numpy as np
-import sounddevice as sd
 
 
 if __name__ == '__main__':
@@ -67,7 +66,9 @@ if __name__ == '__main__':
                             continue
 
                         print(f'ChatGPT : {answer}')
-                        spoken_chunk = np.frombuffer(audio, dtype=np.int16)
+                        spoken_chunk = np.frombuffer(audio, dtype=np.int16)[1000:]  # remove popping sound
+                        # TODO SPOKEN CHUNK MUST BE SENT TO MICROPHONE FOR SUBSTRACTION
+                        # stream._audio_source.set_feedback(spoken_chunk, OUT_SAMPLE_RATE)
                         intake.put(spoken_chunk)
 
                 logging.info(f'Request processed in {time() - t0:.3f} sec(s).')
