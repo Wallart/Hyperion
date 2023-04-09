@@ -8,7 +8,7 @@ from utils.utils import get_ctx, frame_encode
 from analysis.chat_gpt import ChatGPT, CHAT_MODELS
 from flask_log_request_id import RequestID, current_request_id
 from voice_processing.voice_synthesizer import VoiceSynthesizer
-from voice_processing.voice_transcriber import VoiceTranscriber
+from voice_processing.voice_transcriber import VoiceTranscriber, TRANSCRIPT_MODELS
 from flask import Flask, Response, request, g, stream_with_context
 
 import os
@@ -16,13 +16,13 @@ import argparse
 
 
 class Brain:
-    def __init__(self, ctx, port, debug, name, model, memory, clear, prompt, host='0.0.0.0'):
+    def __init__(self, ctx, port, debug, name, gpt_model, whisper_model, memory, clear, prompt, host='0.0.0.0'):
         self.host = host
         self.port = port
         self.debug = debug
 
-        self.transcriber = VoiceTranscriber(ctx)
-        self.chat = ChatGPT(name, model, memory, clear, prompt)
+        self.transcriber = VoiceTranscriber(ctx, whisper_model)
+        self.chat = ChatGPT(name, gpt_model, memory, clear, prompt)
         self.synthesizer = VoiceSynthesizer()
 
         self.transcriber.pipe(self.chat).pipe(self.synthesizer)
@@ -125,7 +125,7 @@ def main():
     try:
         global brain
         ctx = get_ctx(args)
-        brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.no_memory, args.clear, args.prompt)
+        brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.whisper, args.no_memory, args.clear, args.prompt)
         brain.boot()
     except Exception as e:
         ProjectLogger().error(f'Fatal error occurred : {e}')
@@ -141,6 +141,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str, default='Hypérion', help='Set bot name.')
     parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
     parser.add_argument('--gpt', type=str, default=CHAT_MODELS[1], choices=CHAT_MODELS, help='GPT version to use.')
+    parser.add_argument('--whisper', type=str, default=TRANSCRIPT_MODELS[3], choices=TRANSCRIPT_MODELS, help='Whisper version to use.')
     parser.add_argument('--prompt', type=str, default='base', help='Prompt file to use.')
     args = parser.parse_args()
 

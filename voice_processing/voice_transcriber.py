@@ -8,17 +8,17 @@ import torch
 import whisper
 import numpy as np
 
-VALID_SIZES = ['tiny', 'base', 'small', 'medium', 'large']
+TRANSCRIPT_MODELS = ['tiny', 'base', 'small', 'medium', 'large']
 
 
 class VoiceTranscriber(Consumer, Producer):
 
-    def __init__(self, ctx, model_size='medium', confidence_threshold=.8, model_path='~/.hyperion'):
+    def __init__(self, ctx, model_size, confidence_threshold=.8, model_path='~/.hyperion'):
         super().__init__()
 
         self._ctx = ctx
         self._confidence_threshold = confidence_threshold
-        assert model_size in VALID_SIZES
+        assert model_size in TRANSCRIPT_MODELS
 
         model_path = os.path.expanduser(os.path.join(model_path, 'whisper'))
         self._asr = whisper.load_model(model_size, download_root=model_path, device=ctx[0])
