@@ -19,7 +19,7 @@ if __name__ == '__main__':
     OUT_SAMPLE_RATE = 24000
     target_url = 'http://deepbox:9999'
     audio_clazz = partial(Microphone)
-    # audio_clazz = partial(AudioFile, './resources/speakers_samples/stef/stef.wav')
+    # audio_clazz = partial(AudioFile, './resources/speakers_samples/michel/709c2426101b93ce09d033eac48a56efe1a79e99.wav')
 
     with audio_clazz(duration_ms=512) as source:
         stream = AudioStream(source)
@@ -67,7 +67,7 @@ if __name__ == '__main__':
                             continue
 
                         print(f'ChatGPT : {answer}')
-                        spoken_chunk = np.frombuffer(audio, dtype=np.float32)
+                        spoken_chunk = np.frombuffer(audio, dtype=np.int16)
                         intake.put(spoken_chunk)
 
                 logging.info(f'Request processed in {time() - t0:.3f} sec(s).')

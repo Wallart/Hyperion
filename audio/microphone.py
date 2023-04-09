@@ -1,7 +1,10 @@
 from array import array
-from pyaudio import PyAudio, paFloat32
+from pyaudio import PyAudio, paFloat32, paInt16
 from audio.audio_source import AudioSource
 
+import math
+import struct
+import audioop
 import logging
 import numpy as np
 
@@ -21,7 +24,7 @@ class Microphone(AudioSource):
         else:
             self._prompt_device_idx()
 
-        self._format = paFloat32
+        self._format = paInt16
         # self._padding_duration_ms = 1500  # 1 sec jugement
         # self._num_padding_chunks = int(self._padding_duration_ms / self._chunk_duration_ms)
         # self._num_window_chunks = int(400 / self._chunk_duration_ms)  # 400 ms/ 30ms  ge
@@ -64,14 +67,47 @@ class Microphone(AudioSource):
             r.append(int(i * times))
         return r
 
+    @staticmethod
+    def rms(data):
+        count = len(data) / 2
+        format = "%dh" % (count)
+        shorts = struct.unpack(format, data)
+        sum_squares = 0.0
+        for sample in shorts:
+            n = sample * (1.0 / 32768)
+            sum_squares += n * n
+        return math.sqrt(sum_squares / count)
+
+    @staticmethod
+    def np_audioop_rms(data, width):
+        """audioop.rms() using numpy; avoids another dependency for app"""
+        # _checkParameters(data, width)
+        if len(data) == 0: return None
+        fromType = (np.int8, np.int16, np.int32)[width // 2]
+        d = np.frombuffer(data, fromType).astype(np.float)
+        rms = np.sqrt(np.mean(d ** 2))
+        return int(rms)
+
     def _init_generator(self):
+        listening = False
+        listened_chunks = 0
         while True:
             raw_buffer = self._stream.read(self._chunk_size, exception_on_overflow=False)
-            chunk = np.frombuffer(raw_buffer, dtype=np.float32)
-            # raw_data = array('h')
-            # raw_data.extend(array('h', buffer))
-            # raw_data = AudioEngine.normalize(raw_data)
-            yield chunk
+
+            rms = audioop.rms(raw_buffer, 2)  # root mean square of signal to detect if there is interesting things to record
+            if rms >= 1000:
+                listening = True
+            elif rms < 1000 and listened_chunks >= 4:  # eq to 2 sec of silence
+                listening = False
+                listened_chunks = 0
+
+            if listening:
+                listened_chunks += 1
+                chunk = np.frombuffer(raw_buffer, dtype=np.int16)
+                chunk = chunk.astype(np.float32) / (((2 ** 16) / 2) - 1)
+                yield chunk
+            else:
+                yield None
 
     def name(self):
         return self.list_devices()[self._device_idx]
