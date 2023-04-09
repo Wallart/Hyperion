@@ -1,5 +1,7 @@
 from time import sleep
+from PIL import Image
 
+import os
 import queue
 import threading
 import customtkinter
@@ -32,17 +34,28 @@ class ChatWindow(customtkinter.CTk):
         # self.grid_columnconfigure((2, 3), weight=0)
         self.grid_rowconfigure(0, weight=1)
 
+        root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        image_dir = os.path.join(root_dir, 'resources', 'gui')
+        self.trash_icon = customtkinter.CTkImage(Image.open(os.path.join(image_dir, 'trash.png')), size=(20, 20))
+        self.gear_icon = customtkinter.CTkImage(Image.open(os.path.join(image_dir, 'settings.png')), size=(20, 20))
+
         # create textbox
-        self.textbox = customtkinter.CTkTextbox(self, state=tk.DISABLED)
-        self.textbox.grid(row=0, column=1, padx=(7, 7), pady=(2, 0), sticky='nsew')
+        self.textbox = customtkinter.CTkTextbox(self, state=tk.DISABLED, border_color='#55595c', border_width=2)
+        self.textbox.grid(row=0, column=1, columnspan=3, padx=(7, 7), pady=(10, 0), sticky='nsew')
 
         # color tags
         self.textbox.tag_config('bot', foreground='yellow')
         self.textbox.tag_config('author', foreground='cyan')
 
         self.entry = customtkinter.CTkEntry(self, placeholder_text='Send a message...')
-        self.entry.grid(row=1, column=1, columnspan=2, padx=(7, 7), pady=(10, 10), sticky='nsew')
+        self.entry.grid(row=1, column=1, columnspan=1, padx=(7, 4), pady=(10, 10), sticky='nsew')
         self.entry.bind('<Return>', self.on_send)
+
+        self.clear_button = customtkinter.CTkButton(self, fg_color='transparent', border_width=0, text='', width=20, image=self.trash_icon, command=self.on_clear, hover_color='#313436')
+        self.clear_button.grid(row=1, column=2, padx=(0, 0), pady=(10, 10), sticky='nsew')
+
+        self.gear_button = customtkinter.CTkButton(self, fg_color='transparent', border_width=0, text='', width=20, image=self.gear_icon, command=self.on_gear, hover_color='#313436')
+        self.gear_button.grid(row=1, column=3, padx=(0, 7), pady=(10, 10), sticky='nsew')
 
         self._handler = threading.Thread(target=self.message_handler, daemon=True)
         self._handler.start()
@@ -52,6 +65,14 @@ class ChatWindow(customtkinter.CTk):
         self.entry.delete('0', 'end')
         self._out_message_queue.put(typed_message)
         # self._insert_message('Unknown', typed_message)
+
+    def on_clear(self):
+        self.textbox.configure(state=tk.NORMAL)
+        self.textbox.delete('0.0', tk.END)
+        self.textbox.configure(state=tk.DISABLED)
+
+    def on_gear(self):
+        pass
 
     def _insert_message(self, author, message, with_delay=False):
         if author != self._previous_speaker:
@@ -97,7 +118,4 @@ class ChatWindow(customtkinter.CTk):
 
 if __name__ == '__main__':
     app = ChatWindow('TOTO')
-    # app.mainloop()
-    t1 = threading.Thread(target=app.mainloop, daemon=True)
-    t1.start()
-    t1.join()
+    app.mainloop()
