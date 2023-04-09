@@ -65,10 +65,14 @@ class LocalEar:
                 if res.status_code != 200:
                     logging.warning(f'Something went wrong. HTTP {res.status_code}')
                 else:
-                    response = bytearray(res.content)
-                    while len(response) > 0:
-                        decoded_frame, response = frame_decode(response)
+                    buffer = bytearray()
+                    for bytes_chunk in res.iter_content(chunk_size=4096):
+                        buffer.extend(bytes_chunk)
+                        output = frame_decode(buffer)
+                        if output is None:
+                            continue
 
+                        decoded_frame, buffer = output
                         answer = decoded_frame['ANS']
                         audio = decoded_frame['PCM']
 
