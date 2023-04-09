@@ -19,7 +19,7 @@ class ProjectLogger(metaclass=Singleton):
 
         logging.basicConfig(**conf)
         self._logger = logging.getLogger(self._name)
-        self._logger.setLevel(logging.INFO)
+        self._logger.setLevel(logging.DEBUG if opts.debug else logging.INFO)
 
     def error(self, msg):
         self._logger.log(logging.ERROR, msg)

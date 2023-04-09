@@ -113,6 +113,7 @@ def main():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyperion\'s local ear')
     parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
+    parser.add_argument('--debug', action='store_true', help='Enables debugging.')
     parser.add_argument('--in-idx', type=int, default=-1, help='Audio input identifier')
     parser.add_argument('--out-idx', type=int, default=-1, help='Audio output identifier')
     parser.add_argument('--target-url', type=str, default='localhost:9999', help='Brain target URL')
