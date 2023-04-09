@@ -37,7 +37,7 @@ class VoiceRecognizer(Consumer, Producer):
         opts = {
             'source': 'speechbrain/spkrec-ecapa-voxceleb',
             'savedir': os.path.expanduser(os.path.join(model_path, 'recog')),
-            # 'run_opts': {'device': ctx[0]}
+            'run_opts': {'device': str(ctx[0])}
         }
         self._recog = SpeakerRecognition.from_hparams(**opts)
 

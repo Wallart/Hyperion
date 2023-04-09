@@ -20,9 +20,10 @@ class VoiceDetector(Consumer, Producer):
         opts = {
             'source': 'speechbrain/vad-crdnn-libriparty',
             'savedir': os.path.expanduser(os.path.join(model_path, 'vad')),
+            # Model is so small and fast that CPU has been hardcoded in hyperparams.yaml from the savedir
             # 'run_opts': {'device': ctx[0]}
         }
-        self._vad = VAD.from_hparams(**opts).to(ctx[0])
+        self._vad = VAD.from_hparams(**opts)
 
         self._buffer = None
 
