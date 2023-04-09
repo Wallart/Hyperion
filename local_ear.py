@@ -1,4 +1,4 @@
-from time import time
+from time import time, sleep
 from gui.chat_window import ChatWindow
 from audio.io.audio_input import AudioInput
 from audio.io.source.in_file import InFile
@@ -25,6 +25,7 @@ class LocalEar:
 
     def __init__(self, ctx, opts):
         self._ctx = ctx
+        self._opts = opts
         self._in_sample_rate = 16000
         self._out_sample_rate = 24000
         self._target_url = f'http://{opts.target_url}'
@@ -40,9 +41,10 @@ class LocalEar:
         audio_out = AudioOutput(opts.out_idx, self._out_sample_rate)
         self.intake = audio_out.create_intake()
 
-        self._gui = ChatWindow(self._bot_name, self._bot_name)
-        self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=True)
-        self._text_handler = threading.Thread(target=self._text_request_handler, daemon=True)
+        if not opts.no_gui:
+            self._gui = ChatWindow(self._bot_name, self._bot_name)
+            self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=False)
+            self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
 
         if opts.no_recog:
             self.sink = audio_in.pipe(detector).create_sink()
@@ -113,9 +115,10 @@ class LocalEar:
         answer = decoded_frame['ANS']
         audio = decoded_frame['PCM']
 
-        if idx == 0:
-            self._gui.queue_message(recognized_speaker, request)
-        self._gui.queue_message(self._bot_name, answer)
+        if not self._opts.no_gui:
+            if idx == 0:
+                self._gui.queue_message(recognized_speaker, request)
+            self._gui.queue_message(self._bot_name, answer)
 
         ProjectLogger().info(f'{recognized_speaker} : {request}')
         ProjectLogger().info(f'ChatGPT : {answer}')
@@ -147,9 +150,12 @@ class LocalEar:
                 continue
 
     def mainloop(self):
-        self._audio_handler.start()
-        self._text_handler.start()
-        self._gui.mainloop()
+        if self._opts.no_gui:
+            self._audio_request_handler()
+        else:
+            self._audio_handler.start()
+            self._text_handler.start()
+            self._gui.mainloop()
 
 
 APP_NAME = 'hyperion_local_ear'
@@ -174,5 +180,6 @@ if __name__ == '__main__':
     parser.add_argument('--target-url', type=str, default='localhost:9999', help='Brain target URL')
     parser.add_argument('--dummy-file', type=str, help='Play file instead of Brain\'s responses')
     parser.add_argument('--no-recog', action='store_true', help='Start bot without user recognition.')
-    
+    parser.add_argument('--no-gui', action='store_true', help='Disable GUI.')
+
     startup(APP_NAME.lower(), parser, main)
