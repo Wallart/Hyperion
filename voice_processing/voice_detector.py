@@ -1,7 +1,9 @@
+from time import time
 from utils.threading import Consumer, Producer
 from speechbrain.pretrained import VAD
 
 import torch
+import logging
 
 
 class VoiceDetector(Consumer, Producer):
@@ -43,7 +45,10 @@ class VoiceDetector(Consumer, Producer):
     def run(self):
         while True:
             audio_chunk = self._in_queue.get()
+            t0 = time()
+
             # norm_chunk = normalizer(torch.tensor(chunk), source.sample_rate()) # very slow
             if not self._detect(audio_chunk):
                 self._silence_duration += len(audio_chunk) / self._sampling_rate
                 self._flush()
+            logging.debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
