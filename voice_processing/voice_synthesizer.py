@@ -46,7 +46,7 @@ class VoiceSynthesizer(Consumer, Producer):
         response = self._client.synthesize_speech(input=text_input, voice=voice_params, audio_config=audio_config)
 
         wav_array = np.frombuffer(response.audio_content, dtype=np.int16)
-        return wav_array#.astype(np.float32) / (2 ** 16 / 2)
+        return wav_array[1000:]  # remove popping sound
 
     def _init_google_translate_synth(self):
         self.sample_rate = 24000
