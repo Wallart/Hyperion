@@ -11,15 +11,20 @@ import os
 import random
 import openai
 
+CHAT_MODELS = ['gpt-3.5-turbo', 'gpt-3.5-turbo-0301', 'gpt-4']
+
 
 class ChatGPT(Consumer, Producer):
 
-    def __init__(self, name='Hypérion', model='gpt-3.5-turbo', cache_dir='~/.hyperion'):
+    def __init__(self, name, model, no_memory, cache_dir='~/.hyperion'):
         super().__init__()
+
+        ProjectLogger().info(f'{name} using {model} as chat backend. No memory -> {no_memory}')
 
         self._mutex = Lock()
         self._model = model
         self._botname = name
+        self._no_memory = no_memory
         # 5% less than max tokens because we don't know exactly what are tokens.
         # Usually they are words, sometimes it's just a letter or a comma.
         self._max_ctx_tokens = MAX_TOKENS - (MAX_TOKENS * .05)
@@ -72,7 +77,7 @@ class ChatGPT(Consumer, Producer):
     @acquire_mutex
     def _add_to_context(self, new_message):
         self._db.insert(new_message)
-        cache = self._db.all()
+        cache = [] if self._no_memory else self._db.all()
 
         while True:
             messages = self._global_context + cache

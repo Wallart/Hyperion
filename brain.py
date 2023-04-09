@@ -1,8 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 from time import time
 from daemonocle import Daemon
-from brain.chat_gpt import ChatGPT
+from brain.chat_gpt import ChatGPT, CHAT_MODELS
 from utils.logger import ProjectLogger
 from utils.utils import get_ctx, frame_encode
 from flask import Flask, Response, request, g
@@ -15,14 +15,14 @@ import numpy as np
 
 
 class Brain:
-    def __init__(self, ctx, port, debug, host='0.0.0.0'):
+    def __init__(self, ctx, port, debug, name, model, memory, host='0.0.0.0'):
         self.host = host
         self.port = port
         self.debug = debug
 
         self.transcriber = VoiceTranscriber(ctx)
         self.synthesizer = VoiceSynthesizer()
-        self.chat = ChatGPT()
+        self.chat = ChatGPT(name, model, memory)
 
         self.intake_1, self.sink_1 = self.transcriber.create_intake(), self.transcriber.create_sink()
         self.intake_2, self.sink_2a, self.sink_2b = self.chat.create_intake(), self.chat.create_sink(), self.chat.pipe(self.synthesizer).create_sink()
@@ -60,7 +60,8 @@ class Brain:
             ProjectLogger().info(chat_input)
 
         self.intake_2.put(chat_input)
-        return Response(response=Brain.sink_streamer(transcription, self.sink_2a, self.sink_2b), mimetype='application/octet-stream')
+        stream = Brain.sink_streamer(transcription, self.sink_2a, self.sink_2b)
+        return Response(response=stream, mimetype='application/octet-stream')
 
 
 APP_NAME = 'hyperion_brain'
@@ -93,7 +94,7 @@ def main():
     try:
         global brain
         ctx = get_ctx(args)
-        brain = Brain(ctx, args.port, args.debug)
+        brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.no_memory)
         brain.boot()
     except Exception as e:
         ProjectLogger().error(f'Fatal error occurred : {e}')
@@ -101,10 +102,13 @@ def main():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyperion\'s brain')
-    parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port')
-    parser.add_argument('--debug', action='store_true', help='Enables flask debugging')
-    parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
+    parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port.')
+    parser.add_argument('--debug', action='store_true', help='Enables flask debugging.')
+    parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon.')
+    parser.add_argument('--no-memory', action='store_true', help='Start bot without persistent memory.')
+    parser.add_argument('--name', type=str, default='Hypérion', help='Set bot name.')
     parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
+    parser.add_argument('--gpt', type=str, default=CHAT_MODELS[1], choices=CHAT_MODELS, help='GPT version to use.')
     args = parser.parse_args()
 
     _ = ProjectLogger(args, APP_NAME)
