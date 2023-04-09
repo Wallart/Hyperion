@@ -60,7 +60,7 @@ class InDevice(SoundDeviceResource, AudioSource):
     def _init_generator(self):
         listening = False
         listened_chunks = 0
-        while self._stream.active:
+        while self._stream.active and not self.is_closing:
             buffer, overflowed = self._stream.read(self.chunk_size)
             buffer = buffer.squeeze()
             if buffer.sum() == 0:
@@ -100,3 +100,5 @@ class InDevice(SoundDeviceResource, AudioSource):
                 yield None  # sending silence token
 
             self._prev_buffer[:] = buffer
+
+        ProjectLogger().info('Input device listening stopped.')

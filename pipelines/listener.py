@@ -66,8 +66,7 @@ class Listener:
         except KeyboardInterrupt as interrupt:
             self.stop()
 
-        # _ = [t.join() for t in self.threads]
-        _ = [t.join() for t in self.threads[1:]]
+        _ = [t.join() for t in self.threads]
         sio.disconnect()
 
     def stop(self):

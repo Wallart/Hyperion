@@ -1,4 +1,5 @@
 from abc import ABC
+from time import sleep
 from utils.logger import ProjectLogger
 
 import sounddevice as sd
@@ -11,6 +12,7 @@ class SoundDeviceResource(ABC):
         self.sample_rate = sample_rate
         self.duration_ms = duration_ms
         self.chunk_size = int(sample_rate * self.duration_ms / 1000)
+        self.is_closing = False  # Marked for closing
 
         self.device_type = 'Output' if output else 'Input'
         self.device_idx = None
@@ -43,6 +45,9 @@ class SoundDeviceResource(ABC):
         ProjectLogger().info(f'{self.device_type} device {self.device_name} opened.')
 
     def close(self):
+        self.is_closing = True
+        sleep(0.5)  # let some time for the listening loop to stop
+
         if self._stream.active:
             self._stream.stop()
         self._stream.close()
