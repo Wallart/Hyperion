@@ -144,16 +144,23 @@ def main(args):
 
 
 if __name__ == '__main__':
+    def add_opts(sub_parser):
+        sub_parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port.')
+        sub_parser.add_argument('--clear', action='store_true', help='Clean persistent memory at startup')
+        sub_parser.add_argument('--no-memory', action='store_true', help='Start bot without persistent memory.')
+        sub_parser.add_argument('--name', type=str, default='Hypérion', help='Set bot name.')
+        sub_parser.add_argument('--gpt', type=str, default=CHAT_MODELS[1], choices=CHAT_MODELS, help='GPT version to use.')
+        sub_parser.add_argument('--whisper', type=str, default=TRANSCRIPT_MODELS[3], choices=TRANSCRIPT_MODELS, help='Whisper version to use.')
+        sub_parser.add_argument('--prompt', type=str, default='base', help='Prompt file to use.')
+
     parser = argparse.ArgumentParser(description='Hyperion\'s brain')
     parser.add_argument('--debug', action='store_true', help='Enables debugging.')
     parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
-    parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon.')
-    parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port.')
-    parser.add_argument('--clear', action='store_true', help='Clean persistent memory at startup')
-    parser.add_argument('--no-memory', action='store_true', help='Start bot without persistent memory.')
-    parser.add_argument('--name', type=str, default='Hypérion', help='Set bot name.')
-    parser.add_argument('--gpt', type=str, default=CHAT_MODELS[1], choices=CHAT_MODELS, help='GPT version to use.')
-    parser.add_argument('--whisper', type=str, default=TRANSCRIPT_MODELS[3], choices=TRANSCRIPT_MODELS, help='Whisper version to use.')
-    parser.add_argument('--prompt', type=str, default='base', help='Prompt file to use.')
+    parser.add_argument('--foreground', dest='daemon', action='store_false', help='Run in foreground.')
+    sub_parsers = parser.add_subparsers(dest='action', required=True)
+
+    add_opts(sub_parsers.add_parser('start'))
+    add_opts(sub_parsers.add_parser('restart'))
+    sub_parsers.add_parser('stop')
 
     startup(APP_NAME.lower(), parser, main)

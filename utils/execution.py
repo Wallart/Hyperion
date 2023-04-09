@@ -50,19 +50,27 @@ def startup(app_name, parser, fn):
     _ = ProjectLogger(opts, app_name)
 
     pid_file = os.path.join(os.path.sep, 'tmp', f'{app_name.lower()}.pid')
-    # if opts.action == 'stop' and os.path.isfile(pid_file):
-    #     kill(pid_file)
-    # elif opts.action in ['start', 'restart']:
-    #     if os.path.isfile(pid_file):
-    #         if opts.action == 'restart':
-    #             ProjectLogger().warning('Already running. Restarting app...')
-    #             kill(pid_file)
-    #         else:
-    #             ProjectLogger().error('Already running.')
-    #             exit(1)
+    if hasattr(opts, 'action'):
+        if opts.action == 'stop' and os.path.isfile(pid_file):
+            kill(pid_file)
+        elif opts.action in ['start', 'restart']:
+            if os.path.isfile(pid_file):
+                if opts.action == 'restart':
+                    ProjectLogger().warning('Already running. Restarting app...')
+                    kill(pid_file)
+                else:
+                    ProjectLogger().error('Already running.')
+                    exit(1)
 
-    if opts.daemon:
-        daemon = Daemon(worker=partial(fn, app_name, opts), pid_file=pid_file)
-        daemon.do_action('start')
+            if opts.daemon:
+                daemon = Daemon(worker=partial(fn, app_name, opts), pid_file=pid_file)
+                daemon.do_action('start')
+            else:
+                return fn(app_name, opts)
     else:
-        return fn(app_name, opts)
+        # TODO Fix this ugly piece of duplicated code
+        if opts.daemon:
+            daemon = Daemon(worker=partial(fn, app_name, opts), pid_file=pid_file)
+            daemon.do_action('start')
+        else:
+            return fn(app_name, opts)
