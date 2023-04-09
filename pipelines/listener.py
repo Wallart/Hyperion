@@ -24,6 +24,7 @@ class Listener:
         self._ctx = ctx
         self._opts = opts
         self.sid = None
+        self.running = False
 
         self._in_sample_rate = 16000
         self._out_sample_rate = 24000
@@ -55,6 +56,7 @@ class Listener:
             self.threads.extend([self._audio_handler, self._text_handler])
 
     def start(self):
+        self.running = True
         try:
             _ = [t.start() for t in self.threads]
             if self._opts.no_gui:
@@ -62,10 +64,14 @@ class Listener:
             else:
                 self._gui.mainloop()
         except KeyboardInterrupt as interrupt:
-            _ = [t.stop() for t in self.threads]
+            self.stop()
 
         # _ = [t.join() for t in self.threads]
         _ = [t.join() for t in self.threads[1:]]
+
+    def stop(self):
+        self.running = False
+        _ = [t.stop() for t in self.threads if hasattr(t, 'stop')]
 
     def interrupt(self):
         self._gui.mute()
@@ -146,7 +152,7 @@ class Listener:
 
     def _audio_request_handler(self):
         with ThreadPoolExecutor(max_workers=4) as executor:
-            while True:
+            while self.running:
                 data = self.sink.drain()
                 if self._recog:
                     speech_chunk, recognized_speaker = data
@@ -158,11 +164,20 @@ class Listener:
                 else:
                     _ = executor.submit(self._process_audio_request, data.numpy())
 
+        ProjectLogger().info('Audio request handler stopped.')
+
     def _text_request_handler(self):
-        while True:
+        while self.running:
             try:
                 # one thread is enough for text
-                username, text = self._gui.drain_message()
+                event = self._gui.drain_message()
+                if event is None:
+                    self.stop()
+                    break
+
+                username, text = event
                 self._process_text_request(username, text)
             except queue.Empty:
                 continue
+
+        ProjectLogger().info('Text request handler stopped.')

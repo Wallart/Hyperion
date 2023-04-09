@@ -45,6 +45,7 @@ class SoundDeviceResource(ABC):
     def close(self):
         if self._stream.active:
             self._stream.stop()
+        self._stream.close()
         ProjectLogger().info(f'{self.device_type} device {self.device_name} closed.')
 
     def list_devices(self):
