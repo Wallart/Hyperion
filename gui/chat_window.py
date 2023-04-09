@@ -1,5 +1,5 @@
 from time import sleep
-from PIL import Image
+from PIL import Image, ImageTk
 from pygments import lex, highlight
 from pygments.lexers import PythonLexer
 from pygments.formatters import HtmlFormatter
@@ -19,6 +19,8 @@ customtkinter.set_default_color_theme('blue')  # Themes: 'blue' (standard), 'gre
 class ChatWindow(customtkinter.CTk):
     def __init__(self, bot_name, title='Chat window', savedir='~/.hyperion'):
         super().__init__()
+        root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        image_dir = os.path.join(root_dir, 'resources', 'gui')
 
         self._gui_params = {}
         self._savefile = os.path.expanduser(os.path.join(savedir, 'gui_params.json'))
@@ -35,20 +37,26 @@ class ChatWindow(customtkinter.CTk):
         self._interrupt = False
         self.bot_name = bot_name
 
+        x = self._gui_params['x'] if 'x' in self._gui_params else 100
+        y = self._gui_params['y'] if 'y' in self._gui_params else 300
+        width = self._gui_params['width'] if 'width' in self._gui_params else 450
+        height = self._gui_params['height'] if 'height' in self._gui_params else 250
+
         # configure window
         self.title(title)
-        self.geometry(f'{450}x{250}')
+        self.geometry(f'{width}x{height}+{x}+{y}')
         # self.config(bg='systemTransparent')
         self.attributes('-alpha', 0.95)
         # self.wm_attributes('-topmost', True)  # always on top
         # self.overrideredirect(True)  # hide title bar
+        image = Image.open(os.path.join(image_dir, 'icon.png')).resize((512, 512))
+        self.iconphoto(True, ImageTk.PhotoImage(image))
+        self.bind('<Configure>', self.on_configure)
 
         self.grid_columnconfigure(1, weight=1)
         # self.grid_columnconfigure((2, 3), weight=0)
         self.grid_rowconfigure(0, weight=1)
 
-        root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        image_dir = os.path.join(root_dir, 'resources', 'gui')
         self.trash_icon = customtkinter.CTkImage(Image.open(os.path.join(image_dir, 'trash.png')), size=(20, 20))
         self.gear_icon = customtkinter.CTkImage(Image.open(os.path.join(image_dir, 'settings.png')), size=(20, 20))
 
@@ -97,12 +105,18 @@ class ChatWindow(customtkinter.CTk):
         self._handler = threading.Thread(target=self.message_handler, daemon=True)
         self._handler.start()
 
+    def on_configure(self, event):
+        self._gui_params['x'] = event.x
+        self._gui_params['y'] = event.y
+        self._gui_params['width'] = event.width
+        self._gui_params['height'] = event.height
+        self._save_config()
+
     def on_focus_out(self, event):
         username = self.name_entry.get()
         if len(username) > 0:
             self._gui_params['username'] = username
-            with open(self._savefile, 'w') as f:
-                f.write(json.dumps(self._gui_params))
+            self._save_config()
 
     def on_send(self, event):
         username = self.name_entry.get()
@@ -122,6 +136,10 @@ class ChatWindow(customtkinter.CTk):
 
     def on_gear(self):
         pass
+
+    def _save_config(self):
+        with open(self._savefile, 'w') as f:
+            f.write(json.dumps(self._gui_params))
 
     def _insert_message(self, author, message, with_delay=False, pending=False):
         if message == self._previous_text:
