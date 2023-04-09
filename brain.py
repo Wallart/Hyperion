@@ -21,6 +21,7 @@ class Brain:
         self.host = host
         self.port = port
         self.debug = debug
+        self.frozen = False
 
         self.transcriber = VoiceTranscriber(ctx, whisper_model)
         self.chat = ChatGPT(name, gpt_model, memory, clear, prompt)
@@ -45,6 +46,9 @@ class Brain:
     def sink_streamer(self, sink):
         request_id = current_request_id()
         while True:
+            if self.frozen:
+                return
+
             request_obj = sink.drain()
 
             if request_obj.text_answer is None and request_obj.audio_answer is None and request_obj.termination:
@@ -59,6 +63,9 @@ class Brain:
             yield frame_encode(request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
     def handle_audio(self):
+        if self.frozen:
+            return 'I\'m a teapot', 418
+
         request_id = current_request_id()
         speech = request.files['speech'].read()
         speaker = request.files['speaker'].read().decode('utf-8')
@@ -79,6 +86,13 @@ class Brain:
 
         if user is None or message is None:
             return 'Invalid chat request', 500
+
+        if '!FREEZE' in message:
+            self.frozen = True
+            return 'Freezed', 202
+        elif '!UNFREEZE' in message:
+            self.frozen = False
+            return 'Unfreezed', 202
 
         request_obj = RequestObject(request_id, user)
         request_obj.set_text_request(message)

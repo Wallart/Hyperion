@@ -38,6 +38,7 @@ class ChatGPT(Consumer, Producer):
         self._cache_dir = os.path.expanduser(cache_dir)
         os.makedirs(self._cache_dir, exist_ok=True)
 
+        # TODO Replace by openai tiktoken library
         self._tokenizer = GPT2TokenizerFast.from_pretrained('gpt2', cache_dir=os.path.join(self._cache_dir, 'tokenizer'))
         db_path = os.path.join(self._cache_dir, 'prompts_db.json')
         if clear and os.path.exists(db_path):
