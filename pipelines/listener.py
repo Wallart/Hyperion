@@ -186,7 +186,7 @@ class Listener:
                     username, text = event[1], event[2]
                     self._process_text_request(username, text)
                 elif event[0] == UIAction.CHANGE_INPUT_DEVICE:
-                    self.audio_in.change(InDevice(event[1], self._in_sample_rate, rms=self._opts.rms))
+                    self.audio_in.change(InDevice(event[1], self._in_sample_rate, db=self._opts.rms))
                 elif event[0] == UIAction.CHANGE_OUTPUT_DEVICE:
                     self.audio_out.change(event[1])
                 elif event[0] == UIAction.CHANGE_DB:
