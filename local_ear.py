@@ -1,7 +1,5 @@
 from time import time
 from daemonocle import Daemon
-
-from audio import int16_to_float32
 from audio.io.audio_input import AudioInput
 from audio.io.source.in_file import InFile
 from audio.io.source.in_device import InDevice
@@ -85,6 +83,7 @@ class LocalEar:
         ProjectLogger().info(f'ChatGPT : {answer}')
         spoken_chunk = np.frombuffer(audio, dtype=np.int16)
         self.intake.put(spoken_chunk)
+        # self.source.set_feedback(spoken_chunk, self._out_sample_rate)
 
     def mainloop(self):
         with ThreadPoolExecutor(max_workers=4) as executor:

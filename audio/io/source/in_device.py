@@ -1,9 +1,13 @@
-from audio import float32_to_int16
+from queue import Queue
+from librosa import resample
 from utils.logger import ProjectLogger
 from audio.io.source import AudioSource
+from audio.aec.time_domain_adaptive_filters.apa import apa
 from audio.io.sound_device_resource import SoundDeviceResource
+from audio import float32_to_int16, float64_to_int16, find_offset, int16_to_float32
 
 import audioop
+import numpy as np
 import noisereduce as nr
 
 
@@ -12,12 +16,50 @@ class InDevice(SoundDeviceResource, AudioSource):
     def __init__(self, device_idx, sample_rate, **kwargs):
         super().__init__(device_idx, False, sample_rate, **kwargs)
 
+        self._current_feedback = None
+        self._feedback_queue = Queue()
+
+    def set_feedback(self, feedback, sample_rate):
+        if sample_rate != self.sample_rate:
+            feedback = resample(int16_to_float32(feedback), orig_sr=sample_rate, target_sr=self.sample_rate)
+        self._feedback_queue.put(feedback)
+
+    def _consume_feedback_chunk(self, searched_chunk):
+        if self._current_feedback is None and self._feedback_queue.empty():
+            return None
+
+        if not self._feedback_queue.empty():
+            extract = self._feedback_queue.get()
+            self._current_feedback = extract if self._current_feedback is None else np.concatenate([self._current_feedback, extract])
+
+        if len(self._current_feedback) > self.chunk_size:
+            offset = find_offset(self._current_feedback, searched_chunk, self.sample_rate)
+            if offset == 0:
+                return None
+
+            found_chunk = self._current_feedback[offset:offset+self.chunk_size]
+            self._current_feedback = self._current_feedback[offset + self.chunk_size:]
+        else:
+            found_chunk = np.pad(self._current_feedback, (0, self.chunk_size - len(self._current_feedback)))
+            self._current_feedback = None
+
+        return found_chunk
+
+    @staticmethod
+    def acoustic_echo_cancellation(chunk, feedback_chunk):
+        aec_ed = apa(feedback_chunk, chunk, N=256, P=5, mu=0.1)
+        aec_ed = np.clip(aec_ed, -1, 1)
+        aec_ed = float64_to_int16(aec_ed)
+        return aec_ed
+
     def _init_generator(self):
         listening = False
         listened_chunks = 0
         while self._stream.active:
             buffer, overflowed = self._stream.read(self.chunk_size)
             buffer = buffer.squeeze()
+            if buffer.sum() == 0:
+                continue
             buffer = nr.reduce_noise(buffer, self.sample_rate)
 
             # root mean square of signal to detect if there is interesting things to record
@@ -32,5 +74,19 @@ class InDevice(SoundDeviceResource, AudioSource):
             if listening:
                 listened_chunks += 1
                 yield buffer
+
+                # feedback_chunk = self._consume_feedback_chunk(buffer)
+                # if feedback_chunk is None:
+                #     yield buffer
+                # else:
+                #     aec_chunk = self.acoustic_echo_cancellation(buffer, feedback_chunk)
+                #     aec_chunk = nr.reduce_noise(aec_chunk, self.sample_rate)
+                #     new_rms = audioop.rms(aec_chunk, 2)
+                #     ProjectLogger().info(f'Echo cancelled.')
+                #     if new_rms < rms:
+                #         yield None
+                #     else:
+                #         print(rms)
+                #         yield buffer
             else:
                 yield None  # sending silence token
