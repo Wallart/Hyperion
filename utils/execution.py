@@ -10,14 +10,14 @@ import traceback
 
 
 def handle_errors(fn):
-    def wrapper(*args):
+    def wrapper(app_name, opts):
         try:
-            res = fn(*args)
+            res = fn(opts)
             return res
         except Exception as e:
             ProjectLogger().error(f'Fatal error occurred : {e}')
-            name = os.path.basename(sys.argv[0])
-            traceback_file = os.path.join(get_log_root(), f'{name}-error.log')
+            # name = os.path.basename(sys.argv[0])
+            traceback_file = os.path.join(get_log_root(), f'{app_name.lower()}-error.log')
             ProjectLogger().error(f'Traceback saved at {traceback_file}')
             with open(traceback_file, 'w') as f:
                 f.write(traceback.format_exc())
@@ -62,7 +62,7 @@ def startup(app_name, parser, fn):
     #             exit(1)
 
     if opts.daemon:
-        daemon = Daemon(worker=partial(fn, opts), pid_file=pid_file, detach=False)
+        daemon = Daemon(worker=partial(fn, app_name, opts), pid_file=pid_file, detach=False)
         daemon.do_action('start')
     else:
-        return fn(opts)
+        return fn(app_name, opts)
