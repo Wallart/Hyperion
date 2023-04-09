@@ -22,9 +22,7 @@ def get_pid_root():
 
 
 def get_log_root():
-    if platform == 'linux' or platform == 'linux2':
-        return os.path.join(os.path.sep, 'tmp', 'log')
-    elif platform == 'darwin':
+    if platform == 'linux' or platform == 'linux2' or platform == 'darwin':
         path = os.path.join(os.path.sep, 'tmp', 'log')
         os.makedirs(path, exist_ok=True)
         return path
