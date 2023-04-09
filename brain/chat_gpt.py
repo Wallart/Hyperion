@@ -76,8 +76,10 @@ class ChatGPT(Consumer, Producer):
 
     @acquire_mutex
     def _add_to_context(self, new_message):
-        self._db.insert(new_message)
-        cache = [] if self._no_memory else self._db.all()
+        cache = [new_message]
+        if not self._no_memory:
+            cache += self._db.all()
+            self._db.insert(new_message)
 
         while True:
             messages = self._global_context + cache
