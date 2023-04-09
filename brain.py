@@ -18,6 +18,7 @@ import argparse
 class Brain:
     def __init__(self, ctx, opts, host='0.0.0.0'):
         self.host = host
+        self.name = opts.name
         self.port = opts.port
         self.debug = opts.debug
         self.frozen = False
@@ -106,6 +107,11 @@ class Brain:
 APP_NAME = 'hyperion_brain'
 app = Flask(__name__)
 RequestID(app)
+
+
+@app.route('/name', methods=['GET'])
+def name():
+    return brain.name, 200
 
 
 @app.route('/audio', methods=['POST'])
