@@ -16,6 +16,7 @@ class InDevice(SoundDeviceResource, AudioSource):
     def __init__(self, device_idx, sample_rate, **kwargs):
         super().__init__(device_idx, False, sample_rate, **kwargs)
 
+        self._prev_buffer = np.zeros((self.chunk_size,), dtype=np.float32)
         self._current_feedback = None
         self._feedback_queue = Queue()
 
@@ -73,7 +74,10 @@ class InDevice(SoundDeviceResource, AudioSource):
 
             if listening:
                 listened_chunks += 1
-                yield buffer
+                if listened_chunks == 1:
+                    yield np.concatenate([self._prev_buffer, buffer], axis=0)
+                else:
+                    yield buffer
 
                 # feedback_chunk = self._consume_feedback_chunk(buffer)
                 # if feedback_chunk is None:
@@ -90,3 +94,5 @@ class InDevice(SoundDeviceResource, AudioSource):
                 #         yield buffer
             else:
                 yield None  # sending silence token
+
+            self._prev_buffer[:] = buffer
