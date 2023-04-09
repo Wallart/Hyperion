@@ -61,7 +61,10 @@ def http_audio_stream():
     if brain.frozen:
         return 'I\'m a teapot', 418
 
-    return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
+    res = Response(response=stream_with_context(stream), mimetype='application/octet-stream')
+    res.headers.add('Speaker', speaker)  # TODO Ugly should be added in communication protocol
+
+    return res
 
 
 @socketio.on('speech')

@@ -65,7 +65,7 @@ class LocalEar:
         # _ = [t.join() for t in self.threads]
         _ = [t.join() for t in self.threads[1:]]
 
-    def _process_request(self, api_endpoint, requester, payload):
+    def _process_request(self, api_endpoint, payload, requester=None):
         t0 = time()
         opts = {
             'url': f'{self._target_url}/{api_endpoint}',
@@ -80,6 +80,9 @@ class LocalEar:
             if res.status_code != 200:
                 ProjectLogger().warning(f'Something went wrong. HTTP {res.status_code}')
                 return
+
+            # TODO Ugly should be added in communication protocol
+            requester = res.headers['Speaker'] if requester is None else requester
 
             buffer = bytearray()
             for bytes_chunk in res.iter_content(chunk_size=4096):
@@ -100,7 +103,7 @@ class LocalEar:
         payload = [
             ('audio', ('audio', audio.tobytes(), 'application/octet-stream'))
         ]
-        self._process_request('audio', 'Unknown', payload)
+        self._process_request('audio', payload)
 
     def _process_speech_request(self, recognized_speaker, speech):
         speech = float32_to_int16(speech)
@@ -109,14 +112,14 @@ class LocalEar:
             ('speaker', ('speaker', recognized_speaker, 'text/plain')),
             ('speech', ('speech', speech.tobytes(), 'application/octet-stream'))
         ]
-        self._process_request('speech', recognized_speaker, payload)
+        self._process_request('speech', payload, requester=recognized_speaker)
 
     def _process_text_request(self, author, text):
         payload = {
             'user': author,
             'message': text
         }
-        self._process_request('chat', author, payload)
+        self._process_request('chat', payload, requester=author)
 
     def distribute(self, recognized_speaker, decoded_frame):
         idx = decoded_frame['IDX']
