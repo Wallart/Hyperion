@@ -12,6 +12,7 @@ class RequestObject:
         self.audio_request = None
         self.request_lang = None
 
+        self.num_answer = 0
         self.text_answer = None
         self.audio_answer = None
 

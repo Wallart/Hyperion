@@ -55,7 +55,7 @@ class Brain:
                 ProjectLogger().warning('Speech synthesis failed.')
                 continue
 
-            yield frame_encode(request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
+            yield frame_encode(request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
     def handle_audio(self):
         request_id = current_request_id()
