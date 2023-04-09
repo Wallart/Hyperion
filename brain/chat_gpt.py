@@ -1,5 +1,9 @@
 from time import time
+from threading import Lock
+from tinydb import TinyDB, Query
 from utils.logger import ProjectLogger
+from brain import MAX_TOKENS, acquire_mutex
+from transformers import GPT2TokenizerFast
 from utils.threading import Consumer, Producer
 from concurrent.futures import ThreadPoolExecutor
 
@@ -7,83 +11,90 @@ import os
 import random
 import openai
 
-# from openai api
-MAX_TOKENS = 4097
-
 
 class ChatGPT(Consumer, Producer):
 
-    def __init__(self, name='Hypérion', model='gpt-3.5-turbo'):
+    def __init__(self, name='Hypérion', model='gpt-3.5-turbo', cache_dir='~/.hyperion'):
         super().__init__()
 
-        self._deaf_sentences = [
-            'Je ne suis pas sûr d\'avoir compris.',
-            'Désolé j\'ai les esgourdes bouchées.',
-            'Je n\'ai pas entendu, peux-tu répéter ?',
-            'Hein ? Qu\'est-ce tu racontes ?',
-            'Articules quand tu parles !',
-            'Quoi ?',
-            'Pardon ?',
-            'Je comprends R mon reuf !'
-        ]
-        self._error_sentences = [
-            'Désolé j\'ai le cerveau lent.',
-            'Je crois que je fais un micro-AVC...',
-            'Désolé ! Je sais pas, je sais plus... Je suis fatigué.',
-            'Qu\'est-ce qui est jaune et qui attend ? Jonathan !'
-        ]
-
-        self._name = name
+        self._mutex = Lock()
         self._model = model
-
+        self._botname = name
         # 5% less than max tokens because we don't know exactly what are tokens.
         # Usually they are words, sometimes it's just a letter or a comma.
         self._max_ctx_tokens = MAX_TOKENS - (MAX_TOKENS * .05)
 
         root_dir = os.path.dirname(os.path.dirname(__file__))
-        with open(os.path.join(root_dir, 'resources', 'openai_api_key.txt')) as f:
-            api_key = f.readlines()[0]
+        self._resources_dir = os.path.join(root_dir, 'resources')
+        self._cache_dir = os.path.expanduser(cache_dir)
+        os.makedirs(self._cache_dir, exist_ok=True)
 
-        openai.api_key = api_key
-        self._global_context = [
-            ChatGPT._build_context_line('system', f'Tu es un assistant virtuel vraiment sympatique et plein d\'humour nommé {self._name}, qui répond toujours en français. Tu parles avec plusieurs personnes, mais refuses de répondre aux inconnus.'),
-            ChatGPT._build_context_line('user', f'Julien : Bonjour {self._name} comment vas-tu aujourd\'hui ?'),
-            ChatGPT._build_context_line('assistant', 'Je vais bien Julien ! Merci de demander.'),
-            ChatGPT._build_context_line('user', 'Julien : Mon chat s\'appelle Petit Poulet.'),
-            ChatGPT._build_context_line('assistant', 'C\'est noté.'),
-            ChatGPT._build_context_line('user', f'Michel : Salut {self._name} !'),
-            ChatGPT._build_context_line('assistant', 'Bonjour Michel.'),
-            ChatGPT._build_context_line('user', f'Unknown : Bonjour {self._name} !'),
-            ChatGPT._build_context_line('assistant', 'Désolé ma maman m\'a dit de ne pas répondre aux inconnus.')
-        ]
-        self._working_memory = []
+        self._tokenizer = GPT2TokenizerFast.from_pretrained('gpt2', cache_dir=os.path.join(self._cache_dir, 'tokenizer'))
+        self._db = TinyDB(os.path.join(self._cache_dir, 'prompts_db.json'))
 
-    def tokens_count(self):
-        count = 0
-        for line in self._global_context + self._working_memory:
-            count += len(line['content'].split(' '))
-        return count
+        sentences_path = os.path.join(self._resources_dir, 'default_sentences')
+        self._deaf_sentences = self._load_file(os.path.join(sentences_path, 'deaf'))
+        self._error_sentences = self._load_file(os.path.join(sentences_path, 'dead'))
+        self._global_context = self._load_prompt('base')
+
+        openai.api_key = self._load_api_key()
+        # self._working_memory = []
+
+    @staticmethod
+    def _load_file(path):
+        with open(path) as f:
+            content = f.readlines()
+        return [l.strip() for l in content]
+
+    def _load_api_key(self):
+        return ChatGPT._load_file(os.path.join(self._resources_dir, 'openai_api_key.txt'))[0]
+
+    def _load_prompt(self, prompt_file):
+        content = ChatGPT._load_file(os.path.join(self._resources_dir, 'prompts', prompt_file))
+
+        context = []
+        for line in content:
+            role, message = line.split('::')
+            message = self._customize_message(message)
+            context.append(ChatGPT._build_context_line(role, message))
+        return context
+
+    def _customize_message(self, message):
+        return message.replace('{name}', self._botname)
+
+    def _tokens_count(self, ctx):
+        return sum([len(self._tokenizer.tokenize(l['content'])) for l in ctx])
 
     @staticmethod
     def _build_context_line(role, content):
         return {'role': role, 'content': content}
 
+    @acquire_mutex
+    def _add_to_context(self, new_message):
+        self._db.insert(new_message)
+        cache = self._db.all()
+
+        while True:
+            messages = self._global_context + cache
+            if self._tokens_count(messages) <= self._max_ctx_tokens:
+                break
+            cache.pop()
+
+        return messages
+
+    @acquire_mutex
+    def _clear_context(self):
+        raise NotImplemented()
+
     def answer(self, input, role='user', stream=True):
-        new_message = ChatGPT._build_context_line(role, input)
-        self._working_memory.append(new_message)
-
-        while self.tokens_count() > self._max_ctx_tokens:
-            self._working_memory.pop()
-
-        messages = self._global_context + self._working_memory
         response = openai.ChatCompletion.create(
             model=self._model,
-            messages=messages,
+            messages=self._add_to_context(ChatGPT._build_context_line(role, input)),
             stream=stream
         )
         return response
 
-    def process_request(self, request):
+    def _process_request(self, request):
         try:
             t0 = time()
             ProjectLogger().info(f'Requesting ChatGPT...')
@@ -93,8 +104,7 @@ class ChatGPT(Consumer, Producer):
             memory = ''
             sentence = ''
             for chunk in chunked_response:
-                stopped = chunk['choices'][0]['finish_reason'] == 'stop'
-                if stopped:
+                if chunk['choices'][0]['finish_reason'] == 'stop':
                     break
 
                 anwser = chunk['choices'][0]['delta']
@@ -104,44 +114,41 @@ class ChatGPT(Consumer, Producer):
                     memory += content
                     if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
                         sentence = sentence.strip()
-                        if len(sentence) > 0:
-                            self._dispatch(sentence)
-                            ProjectLogger().info(f'ChatGPT : {sentence}')
-                        else:
-                            self._dispatch('J\'ai pas les mots.')
+                        self._dispatch(sentence)
+                        ProjectLogger().info(f'ChatGPT : {sentence}')
                         sentence = ''
 
-            memory = ChatGPT._build_context_line('assistant', memory)
-            self._working_memory.append(memory)
+            self._add_to_context(ChatGPT._build_context_line('assistant', memory))
 
         except Exception as e:
             ProjectLogger().error(f'ChatGPT had a stroke. {e}')
             ProjectLogger().warning(f'Wiping working memory.')
-            self._working_memory = []
             self._dispatch(self._error_sentences[random.randint(0, len(self._error_sentences) - 1)])
+            # TODO Make it thread safe
+            # self._clear_context()
 
         # To close streaming response
         self._dispatch(None)
 
     def run(self) -> None:
-        while True:
-            request = self._in_queue.get()
-            if request is None:
-                self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
-                self._dispatch(None)  # To close streaming response
-                continue
-
-            self.process_request(request)
-
-        # with ThreadPoolExecutor(max_workers=4) as executor:
-        #     while True:
-        #         request = self._in_queue.get()
-        #         if request is None:
-        #             self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
-        #             self._dispatch(None)  # To close streaming response
-        #             continue
+        # while True:
+        #     request = self._in_queue.get()
+        #     if request is None:
+        #         self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
+        #         self._dispatch(None)  # To close streaming response
+        #         continue
         #
-        #         executor.submit(self.process_request, request)
+        #     self.process_request(request)
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            while True:
+                request = self._in_queue.get()
+                if request is None:
+                    self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
+                    self._dispatch(None)  # To close streaming response
+                    continue
+
+                future = executor.submit(self._process_request, request)
 
 
 if __name__ == '__main__':
