@@ -48,9 +48,9 @@ class VoiceRecognizer(Consumer, Producer):
             speaker_references = [r[:smallest_ref] for r in speaker_references]
 
             speaker_references = np.stack(speaker_references, axis=0)
-            audio_chunk = audio_chunk.repeat(len(speaker_references), 1)
+            audio_chunk_tmp = audio_chunk.repeat(len(speaker_references), 1)
 
-            scores, _ = self._recog.verify_batch(torch.tensor(speaker_references), audio_chunk)
+            scores, _ = self._recog.verify_batch(torch.tensor(speaker_references), audio_chunk_tmp)
             computed_scores[speaker] = round(scores.max().item(), 4)
 
         speaker_idx = np.argmax(list(computed_scores.values()))
