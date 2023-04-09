@@ -93,7 +93,7 @@ class ChatGPT(Consumer, Producer):
             messages = self._global_context + cache
             if self._tokens_count(messages) <= self._max_ctx_tokens:
                 break
-            cache.pop()
+            cache.pop(0)
 
         return messages
 
