@@ -64,7 +64,7 @@ class VoiceRecognizer(Consumer, Producer):
         return speaker[0].upper() + speaker[1:]
 
     def run(self):
-        while True:
+        while self.running:
             audio_chunk = self._in_queue.get()
             t0 = time()
             recognized_speaker = self.recognize(audio_chunk)

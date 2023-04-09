@@ -1,4 +1,5 @@
 from time import time
+from audio import int16_to_float32
 from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
 from speechbrain.pretrained import VAD
@@ -35,22 +36,30 @@ class VoiceDetector(Consumer, Producer):
             voice_chunk = chunk
             self._buffer = voice_chunk if self._buffer is None else torch.cat([self._buffer, voice_chunk])
             return True
+
+        ProjectLogger().info(f'Noise rejected. {prob.mean().item() * 100:.2f}%')
         return False
 
     def _flush(self):
         if self._buffer is not None:
+            ProjectLogger().info('Speech detected.')
             sentence = self._buffer
             self._buffer = None
             self._dispatch(sentence)
 
     def run(self):
-        while True:
-            audio_chunk = self._in_queue.get()
-            t0 = time()
+        while self.running:
+            task = self._in_queue.get(0.1)
+            if task is None:
+                continue
 
-            if audio_chunk is None:
+            t0 = time()
+            if type(task) == int:  # silence token received
                 self._flush()
             else:
-                self._detect(audio_chunk)
+                self._detect(int16_to_float32(task))
 
+            self._in_queue.task_done()
             ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+
+        ProjectLogger().info('Voice Detector stopped.')

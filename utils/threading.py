@@ -2,11 +2,25 @@ from queue import Queue
 from threading import Thread
 
 
-class Consumer(Thread):
+class ThreadedTask(Thread):
+    def __init__(self):
+        super().__init__()
+        # Daemon thread are killed abruptly when main thread is dead
+        self.daemon = False
+        self.running = False
+
+    def start(self):
+        self.running = True
+        super().start()
+
+    def stop(self):
+        self.running = False
+
+
+class Consumer(ThreadedTask):
 
     def __init__(self):
         super().__init__()
-        self.daemon = True
         self._in_queue = None
 
     def set_in_queue(self, queue):
@@ -18,11 +32,10 @@ class Consumer(Thread):
         return queue
 
 
-class Producer(Thread):
+class Producer(ThreadedTask):
 
     def __init__(self):
         super().__init__()
-        self.daemon = True
         self._out_queues = []
 
     def pipe(self, consumer: Consumer):

@@ -90,7 +90,7 @@ class VoiceSynthesizer(Consumer, Producer):
         return wav
 
     def run(self) -> None:
-        while True:
+        while self.running:
             text = self._in_queue.get()
             if text is None:
                 self._dispatch(None)

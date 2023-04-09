@@ -129,7 +129,6 @@ class ChatGPT(Consumer, Producer):
 
         except Exception as e:
             ProjectLogger().error(f'ChatGPT had a stroke. {e}')
-            ProjectLogger().warning(f'Wiping working memory.')
             self._dispatch(self._error_sentences[random.randint(0, len(self._error_sentences) - 1)])
             # TODO Make it thread safe
             # self._clear_context()
@@ -148,7 +147,7 @@ class ChatGPT(Consumer, Producer):
         #     self.process_request(request)
 
         with ThreadPoolExecutor(max_workers=4) as executor:
-            while True:
+            while self.running:
                 request = self._in_queue.get()
                 if request is None:
                     self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])

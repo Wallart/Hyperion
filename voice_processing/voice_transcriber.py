@@ -57,7 +57,7 @@ class VoiceTranscriber(Consumer, Producer):
         return transcription, lang, score
 
     def run(self):
-        while True:
+        while self.running:
             voice_chunk = self._in_queue.get()
             ProjectLogger().info('Transcribing voice...')
             t0 = time()
