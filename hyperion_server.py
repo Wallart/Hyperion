@@ -50,6 +50,20 @@ def http_speech_stream():
     return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 
+@app.route('/audio', methods=['POST'])
+def http_audio_stream():
+    request_id = current_request_id()
+    audio = request.files['audio'].read()
+
+    speaker, speech = brain.handle_audio(audio)
+    stream = brain.handle_speech(request_id, speaker, speech)
+
+    if brain.frozen:
+        return 'I\'m a teapot', 418
+
+    return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
+
+
 @socketio.on('speech')
 def sio_speech_stream(data):
     request_id = request.sid
@@ -142,7 +156,7 @@ if __name__ == '__main__':
         sub_parser.add_argument('--clear', action='store_true', help='Clean persistent memory at startup')
         sub_parser.add_argument('--no-memory', action='store_true', help='Start bot without persistent memory.')
         sub_parser.add_argument('--name', type=str, default='Hypérion', help='Set bot name.')
-        sub_parser.add_argument('--gpt', type=str, default=CHAT_MODELS[1], choices=CHAT_MODELS, help='GPT version to use.')
+        sub_parser.add_argument('--gpt', type=str, default=CHAT_MODELS[0], choices=CHAT_MODELS, help='GPT version to use.')
         sub_parser.add_argument('--whisper', type=str, default=TRANSCRIPT_MODELS[3], choices=TRANSCRIPT_MODELS, help='Whisper version to use.')
         sub_parser.add_argument('--prompt', type=str, default='base', help='Prompt file to use.')
 

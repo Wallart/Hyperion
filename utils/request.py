@@ -1,3 +1,5 @@
+from audio import int16_to_float32
+
 import numpy as np
 
 
@@ -18,7 +20,11 @@ class RequestObject:
         self.audio_answer = None
 
     def set_audio_request(self, audio_buffer):
-        self.audio_request = np.frombuffer(audio_buffer, dtype=np.float32)
+        if type(audio_buffer) == np.ndarray:
+            assert audio_buffer.dtype == np.float32
+            self.audio_request = audio_buffer
+        else:
+            self.audio_request = int16_to_float32(np.frombuffer(audio_buffer, dtype=np.int16))
 
     def set_text_request(self, text):
         self.text_request = text
