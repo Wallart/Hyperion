@@ -21,26 +21,30 @@ class Brain:
         self.debug = opts.debug
         self.frozen = False
 
-        # speech detection block
+        # Raw audio analysis pipeline
         self.detector = VoiceDetector(ctx[-1:], 16000, activation_threshold=.9)
         self.recognizer = VoiceRecognizer(ctx[-1:])
+        self.detector.pipe(self.recognizer)
 
-        self.audio_intake = self.detector.create_intake()
-        self.speech_sink = self.detector.pipe(self.recognizer).create_sink()
-
+        # logical thinking and speech synthesis block
         self.transcriber = VoiceTranscriber(ctx, opts.whisper)
         self.chat = ChatGPT(opts.name, opts.gpt, opts.no_memory, opts.clear, opts.prompt)
         self.synthesizer = VoiceSynthesizer()
-
         self.transcriber.pipe(self.chat).pipe(self.synthesizer)
 
         # commands handling block
         self.commands = CommandDetector()
         self.transcriber.pipe(self.commands)
-        self.cmd_sink = self.commands.create_sink()
 
+        # intakes
+        self.audio_intake = self.detector.create_intake()
         self.speech_intake = self.transcriber.create_intake()
-        self.text_intake = self.chat.get_intake()
+        self.cmd_intake = self.commands.get_intake()
+        self.chat_intake = self.chat.get_intake()
+
+        # sinks
+        self.audio_sink = self.recognizer.create_sink()
+        self.cmd_sink = self.commands.create_sink()
 
         self.threads = [self.transcriber, self.commands, self.chat, self.synthesizer, self.recognizer, self.detector]
 
@@ -79,6 +83,35 @@ class Brain:
         sink = self.synthesizer.create_identified_sink(request_id)
         self.speech_intake.put(request_obj)
 
+        self.handle_commands(request_id, speaker, sink)
+
+        stream = self.sink_streamer(sink)
+        return stream
+
+    def handle_chat(self, request_id, user, message):
+        request_obj = RequestObject(request_id, user)
+        request_obj.set_text_request(message)
+
+        sink = self.synthesizer.create_identified_sink(request_id)
+
+        self.cmd_intake.put(request_obj)
+        self.handle_commands(request_id, user, sink)
+        self.chat_intake.put(request_obj)
+
+        stream = self.sink_streamer(sink)
+        return stream
+
+    def handle_audio(self, audio):
+        buffer = np.frombuffer(audio, dtype=np.int16)
+        buffer = int16_to_float32(buffer)
+
+        self.audio_intake.put(buffer)
+        self.audio_intake.put(None)  # end of speech
+
+        speech, speaker = self.audio_sink.drain()
+        return speaker, speech.numpy()
+
+    def handle_commands(self, request_id, speaker, sink):
         detected_cmd = self.cmd_sink.drain()
         if detected_cmd == ACTIONS.SLEEP.value:
             self.frozen = True
@@ -93,26 +126,3 @@ class Brain:
         elif detected_cmd == ACTIONS.QUIET.value:
             sink._sink.put(RequestObject(request_id, speaker, termination=True, priority=0))
             emit('interrupt', to=request_id)
-
-        stream = self.sink_streamer(sink)
-        return stream
-
-    def handle_chat(self, request_id, user, message):
-        request_obj = RequestObject(request_id, user)
-        request_obj.set_text_request(message)
-
-        sink = self.synthesizer.create_identified_sink(request_id)
-        self.text_intake.put(request_obj)
-
-        stream = self.sink_streamer(sink)
-        return stream
-
-    def handle_audio(self, audio):
-        buffer = np.frombuffer(audio, dtype=np.int16)
-        buffer = int16_to_float32(buffer)
-
-        self.audio_intake.put(buffer)
-        self.audio_intake.put(None)  # end of speech
-
-        speech, speaker = self.speech_sink.drain()
-        return speaker, speech.numpy()
