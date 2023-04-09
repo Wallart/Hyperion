@@ -1,7 +1,9 @@
+numpy
 openai
 openai-whisper
 torch==1.13.1
 gTTS
+google-cloud-texttospeech
 pydub
 # fairseq
 datasets

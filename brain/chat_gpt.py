@@ -10,7 +10,7 @@ class ChatGPT:
     def __init__(self, max_memory=400):
         self._max_memory = max_memory
         self._model = 'gpt-3.5-turbo'
-        with open(os.path.join(os.getcwd(), 'resources', 'api_key.txt')) as f:
+        with open(os.path.join(os.getcwd(), 'resources', 'openai_api_key.txt')) as f:
             api_key = f.readlines()[0]
 
         openai.api_key = api_key
