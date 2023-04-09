@@ -62,7 +62,7 @@ def startup(app_name, parser, fn):
     #             exit(1)
 
     if opts.daemon:
-        daemon = Daemon(worker=partial(fn, app_name, opts), pid_file=pid_file, detach=False)
+        daemon = Daemon(worker=partial(fn, app_name, opts), pid_file=pid_file)
         daemon.do_action('start')
     else:
         return fn(app_name, opts)
