@@ -91,6 +91,10 @@ class VoiceRecognizer(Consumer, Producer):
         while self.running:
             try:
                 audio_chunk = self._consume()
+                if audio_chunk is None:
+                    self._dispatch((None, None))
+                    continue
+
                 t0 = time()
                 recognized_speaker = self.recognize(audio_chunk)
                 ProjectLogger().info(f'{recognized_speaker}\'s speaking...')

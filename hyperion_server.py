@@ -60,6 +60,9 @@ def http_audio_stream():
     audio = request.files['audio'].read()
 
     speaker, speech = brain.handle_audio(audio)
+    if speaker is None and speech is None:
+        return 'No speech detected', 204
+
     stream = brain.handle_speech(request_id, request_sid, speaker, speech)
 
     if brain.frozen:
@@ -88,6 +91,9 @@ def sio_audio_stream(audio):
     request_id = request.sid
 
     speaker, speech = brain.handle_audio(audio)
+    if speaker is None and speech is None:
+        return
+
     stream = brain.handle_speech(request_id, request_id, speaker, speech)
     for frame in stream:
         emit('answer', dict(requester=speaker, answer=frame), to=request_id)

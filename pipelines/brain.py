@@ -125,7 +125,8 @@ class Brain:
             except queue.Empty:
                 continue
 
-        return speaker, speech.numpy()
+        speech = speech if speech is None else speech.numpy()
+        return speaker, speech
 
     def handle_commands(self, request_id, request_sid, speaker, sink):
         # TODO Ship into drain ?

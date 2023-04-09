@@ -58,6 +58,8 @@ class VoiceDetector(Consumer, Producer):
                     self._flush()
                 elif self._detect(task):
                     ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} DETECT exec. time')
+                else:
+                    self._dispatch(None)  # To avoid locks
 
             except queue.Empty:
                 continue
