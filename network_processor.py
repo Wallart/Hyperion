@@ -1,21 +1,32 @@
 from time import time
-from audio import int16_to_float32
 from flask import Flask, Response, request
+from audio import int16_to_float32, float32_to_int16
 from voice_processing.voice_detector import VoiceDetector
 from voice_processing.voice_recognizer import VoiceRecognizer
 
 import logging
+import librosa
 import requests
 import numpy as np
 
 app = Flask(__name__)
 
+TEXT_SEPARATOR = b'----TEXT-END----\n'
+CHUNK_SEPARATOR = b'----CHUNK-END----\n'
 
-@app.route('/talk', methods=['POST'])
-def handle_audio_stream():
-    # wav, _ = librosa.load('/Users/wallart/Desktop/709c2426101b93ce09d033eac48a56efe1a79e99.wav', sr=24000)
-    # wav = float32_to_int16(wav)
-    # return Response(response=wav.tobytes(), status=200, mimetype='application/octet-stream')
+SAMPLE_RATE = 16000
+TARGET_URL = 'http://deepbox:9999'
+
+
+def dummy_response():
+    wav, _ = librosa.load('/Users/wallart/Desktop/709c2426101b93ce09d033eac48a56efe1a79e99.wav', sr=24000)
+    wav = float32_to_int16(wav)
+    part1 = bytes('TOTO', 'utf-8') + TEXT_SEPARATOR + bytes('TATA', 'utf-8') + TEXT_SEPARATOR + wav.tobytes() + CHUNK_SEPARATOR
+    part2 = bytes('TUTU', 'utf-8') + TEXT_SEPARATOR + bytes('TITI', 'utf-8') + TEXT_SEPARATOR + wav[:20000].tobytes() + CHUNK_SEPARATOR
+    return Response(response=part1 + part2, status=200, mimetype='application/octet-stream')
+
+
+def chat_gpt_response():
     buffer = bytearray()
     for bytes_chunk in request.stream:
         buffer.extend(bytes_chunk)
@@ -30,48 +41,31 @@ def handle_audio_stream():
     # if recognized_speaker == 'Unknown':
     #     return Response(response='Unknown speaker', status=204, mimetype='text/plain')
 
+    t0 = time()
+    logging.info('Processing request...')
+    payload = [
+        ('speaker', ('speaker', recognized_speaker, 'text/plain')),
+        ('speech', ('speech', audio_chunk.tobytes(), 'application/octet-stream'))
+    ]
     try:
-        t0 = time()
-        logging.info('Processing request...')
-        payload = [
-            ('speaker', ('speaker', recognized_speaker, 'text/plain')),
-            ('speech', ('speech', audio_chunk.tobytes(), 'application/octet-stream'))
-        ]
-        res = requests.post(url=f'{target_url}/audio', files=payload, stream=True)
+        res = requests.post(url=f'{TARGET_URL}/audio', files=payload, stream=True)
+        logging.info(f'Request processed in {time() - t0:.3f} sec(s).')
         if res.status_code != 200:
             return Response(response=f'Something went wrong. HTTP {res.status_code}', status=500, mimetype='text/plain')
-        else:
-            req = None
-            for chunk in res.iter_lines(delimiter=b'----CHUNK-END----\n'):
-                sub_chunks = chunk.split(b'----TEXT-END----\n')
-                if len(sub_chunks) == 3:
-                    req = sub_chunks[0].decode('utf-8')
-                    answer = sub_chunks[1].decode('utf-8')
-                    audio = sub_chunks[2]
-                    print(f'{recognized_speaker} : {req}')
-                elif len(sub_chunks) == 2:
-                    answer = sub_chunks[0].decode('utf-8')
-                    audio = sub_chunks[1]
-                else:
-                    continue
-
-                print(f'ChatGPT : {answer}')
-                spoken_chunk = np.frombuffer(audio, dtype=np.int16)[1000:]  # remove popping sound
-                return Response(response=spoken_chunk.tobytes(), status=200, mimetype='application/octet-stream')
-
-        logging.info(f'Request processed in {time() - t0:.3f} sec(s).')
+        return Response(response=res, status=200, mimetype='application/octet-stream')
     except Exception as e:
         logging.warning(f'Request canceled : {e}')
         return Response(response=str(e), status=500, mimetype='text/plain')
-    return Response(response='OK', status=200, mimetype='text/plain')
 
 
-SAMPLE_RATE = 16000
+@app.route('/talk', methods=['POST'])
+def handle_audio_stream():
+    # return dummy_response()
+    return chat_gpt_response()
+
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-
-    target_url = 'http://deepbox:9999'
 
     recognizer = VoiceRecognizer()
     detector = VoiceDetector(SAMPLE_RATE, activation_threshold=.9)
