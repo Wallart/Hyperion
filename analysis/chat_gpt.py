@@ -2,12 +2,12 @@ from time import time
 from copy import deepcopy
 from threading import Lock
 from tinydb import TinyDB, Query
-from analysis import MAX_TOKENS, acquire_mutex
 from utils.logger import ProjectLogger
 from utils.request import RequestObject
 from utils.threading import Consumer, Producer
 from concurrent.futures import ThreadPoolExecutor
 from utils.external_resources_parsing import fetch_urls
+from analysis import MAX_TOKENS, acquire_mutex, get_model_token_specs
 
 import os
 import queue
@@ -30,8 +30,8 @@ class ChatGPT(Consumer, Producer):
         self._botname = name
         self._no_memory = no_memory
         # Seems that we have to reserve some tokens for chat completion...
-        self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
-        # self._max_ctx_tokens = MAX_TOKENS
+        # self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
+        self._max_ctx_tokens = MAX_TOKENS
 
         root_dir = os.path.dirname(os.path.dirname(__file__))
         self._resources_dir = os.path.join(root_dir, 'resources')
@@ -39,6 +39,8 @@ class ChatGPT(Consumer, Producer):
         os.makedirs(self._cache_dir, exist_ok=True)
 
         self._tokenizer = tiktoken.encoding_for_model(self._model)
+        self._tokens_per_message, self._tokens_per_name = get_model_token_specs(self._model)
+
         db_path = os.path.join(self._cache_dir, 'prompts_db.json')
         if clear and os.path.exists(db_path):
             ProjectLogger().info('Cleared persistent memory.')
@@ -68,20 +70,32 @@ class ChatGPT(Consumer, Producer):
 
         context = []
         for line in content:
-            role, message = line.split('::')
+            sp_line = line.split('::')
+            role, name, message = sp_line if len(sp_line) == 3 else (sp_line[0], None, sp_line[1])
             message = self._customize_message(message)
-            context.append(ChatGPT._build_context_line(role, message))
+            context.append(ChatGPT._build_context_line(role, message, name=name))
         return context
 
     def _customize_message(self, message):
         return message.replace('{name}', self._botname)
 
-    def _tokens_count(self, ctx):
-        return sum([len(self._tokenizer.encode(l['content'])) for l in ctx])
+    def _tokens_count(self, messages):
+        """Returns the number of tokens used by a list of messages."""
+        num_tokens = 0
+        for message in messages:
+            num_tokens += self._tokens_per_message
+            for key, value in message.items():
+                num_tokens += len(self._tokenizer.encode(value))
+                if key == 'name':
+                    num_tokens += self._tokens_per_name
+        num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+        return num_tokens
 
     @staticmethod
-    def _build_context_line(role, content):
-        return {'role': role, 'content': content}
+    def _build_context_line(role, content, name=None):
+        if name is None:
+            return {'role': role, 'content': content}
+        return {'role': role, 'content': content, 'name': name}
 
     @acquire_mutex
     def _add_to_context(self, new_message):
@@ -92,7 +106,9 @@ class ChatGPT(Consumer, Producer):
 
         while True:
             messages = self._global_context + cache
-            if self._tokens_count(messages) <= self._max_ctx_tokens:
+            found_tokens = self._tokens_count(messages)
+            if found_tokens < self._max_ctx_tokens:
+                ProjectLogger().info(f'Sending a {found_tokens} tokens request.')
                 break
             cache.pop(0)
 
@@ -102,10 +118,10 @@ class ChatGPT(Consumer, Producer):
     def clear_context(self):
         self._db.truncate()
 
-    def answer(self, chat_input, role='user', stream=True):
+    def answer(self, chat_input, role='user', name=None, stream=True):
         response = openai.ChatCompletion.create(
             model=self._model,
-            messages=self._add_to_context(ChatGPT._build_context_line(role, chat_input)),
+            messages=self._add_to_context(ChatGPT._build_context_line(role, chat_input, name=name)),
             stream=stream
         )
         return response
@@ -119,9 +135,8 @@ class ChatGPT(Consumer, Producer):
         try:
             request_obj.text_request = fetch_urls(request_obj.text_request)
             ProjectLogger().info('Requesting ChatGPT...')
-            chat_input = f'{request_obj.user} : {request_obj.text_request}'
-            ProjectLogger().info(f'{chat_input}')
-            chunked_response = self.answer(chat_input)
+            ProjectLogger().info(f'{request_obj.user} : {request_obj.text_request}')
+            chunked_response = self.answer(request_obj.text_request, name=request_obj.user)
             ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
 
             for chunk in chunked_response:
