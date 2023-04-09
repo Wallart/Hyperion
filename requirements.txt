@@ -44,8 +44,8 @@ urlextract
 bs4
 lxml
 readability-lxml
+daemonocle
 
 # gui
-tkinter
 customtkinter
-#pygments
+pygments

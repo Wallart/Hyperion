@@ -13,7 +13,9 @@ The followings features are supported :
 
 ## Usage
 
-### Install Python dependencies. (Python 3.10)
+### Install dependencies. (Python 3.10 required)
+sudo apt install libportaudio2 libsndfile1-dev python3-tk
+
 pip install -r requirements.txt
 ### Start the server
 python3 hyperion_server.py start
