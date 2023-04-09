@@ -55,11 +55,10 @@ class VoiceDetector(Consumer, Producer):
                 t0 = time()
                 if task is None:  # silence token received
                     self._flush()
-                else:
-                    self._detect(task)
+                elif self._detect(task):
+                    ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} DETECT exec. time')
 
                 self._in_queue.task_done()
-                ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:
                 continue
 

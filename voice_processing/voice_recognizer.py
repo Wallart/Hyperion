@@ -19,7 +19,10 @@ class VoiceRecognizer(Consumer, Producer):
         self.sample_rate = 16000  # Model is using 16kHZ samples
         self._ctx = ctx
         self._recog_threshold = recog_threshold
-        self._speakers_sample_dir = os.path.join(os.getcwd(), 'resources', 'speakers_samples')
+
+        sample_dir = os.path.join(os.getcwd(), 'resources', 'speakers_samples')
+        self.speakers_references = self.load_references(sample_dir)
+
         opts = {
             'source': 'speechbrain/spkrec-ecapa-voxceleb',
             'savedir': os.path.expanduser(os.path.join(model_path, 'recog')),
@@ -27,36 +30,44 @@ class VoiceRecognizer(Consumer, Producer):
         }
         self._recog = SpeakerRecognition.from_hparams(**opts)
 
+    def load_references(self, sample_dir):
+        speakers_references = {}
+        for speaker in os.listdir(sample_dir):
+            if not os.path.isdir(os.path.join(sample_dir, speaker)):
+                continue
+
+            wav_files = glob(os.path.join(sample_dir, speaker, '*.wav'))
+            if len(wav_files) == 0:
+                continue
+
+            pcm = [self.load_wavfile(w) for w in wav_files]
+            smallest_pcm = min([len(p) for p in pcm])
+            pcm = [p[:smallest_pcm] for p in pcm]
+            speakers_references[speaker] = np.stack(pcm, axis=0)
+        return speakers_references
+
     def load_wavfile(self, file_path):
         # TODO Librosa fires a warning. ResourceWarning: unclosed file
         wav, _ = librosa.load(file_path, sr=self.sample_rate)
-        return wav
+        trimmed_wav, _ = librosa.effects.trim(wav)
+        return trimmed_wav
 
     def recognize(self, audio_chunk):
         if type(audio_chunk) == np.ndarray:
             audio_chunk = torch.tensor(audio_chunk)
 
         audio_chunk = audio_chunk.unsqueeze(0)
-        list_speakers = [e for e in os.listdir(self._speakers_sample_dir) if os.path.isdir(os.path.join(self._speakers_sample_dir, e))]
 
         computed_scores = {}
-        for speaker in list_speakers:
-            speaker_file_samples = glob(os.path.join(self._speakers_sample_dir, speaker, '*.wav'))
-            if len(speaker_file_samples) == 0:
-                continue
-
-            speaker_references = [self.load_wavfile(f) for f in speaker_file_samples]
-            smallest_ref = min([len(r) for r in speaker_references])
-            speaker_references = [r[:smallest_ref] for r in speaker_references]
-
-            speaker_references = np.stack(speaker_references, axis=0)
-            audio_chunk_tmp = audio_chunk.repeat(len(speaker_references), 1)
-
-            scores, _ = self._recog.verify_batch(torch.tensor(speaker_references), audio_chunk_tmp)
+        for speaker, references in self.speakers_references.items():
+            audio_chunk_tmp = audio_chunk.repeat(len(references), 1)
+            t0 = time()
+            scores, _ = self._recog.verify_batch(torch.tensor(references), audio_chunk_tmp)
+            ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} RECOG INF exec. time')
             computed_scores[speaker] = round(scores.max().item(), 4)
 
         speaker_idx = np.argmax(list(computed_scores.values()))
-        speaker = list_speakers[speaker_idx]
+        speaker = list(computed_scores.keys())[speaker_idx]
         best_score = computed_scores[speaker]
 
         ProjectLogger().info(f'Speakers scores : {computed_scores}')
