@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
+from time import time
 from daemonocle import Daemon
 from brain.chat_gpt import ChatGPT
-from flask import Flask, Response, request
-from utils import TEXT_SEPARATOR, CHUNK_SEPARATOR
 from utils.logger import ProjectLogger
-from utils.utils import get_ctx
+from utils.utils import get_ctx, frame_encode
+from flask import Flask, Response, request, g
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
 
@@ -35,20 +35,14 @@ class Brain:
 
     @staticmethod
     def sink_streamer(request, text_sink, audio_sink):
-        i = 0
         while True:
             text_chunk = text_sink.get()
             audio_chunk = audio_sink.get()
             if audio_chunk is None:
                 return
 
-            req = bytes(request, 'utf-8')
-            resp = bytes(text_chunk, 'utf-8')
-            audio_bytes = audio_chunk.tobytes()
-            response = resp + TEXT_SEPARATOR + audio_bytes + CHUNK_SEPARATOR
-            response = req + TEXT_SEPARATOR + response if i == 0 else response
-            i += 1
-            yield response
+            encoded_frame = frame_encode(request, text_chunk, audio_chunk)
+            yield encoded_frame
 
     def handle_audio(self):
         speech = request.files['speech'].read()
@@ -66,7 +60,7 @@ class Brain:
             ProjectLogger().info(chat_input)
 
         self.intake_2.put(chat_input)
-        return Response(response=Brain.sink_streamer(transcription, self.sink_2a, self.sink_2b), status=200, mimetype='application/octet-stream')
+        return Response(response=Brain.sink_streamer(transcription, self.sink_2a, self.sink_2b), mimetype='application/octet-stream')
 
 
 APP_NAME = 'hyperion_brain'
@@ -81,6 +75,18 @@ def audio_stream():
 @app.route('/video')
 def video_stream():
     return 'Not yet implemented', 500
+
+
+@app.before_request
+def before_request():
+    g.start = time()
+
+
+@app.after_request
+def after_request(response):
+    diff = time() - g.start
+    ProjectLogger().info(f'Request execution time {diff:.3f} sec(s)')
+    return response
 
 
 def main():

@@ -153,3 +153,32 @@ class LivePlotter:
         # however, I did not observe that.
 
         self.fig.canvas.flush_events()
+
+
+def frame_encode(request, answer, pcm):
+    # beware of accents, they are using 2 bytes. Byte string might be longer than str
+    answer = bytes(answer, 'utf-8')
+    request = bytes(request, 'utf-8')
+
+    req_len = len(request)
+    ans_len = len(answer)
+    pcm_len = len(pcm) * 2  # because each value is coded on 2 bytes (16 bits)
+
+    # print(f'req {req_len}')
+    # print(f'ans {ans_len}')
+    # print(f'pcm {pcm_len}')
+
+    frame = bytes('REQ', 'utf-8')
+    frame += req_len.to_bytes(4, 'big')  # big = read bytes from left to right
+    frame += request
+
+    frame += bytes('ANS', 'utf-8')
+    frame += ans_len.to_bytes(4, 'big')
+    frame += answer
+
+    frame += bytes('PCM', 'utf-8')
+    frame += pcm_len.to_bytes(4, 'big')
+    frame += pcm.tobytes()
+
+    # print(f'Frame len {len(frame)}')
+    return frame

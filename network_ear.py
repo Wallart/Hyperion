@@ -1,12 +1,11 @@
 #!/usr/bin/python
 
-from time import time
+from time import time, sleep
 from daemonocle import Daemon
-from flask import Flask, Response, request
-from audio import int16_to_float32, float32_to_int16
-from utils import TEXT_SEPARATOR, CHUNK_SEPARATOR
 from utils.logger import ProjectLogger
-from utils.utils import get_ctx
+from utils.utils import get_ctx, frame_encode
+from flask import Flask, Response, request, g
+from audio import int16_to_float32, float32_to_int16
 from voice_processing.voice_detector import VoiceDetector
 from voice_processing.voice_recognizer import VoiceRecognizer
 
@@ -39,11 +38,14 @@ class NetworkEar:
         app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
 
     def dummy_response(self):
-        wav, _ = librosa.load(self.dummy_file, sr=24000)
-        wav = float32_to_int16(wav)
-        part1 = bytes('TOTO', 'utf-8') + TEXT_SEPARATOR + bytes('TATA', 'utf-8') + TEXT_SEPARATOR + wav.tobytes() + CHUNK_SEPARATOR
-        part2 = bytes('TUTU', 'utf-8') + TEXT_SEPARATOR + bytes('TITI', 'utf-8') + TEXT_SEPARATOR + wav[:20000].tobytes() + CHUNK_SEPARATOR
-        return Response(response=part1 + part2, status=200, mimetype='application/octet-stream')
+        def generator(n):
+            for _ in range(n):
+                wav, _ = librosa.load(self.dummy_file, sr=24000)
+                wav = float32_to_int16(wav)
+                yield frame_encode('Mon chien', 'est le plus beau', wav)
+                sleep(1)
+
+        return Response(response=generator(1), mimetype='application/octet-stream')
 
     def chat_gpt_response(self):
         buffer = bytearray()
@@ -61,17 +63,17 @@ class NetworkEar:
         #     return Response(response='Unknown speaker', status=204, mimetype='text/plain')
 
         t0 = time()
-        ProjectLogger().info('Processing request...')
+        ProjectLogger().info('Processing audio...')
         payload = [
             ('speaker', ('speaker', recognized_speaker, 'text/plain')),
             ('speech', ('speech', audio_chunk.tobytes(), 'application/octet-stream'))
         ]
         try:
             res = requests.post(url=f'{self.target_url}/audio', files=payload, stream=True)
-            ProjectLogger().info(f'Request processed in {time() - t0:.3f} sec(s).')
+            ProjectLogger().info(f'Audio processed in {time() - t0:.3f} sec(s).')
             if res.status_code != 200:
                 return Response(response=f'Something went wrong. HTTP {res.status_code}', status=500, mimetype='text/plain')
-            return Response(response=res, status=200, mimetype='application/octet-stream')
+            return Response(response=res, mimetype='application/octet-stream')
         except Exception as e:
             ProjectLogger().warning(f'Request canceled : {e}')
             return Response(response=str(e), status=500, mimetype='text/plain')
@@ -90,6 +92,18 @@ app = Flask(__name__)
 @app.route('/talk', methods=['POST'])
 def talk():
     return ear.handle()
+
+
+@app.before_request
+def before_request():
+    g.start = time()
+
+
+@app.after_request
+def after_request(response):
+    diff = time() - g.start
+    ProjectLogger().info(f'Request execution time {diff:.3f} sec(s)')
+    return response
 
 
 def main():
