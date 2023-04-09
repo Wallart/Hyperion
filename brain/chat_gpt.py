@@ -6,10 +6,13 @@ import random
 import openai
 import logging
 
+# from openai api
+MAX_TOKENS = 4097
+
 
 class ChatGPT(Consumer, Producer):
 
-    def __init__(self, max_memory=400):
+    def __init__(self, name='Hypérion', model='gpt-3.5-turbo'):
         super().__init__()
 
         self._error_sentences = [
@@ -19,22 +22,26 @@ class ChatGPT(Consumer, Producer):
             'Qu\'est-ce qui est jaune et qui attend ? Jonathan !'
         ]
 
-        self._max_ctx_tokens = 4097  # from openai api
-        self._max_memory = max_memory
-        self._model = 'gpt-3.5-turbo'
+        self._name = name
+        self._model = model
+
+        # 5% less than max tokens because we don't know exactly what are tokens.
+        # Usually they are words, sometimes it's just a letter or a comma.
+        self._max_ctx_tokens = MAX_TOKENS - (MAX_TOKENS * .05)
+
         with open(os.path.join(os.getcwd(), 'resources', 'openai_api_key.txt')) as f:
             api_key = f.readlines()[0]
 
         openai.api_key = api_key
         self._global_context = [
-            ChatGPT._build_context_line('system', 'Tu es un assistant virtuel vraiment sympatique et plein d\'humour nommé Hypérion, qui répond toujours en français. Tu parles avec plusieurs personnes, mais refuses de répondre aux inconnus.'),
-            ChatGPT._build_context_line('user', 'Julien : Bonjour Hypérion comment vas-tu aujourd\'hui ?'),
+            ChatGPT._build_context_line('system', f'Tu es un assistant virtuel vraiment sympatique et plein d\'humour nommé {self._name}, qui répond toujours en français. Tu parles avec plusieurs personnes, mais refuses de répondre aux inconnus.'),
+            ChatGPT._build_context_line('user', f'Julien : Bonjour {self._name} comment vas-tu aujourd\'hui ?'),
             ChatGPT._build_context_line('assistant', 'Je vais bien Julien ! Merci de demander.'),
             ChatGPT._build_context_line('user', 'Julien : Mon chat s\'appelle Petit Poulet.'),
             ChatGPT._build_context_line('assistant', 'C\'est noté.'),
-            ChatGPT._build_context_line('user', 'Michel : Salut Hypérion !'),
+            ChatGPT._build_context_line('user', f'Michel : Salut {self._name} !'),
             ChatGPT._build_context_line('assistant', 'Bonjour Michel.'),
-            ChatGPT._build_context_line('user', 'Unknown : Bonjour Hypérion !'),
+            ChatGPT._build_context_line('user', f'Unknown : Bonjour {self._name} !'),
             ChatGPT._build_context_line('assistant', 'Désolé ma maman m\'a dit de ne pas répondre aux inconnus.')
         ]
         self._working_memory = []
@@ -88,17 +95,16 @@ class ChatGPT(Consumer, Producer):
                         memory += content
                         if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
                             sentence = sentence.strip()
-                            print(f'Dispatched : {sentence}')
                             self._dispatch(sentence)
                             sentence = ''
 
                 memory = ChatGPT._build_context_line('assistant', memory)
                 self._working_memory.append(memory)
-                if len(self._working_memory) > self._max_memory:
-                    self._working_memory.pop()
 
             except Exception as e:
                 logging.error(f'ChatGPT had a stroke. {e}')
+                logging.warning(f'Wiping working memory.')
+                self._working_memory = []
                 self._dispatch(self._error_sentences[random.randint(0, len(self._error_sentences) - 1)])
 
             # To close streaming response
