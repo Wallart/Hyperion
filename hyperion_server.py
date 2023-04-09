@@ -18,15 +18,15 @@ import argparse
 APP_NAME = os.path.basename(__file__).split('.')[0]
 app = Flask(__name__)
 RequestID(app)
-socketio = SocketIO(app)
+sio = SocketIO(app)
 
 
-@socketio.on('connect')
+@sio.on('connect')
 def connect():
     ProjectLogger().info(f'Client {request.sid} connected')
 
 
-@socketio.on('disconnect')
+@sio.on('disconnect')
 def disconnect():
     ProjectLogger().info(f'Client {request.sid} disconnected')
 
@@ -39,10 +39,12 @@ def name():
 @app.route('/speech', methods=['POST'])
 def http_speech_stream():
     request_id = current_request_id()
+    request_sid = request.headers['SID']
+
     speech = request.files['speech'].read()
     speaker = request.files['speaker'].read().decode('utf-8')
 
-    stream = brain.handle_speech(request_id, speaker, speech)
+    stream = brain.handle_speech(request_id, request_sid, speaker, speech)
 
     if brain.frozen:
         return 'I\'m a teapot', 418
@@ -53,10 +55,12 @@ def http_speech_stream():
 @app.route('/audio', methods=['POST'])
 def http_audio_stream():
     request_id = current_request_id()
+    request_sid = request.headers['SID']
+
     audio = request.files['audio'].read()
 
     speaker, speech = brain.handle_audio(audio)
-    stream = brain.handle_speech(request_id, speaker, speech)
+    stream = brain.handle_speech(request_id, request_sid, speaker, speech)
 
     if brain.frozen:
         return 'I\'m a teapot', 418
@@ -67,32 +71,34 @@ def http_audio_stream():
     return res
 
 
-@socketio.on('speech')
+@sio.on('speech')
 def sio_speech_stream(data):
     request_id = request.sid
     speaker = data['speaker']
     speech = data['speech']
 
-    stream = brain.handle_speech(request_id, speaker, speech)
+    stream = brain.handle_speech(request_id, request_id, speaker, speech)
     for frame in stream:
         emit('answer', dict(requester=speaker, answer=frame), to=request_id)
-        socketio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
+        sio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
 
 
-@socketio.on('audio')
+@sio.on('audio')
 def sio_audio_stream(audio):
     request_id = request.sid
 
     speaker, speech = brain.handle_audio(audio)
-    stream = brain.handle_speech(request_id, speaker, speech)
+    stream = brain.handle_speech(request_id, request_id, speaker, speech)
     for frame in stream:
         emit('answer', dict(requester=speaker, answer=frame), to=request_id)
-        socketio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
+        sio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
 
 
 @app.route('/chat', methods=['POST'])
 def http_chat():
     request_id = current_request_id()
+    request_sid = request.headers['SID']
+
     user = request.form['user']
     message = request.form['message']
 
@@ -108,11 +114,11 @@ def http_chat():
         brain.chat.frozen = False
         return 'Unfreezed', 202
 
-    stream = brain.handle_chat(request_id, user, message)
+    stream = brain.handle_chat(request_id, request_sid, user, message)
     return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 
-@socketio.on('chat')
+@sio.on('chat')
 def sio_chat(data):
     request_id = request.sid
     user = data['user']
@@ -121,11 +127,11 @@ def sio_chat(data):
     if user is None or message is None:
         return
 
-    stream = brain.handle_chat(request_id, user, message)
+    stream = brain.handle_chat(request_id, request_id, user, message)
     # _ = [emit('answer', dict(requester=user, answer=frame), to=request_id) for frame in stream]
     for frame in stream:
         emit('answer', dict(requester=user, answer=frame), to=request_id)
-        socketio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
+        sio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
 
 
 @app.route('/video')
@@ -150,7 +156,7 @@ def main(args):
     global brain
     ctx = get_ctx(args)
     brain = Brain(ctx, args)
-    brain.start(socketio, app)
+    brain.start(sio, app)
 
 
 if __name__ == '__main__':

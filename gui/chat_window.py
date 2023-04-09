@@ -32,6 +32,7 @@ class ChatWindow(customtkinter.CTk):
         self._previous_speaker = None
         self._previous_text = None
         self._code_block = False
+        self._interrupt = False
         self.bot_name = bot_name
 
         # configure window
@@ -139,6 +140,8 @@ class ChatWindow(customtkinter.CTk):
 
         if with_delay:
             for char in message:
+                if self._interrupt and self.bot_name == author:
+                    break
                 self._textbox_write(char)
                 sleep(0.03)
         else:
@@ -181,19 +184,30 @@ class ChatWindow(customtkinter.CTk):
             # start_idx = 0#len(self._previous_speaker) + 3
             self.textbox.tag_add('pending', lastline_index, tk.END)
 
-    def queue_message(self, author, message):
-        self._in_message_queue.put((author, message))
+    def queue_message(self, idx, requester, message):
+        self._in_message_queue.put((idx, requester, message))
 
     def drain_message(self):
         message = self._out_message_queue.get(timeout=0.1)
         self._out_message_queue.task_done()
         return message
 
+    def mute(self):
+        # TODO not thread safe ?
+        self._interrupt = True
+
+    def unmute(self):
+        self._interrupt = False
+
     def message_handler(self):
         while self._running:
             try:
-                author, text = self._in_message_queue.get(timeout=0.1)
+                idx, requester, text = self._in_message_queue.get(timeout=0.1)
                 self._in_message_queue.task_done()
+                author = self.bot_name
+                if idx == 0:
+                    author = requester
+                    self.unmute()
                 self._insert_message(author, text, with_delay=True)
             except queue.Empty:
                 continue

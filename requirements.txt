@@ -22,9 +22,15 @@ librosa
 noisereduce
 sounddevice
 
-# HTTP
-flask
+# HTTP server side
+ flask
+eventlet
+flask-socketio
+simple-websocket
+gevent-websocket
+# flask-sock
 flask_log_request_id
+# HTTP client side
 requests
 requests_toolbelt
 

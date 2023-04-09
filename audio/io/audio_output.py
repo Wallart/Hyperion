@@ -1,13 +1,12 @@
 from time import time
-from audio import int16_to_float32
-from utils.logger import ProjectLogger
-from utils.threading import Consumer
-from audio.io.sound_device_resource import SoundDeviceResource
 from librosa import resample
+from audio import int16_to_float32
+from utils.threading import Consumer
+from utils.logger import ProjectLogger
+from audio.io.sound_device_resource import SoundDeviceResource
 
 import queue
 import logging
-import sounddevice as sd
 
 
 class AudioOutput(SoundDeviceResource, Consumer):
@@ -17,31 +16,45 @@ class AudioOutput(SoundDeviceResource, Consumer):
         Consumer.__init__(self)
         self.sample_rate = sample_rate
         # self._previously_played = None
+        self._interrupted = False
 
     def stop(self):
         super().stop()
         self.close()
 
-    def quiet(self):
+    def mute(self):
+        ProjectLogger().info('Silence required !')
+        self._stream.abort(ignore_errors=True)
+
         with self._in_queue.mutex:
             self._in_queue.queue.clear()
-        sd.stop()
+
+        # TODO not thread safe ?
+        self._interrupted = True
 
     def run(self) -> None:
         self.open()
         while self._stream.active:
             try:
-                audio = self._consume()
+                idx, audio = self._consume()
                 t0 = time()
+                # TODO Checking sentence idx won't be enough. We should have uuid to requests
+                if self._interrupted and idx == 0:
+                    self._interrupted = False
+                elif self._interrupted and idx > 0:
+                    continue
 
-                # audio = int16_to_float32(audio)
                 audio = resample(int16_to_float32(audio), orig_sr=self.sample_rate, target_sr=self.device_default_sr)
                 # self._previously_played = audio
                 try:
                     self._stream.write(audio)
                 except Exception:
-                    ProjectLogger().error('Output audio stream not available.')
+                    ProjectLogger().warning('Output audio stream not available.')
 
                 logging.info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:
                 continue
+
+        if self._interrupted:
+            ProjectLogger().info('Restarting output stream.')
+            self.run()
