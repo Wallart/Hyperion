@@ -5,6 +5,7 @@ from audio.microphone import Microphone
 from audio.audio_stream import AudioStream
 from audio.speakers_stream import SpeakersStream
 from voice_processing.voice_detector import VoiceDetector
+from requests_toolbelt import MultipartDecoder
 
 import requests
 import logging
@@ -52,10 +53,15 @@ if __name__ == '__main__':
                 if res.status_code != 200:
                     logging.warning(f'Something went wrong. HTTP {res.status_code}')
                 else:
-                    spoken_response = np.frombuffer(res.content, dtype=np.float32)
+                    raw_text, raw_audio = MultipartDecoder.from_response(res).parts
+
+                    written_response = raw_text.text
+                    spoken_response = np.frombuffer(raw_audio.content, dtype=np.float32)
                     # sd.stop()
                     # sd.play(spoken_response, blocking=False, samplerate=OUT_SAMPLE_RATE)
                     intake.put(spoken_response)
+                    logging.info(f'ChatGPT : {written_response}')
+
                 logging.info(f'Request processed in {time() - t0:.3f} sec(s).')
             except Exception as e:
                 logging.warning(f'Request canceled : {e}')

@@ -29,13 +29,8 @@ def audio_stream():
     logging.info(f'ChatGPT : {response}')
 
     intake_2.put(response)
-    # payload = {
-    #     'text': response,
-    #     'audio': ('audio', sink_2.get().tobytes())
-    # }
-    # encoder = MultipartEncoder(fields=payload)
-    # return Response(response=encoder.to_string(), status=200, mimetype=encoder.content_type)
-    return Response(response=sink_2.get().tobytes(), status=200, mimetype='application/octet-stream')
+    encoder = MultipartEncoder(fields={'text': response, 'audio': ('audio', sink_2.get().tobytes())})
+    return Response(response=encoder.to_string(), status=200, mimetype=encoder.content_type)
 
 
 @app.route('/video')

@@ -1,18 +1,28 @@
 numpy
 openai
-openai-whisper
 torch==1.13.1
+openai-whisper
+
+# TTS
 gTTS
 google-cloud-texttospeech
-pydub
-# fairseq
+
+# AI libraries
 datasets
-transformers
+phonemizer
 speechbrain
-# phonemizer
+transformers
+
 # Visualization
 matplotlib
+
 # Sound processing
-sounddevice
+pydub
 pyaudio
 librosa
+sounddevice
+
+# HTTP
+flask
+requests
+requests_toolbelt
