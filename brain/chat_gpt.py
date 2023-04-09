@@ -1,6 +1,7 @@
 from time import time
 from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
+from concurrent.futures import ThreadPoolExecutor
 
 import os
 import random
@@ -82,52 +83,65 @@ class ChatGPT(Consumer, Producer):
         )
         return response
 
+    def process_request(self, request):
+        try:
+            t0 = time()
+            ProjectLogger().info(f'Requesting ChatGPT...')
+            chunked_response = self.answer(request)
+            ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
+
+            memory = ''
+            sentence = ''
+            for chunk in chunked_response:
+                stopped = chunk['choices'][0]['finish_reason'] == 'stop'
+                if stopped:
+                    break
+
+                anwser = chunk['choices'][0]['delta']
+                if 'content' in anwser:
+                    content = anwser['content']
+                    sentence += content
+                    memory += content
+                    if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
+                        sentence = sentence.strip()
+                        if len(sentence) > 0:
+                            self._dispatch(sentence)
+                            ProjectLogger().info(f'ChatGPT : {sentence}')
+                        else:
+                            self._dispatch('J\'ai pas les mots.')
+                        sentence = ''
+
+            memory = ChatGPT._build_context_line('assistant', memory)
+            self._working_memory.append(memory)
+
+        except Exception as e:
+            ProjectLogger().error(f'ChatGPT had a stroke. {e}')
+            ProjectLogger().warning(f'Wiping working memory.')
+            self._working_memory = []
+            self._dispatch(self._error_sentences[random.randint(0, len(self._error_sentences) - 1)])
+
+        # To close streaming response
+        self._dispatch(None)
+
     def run(self) -> None:
         while True:
             request = self._in_queue.get()
             if request is None:
                 self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
+                self._dispatch(None)  # To close streaming response
                 continue
 
-            t0 = time()
+            self.process_request(request)
 
-            try:
-                ProjectLogger().info(f'Requesting ChatGPT...')
-                chunked_response = self.answer(request)
-                ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
-
-                memory = ''
-                sentence = ''
-                for chunk in chunked_response:
-                    stopped = chunk['choices'][0]['finish_reason'] == 'stop'
-                    if stopped:
-                        break
-
-                    anwser = chunk['choices'][0]['delta']
-                    if 'content' in anwser:
-                        content = anwser['content']
-                        sentence += content
-                        memory += content
-                        if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
-                            sentence = sentence.strip()
-                            if len(sentence) > 0:
-                                self._dispatch(sentence)
-                                ProjectLogger().info(f'ChatGPT : {sentence}')
-                            else:
-                                self._dispatch('J\'ai pas les mots.')
-                            sentence = ''
-
-                memory = ChatGPT._build_context_line('assistant', memory)
-                self._working_memory.append(memory)
-
-            except Exception as e:
-                ProjectLogger().error(f'ChatGPT had a stroke. {e}')
-                ProjectLogger().warning(f'Wiping working memory.')
-                self._working_memory = []
-                self._dispatch(self._error_sentences[random.randint(0, len(self._error_sentences) - 1)])
-
-            # To close streaming response
-            self._dispatch(None)
+        # with ThreadPoolExecutor(max_workers=4) as executor:
+        #     while True:
+        #         request = self._in_queue.get()
+        #         if request is None:
+        #             self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
+        #             self._dispatch(None)  # To close streaming response
+        #             continue
+        #
+        #         executor.submit(self.process_request, request)
 
 
 if __name__ == '__main__':
