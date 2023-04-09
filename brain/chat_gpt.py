@@ -46,7 +46,7 @@ class ChatGPT(Consumer, Producer):
         sentences_path = os.path.join(self._resources_dir, 'default_sentences')
         self._deaf_sentences = self._load_file(os.path.join(sentences_path, 'deaf'))
         self._error_sentences = self._load_file(os.path.join(sentences_path, 'dead'))
-        self._global_context = self._load_prompt(base)
+        self._global_context = self._load_prompt(prompt)
 
         openai.api_key = self._load_api_key()
         # self._working_memory = []
