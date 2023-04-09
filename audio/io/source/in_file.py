@@ -1,4 +1,5 @@
 from time import sleep
+from librosa import resample
 from utils.logger import ProjectLogger
 from audio.io.source import AudioSource
 
@@ -13,7 +14,7 @@ class InFile(AudioSource):
         self.opened = False
         self.sample_rate = sample_rate
 
-        self._chunk_size = 512
+        self._chunk_size = sample_rate * duration_ms // 1000
         wav_file = os.path.expanduser(wav_file)
         self._filename = os.path.basename(wav_file)
         self._wav, _ = librosa.load(wav_file, sr=self.sample_rate)
@@ -33,6 +34,7 @@ class InFile(AudioSource):
             i = i % len(self._wav)
             yield wav_chunk
             if i == 0:
+                yield None  # sent silence token
                 ProjectLogger().info('Wav file sent. Sleeping 30 secs')
                 sleep(30)
                 ProjectLogger().info('sleep time is over.')
