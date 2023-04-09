@@ -16,14 +16,14 @@ import argparse
 
 
 class Brain:
-    def __init__(self, ctx, port, debug, name, gpt_model, whisper_model, memory, clear, prompt, host='0.0.0.0'):
+    def __init__(self, ctx, opts, host='0.0.0.0'):
         self.host = host
-        self.port = port
-        self.debug = debug
+        self.port = opts.port
+        self.debug = opts.debug
         self.frozen = False
 
-        self.transcriber = VoiceTranscriber(ctx, whisper_model)
-        self.chat = ChatGPT(name, gpt_model, memory, clear, prompt)
+        self.transcriber = VoiceTranscriber(ctx, opts.whisper)
+        self.chat = ChatGPT(opts.name, opts.gpt, opts.no_memory, opts.clear, opts.prompt)
         self.synthesizer = VoiceSynthesizer()
 
         self.transcriber.pipe(self.chat).pipe(self.synthesizer)
@@ -136,10 +136,10 @@ def after_request(response):
 
 
 @handle_errors
-def main():
+def main(args):
     global brain
     ctx = get_ctx(args)
-    brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.whisper, args.no_memory, args.clear, args.prompt)
+    brain = Brain(ctx, args)
     brain.boot()
 
 
@@ -155,6 +155,5 @@ if __name__ == '__main__':
     parser.add_argument('--gpt', type=str, default=CHAT_MODELS[1], choices=CHAT_MODELS, help='GPT version to use.')
     parser.add_argument('--whisper', type=str, default=TRANSCRIPT_MODELS[3], choices=TRANSCRIPT_MODELS, help='Whisper version to use.')
     parser.add_argument('--prompt', type=str, default='base', help='Prompt file to use.')
-    args = parser.parse_args()
 
-    startup(APP_NAME.lower(), args, main)
+    startup(APP_NAME.lower(), parser, main)
