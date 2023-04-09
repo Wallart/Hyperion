@@ -165,15 +165,22 @@ def frame_decode(frame):
         if len(chunk_content) < chunk_size:
             return None
 
-        decoded[chunk_header] = chunk_content if chunk_header == 'PCM' else chunk_content.decode('utf-8')
+        if chunk_header == 'PCM':
+            decoded[chunk_header] = chunk_content
+        elif chunk_header == 'ANS':
+            decoded['IDX'] = chunk_content[0]
+            decoded[chunk_header] = chunk_content[1:].decode('utf-8')
+        else:
+            decoded[chunk_header] = chunk_content.decode('utf-8')
+
         frame_copy = frame_copy[7+chunk_size:]
         if chunk_header == 'PCM':
             return decoded, frame_copy
 
 
-def frame_encode(request, answer, pcm):
+def frame_encode(idx, request, answer, pcm):
     # beware of accents, they are using 2 bytes. Byte string might be longer than str
-    answer = bytes(answer, 'utf-8')
+    answer = int.to_bytes(idx, 1, 'big') + bytes(answer, 'utf-8')
     request = bytes(request, 'utf-8')
 
     req_len = len(request)
