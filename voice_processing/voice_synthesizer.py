@@ -1,3 +1,4 @@
+import queue
 from time import time
 from gtts import gTTS
 from utils.logger import ProjectLogger
@@ -91,19 +92,26 @@ class VoiceSynthesizer(Consumer, Producer):
 
     def run(self) -> None:
         while self.running:
-            text = self._in_queue.get()
-            if text is None:
-                self._dispatch(None)
+            try:
+                text = self._in_queue.get(timeout=self._timeout)
+                if text is None:
+                    self._dispatch(None)
+                    self._in_queue.task_done()
+                    continue
+
+                ProjectLogger().info(f'Synthesizing speech...')
+                t0 = time()
+
+                try:
+                    wav = self._infer(text)
+                    self._dispatch(wav)
+                except Exception as e:
+                    ProjectLogger().error(f'Synthesizer muted : {e}')
+                    self._dispatch(None)
+
+                self._in_queue.task_done()
+                ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+            except queue.Empty:
                 continue
 
-            ProjectLogger().info(f'Synthesizing speech...')
-            t0 = time()
-
-            try:
-                wav = self._infer(text)
-                self._dispatch(wav)
-            except Exception as e:
-                ProjectLogger().error(f'Synthesizer muted : {e}')
-                self._dispatch(None)
-
-            ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+        ProjectLogger().info('Synthesizer stopped.')

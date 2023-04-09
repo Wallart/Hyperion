@@ -1,3 +1,4 @@
+import queue
 from time import time
 from threading import Lock
 from tinydb import TinyDB, Query
@@ -142,24 +143,20 @@ class ChatGPT(Consumer, Producer):
         self._dispatch(None)
 
     def run(self) -> None:
-        # while True:
-        #     request = self._in_queue.get()
-        #     if request is None:
-        #         self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
-        #         self._dispatch(None)  # To close streaming response
-        #         continue
-        #
-        #     self.process_request(request)
-
         with ThreadPoolExecutor(max_workers=4) as executor:
             while self.running:
-                request = self._in_queue.get()
-                if request is None:
-                    self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
-                    self._dispatch(None)  # To close streaming response
+                try:
+                    request = self._in_queue.get(timeout=self._timeout)
+                    if request is None:
+                        self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
+                        self._dispatch(None)  # To close streaming response
+                        continue
+
+                    future = executor.submit(self._process_request, request)
+                except queue.Empty:
                     continue
 
-                future = executor.submit(self._process_request, request)
+        ProjectLogger().info('ChatGPT stopped.')
 
 
 if __name__ == '__main__':

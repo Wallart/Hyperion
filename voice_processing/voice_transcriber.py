@@ -1,4 +1,5 @@
 import os.path
+import queue
 from time import time
 from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
@@ -58,14 +59,19 @@ class VoiceTranscriber(Consumer, Producer):
 
     def run(self):
         while self.running:
-            voice_chunk = self._in_queue.get()
-            ProjectLogger().info('Transcribing voice...')
-            t0 = time()
-            text, lang, score = self.transcribe(voice_chunk)
+            try:
+                voice_chunk = self._in_queue.get(timeout=self._timeout)
+                ProjectLogger().info('Transcribing voice...')
+                t0 = time()
+                text, lang, score = self.transcribe(voice_chunk)
 
-            if score < self._confidence_threshold:
-                ProjectLogger().info(f'Score ({score}) too low for : {text}')
-                self._dispatch(None)
-            else:
-                self._dispatch(text)
-            ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+                if score < self._confidence_threshold:
+                    ProjectLogger().info(f'Score ({score}) too low for : {text}')
+                    self._dispatch(None)
+                else:
+                    self._dispatch(text)
+                ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+            except queue.Empty:
+                continue
+
+        ProjectLogger().info('Transcriber stopped.')

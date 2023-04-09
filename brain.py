@@ -20,18 +20,22 @@ class Brain:
         self.port = port
         self.debug = debug
 
-        self.transcriber = VoiceTranscriber(ctx)
-        self.synthesizer = VoiceSynthesizer()
-        self.chat = ChatGPT(name, model, memory, clear)
+        transcriber = VoiceTranscriber(ctx)
+        synthesizer = VoiceSynthesizer()
+        chat = ChatGPT(name, model, memory, clear)
 
-        self.intake_1, self.sink_1 = self.transcriber.create_intake(), self.transcriber.create_sink()
-        self.intake_2, self.sink_2a, self.sink_2b = self.chat.create_intake(), self.chat.create_sink(), self.chat.pipe(self.synthesizer).create_sink()
+        self.intake_1, self.sink_1 = transcriber.create_intake(), transcriber.create_sink()
+        self.intake_2, self.sink_2a, self.sink_2b = chat.create_intake(), chat.create_sink(), chat.pipe(synthesizer).create_sink()
+        self.threads = [transcriber, synthesizer, chat]
 
     def boot(self):
-        self.transcriber.start()
-        self.synthesizer.start()
-        self.chat.start()
-        app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
+        try:
+            _ = [t.start() for t in self.threads]
+            app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
+        except KeyboardInterrupt as interrupt:
+            _ = [t.stop() for t in self.threads]
+
+        _ = [t.join() for t in self.threads]
 
     @staticmethod
     def sink_streamer(request, text_sink, audio_sink):
