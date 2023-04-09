@@ -92,8 +92,9 @@ class Listener:
         try:
             res = requests.post(**opts)
             if res.status_code != 200:
-                ProjectLogger().warning(f'Something went wrong. HTTP {res.status_code}')
-                ProjectLogger().error(res.content)
+                ProjectLogger().warning(f'Response HTTP {res.status_code}')
+                if len(res.content) > 0:
+                    ProjectLogger().info(res.content)
                 return
 
             # TODO Ugly should be added in communication protocol
@@ -159,12 +160,12 @@ class Listener:
                     data = self.sink.drain()
                     if self._recog:
                         speech_chunk, recognized_speaker = data
-                        if recognized_speaker == 'Unknown':
+                        if (speech_chunk is None and recognized_speaker is None) or recognized_speaker == 'Unknown':
                             ProjectLogger().info('Request ignored.')
                             continue
 
                         _ = executor.submit(self._process_speech_request, recognized_speaker, speech_chunk.numpy())
-                    else:
+                    elif data is not None:
                         _ = executor.submit(self._process_audio_request, data.numpy())
                 except queue.Empty:
                     continue
