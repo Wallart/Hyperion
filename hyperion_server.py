@@ -57,7 +57,7 @@ def http_audio_stream():
     request_id = current_request_id()
     request_sid = request.headers['SID']
 
-    audio = request.files['audio'].read()
+    audio = request.files['audio'].read() if 'audio' in request.files else request.data
 
     speaker, speech = brain.handle_audio(audio)
     if speaker is None and speech is None:
