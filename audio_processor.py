@@ -18,8 +18,8 @@ if __name__ == '__main__':
 
     OUT_SAMPLE_RATE = 24000
     target_url = 'http://deepbox:9999'
-    # audio_clazz = partial(AudioFile, '~/datasets/test.wav')
-    audio_clazz = partial(Microphone)
+    audio_clazz = partial(AudioFile, './resources/speakers_samples/stef/stef.wav')
+    # audio_clazz = partial(Microphone)
 
     with audio_clazz(duration_ms=512) as source:
         stream = AudioStream(source)
@@ -36,15 +36,19 @@ if __name__ == '__main__':
         speakers.start()
 
         while True:
-            audio_chunk, recognized = sink.get()
+            audio_chunk, recognized_speaker = sink.get()
             audio_chunk = audio_chunk.numpy()
-            if not recognized:
+            if recognized_speaker == 'Unknown':
                 continue
 
             try:
                 t0 = time()
                 logging.info('Processing request...')
-                res = requests.post(url=f'{target_url}/audio', data=audio_chunk.tobytes(), headers={'Content-Type': 'application/octet-stream'})
+                payload = [
+                    ('speaker', ('speaker', recognized_speaker, 'text/plain')),
+                    ('speech', ('speech', audio_chunk.tobytes(), 'application/octet-stream'))
+                ]
+                res = requests.post(url=f'{target_url}/audio', files=payload)
                 if res.status_code != 200:
                     logging.warning(f'Something went wrong. HTTP {res.status_code}')
                 else:

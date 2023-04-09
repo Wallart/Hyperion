@@ -3,8 +3,10 @@ from flask import Flask, Response, request
 from voice_processing.voice_detector import VoiceDetector
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
+from requests_toolbelt import MultipartEncoder
 
 import logging
+
 import numpy as np
 
 app = Flask(__name__)
@@ -12,23 +14,28 @@ app = Flask(__name__)
 
 @app.route('/audio', methods=['POST'])
 def audio_stream():
-    byte_array = request.data
-    audio_chunk = np.frombuffer(byte_array, dtype=np.float32)
+    speech = request.files['speech'].read()
+    speaker = request.files['speaker'].read().decode('utf-8')
+
+    audio_chunk = np.frombuffer(speech, dtype=np.float32)
     intake_1.put(audio_chunk)
     transcription = sink_1.get()
-    response = ...
     if transcription is None:
-        # transcription = 'Ce que raconte l\'utilisateur est à peine audible, et Hypérion ne comprend pas.'
-        # response = chat.answer(transcription, 'system')
         return Response(response='Speak louder motherfucker !', status=204, mimetype='text/plain')
-    else:
-        logging.info(f'User : {transcription}')
-        response = chat.answer(transcription)
-        logging.info(f'ChatGPT : {response}')
+
+    chat_input = f'{speaker} : {transcription}'
+    logging.info(chat_input)
+    response = chat.answer(chat_input)
+    logging.info(f'ChatGPT : {response}')
 
     intake_2.put(response)
-    wav = sink_2.get()
-    return Response(response=wav.tobytes(), status=200, mimetype='application/octet-stream')
+    # payload = {
+    #     'text': response,
+    #     'audio': ('audio', sink_2.get().tobytes())
+    # }
+    # encoder = MultipartEncoder(fields=payload)
+    # return Response(response=encoder.to_string(), status=200, mimetype=encoder.content_type)
+    return Response(response=sink_2.get().tobytes(), status=200, mimetype='application/octet-stream')
 
 
 @app.route('/video')
