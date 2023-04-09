@@ -10,10 +10,12 @@ from utils.execution import startup, handle_errors
 from analysis.command_detector import CommandDetector, ACTIONS
 from flask_log_request_id import RequestID, current_request_id
 from voice_processing.voice_synthesizer import VoiceSynthesizer
+from flask_socketio import SocketIO, send, emit
 from flask import Flask, Response, request, g, stream_with_context
 from voice_processing.voice_transcriber import VoiceTranscriber, TRANSCRIPT_MODELS
 
 import argparse
+# import eventlet
 import numpy as np
 
 
@@ -41,17 +43,17 @@ class Brain:
 
         self.threads = [self.transcriber, self.commands, self.chat, self.synthesizer]
 
-    def boot(self):
+    def start(self, socket_io, flask_app):
         try:
             _ = [t.start() for t in self.threads]
-            app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
+            # app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
+            socket_io.run(flask_app, host=self.host, debug=self.debug, port=self.port)
         except KeyboardInterrupt as interrupt:
             _ = [t.stop() for t in self.threads]
 
         _ = [t.join() for t in self.threads]
 
     def sink_streamer(self, sink):
-        request_id = current_request_id()
         while True:
             if self.frozen:
                 return
@@ -59,7 +61,7 @@ class Brain:
             request_obj = sink.drain()
 
             if request_obj.text_answer is None and request_obj.audio_answer is None and request_obj.termination:
-                self.synthesizer.delete_identified_sink(request_id)
+                self.synthesizer.delete_identified_sink(request_obj.identifier)
                 return
 
             if request_obj.audio_answer is None:
@@ -69,11 +71,7 @@ class Brain:
 
             yield frame_encode(request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
-    def handle_audio(self):
-        request_id = current_request_id()
-        speech = request.files['speech'].read()
-        speaker = request.files['speaker'].read().decode('utf-8')
-
+    def handle_audio(self, request_id, speaker, speech):
         request_obj = RequestObject(request_id, speaker)
         request_obj.set_audio_request(speech)
 
@@ -87,33 +85,18 @@ class Brain:
         elif detected_cmd == ACTIONS.WAKE.value:
             self.frozen = False
             self.chat.frozen = False
+            sink._sink.put(RequestObject(request_id, speaker, termination=True))  # to avoid deadlocked sink
         elif detected_cmd == ACTIONS.WIPE.value:
             self.chat.clear_context()
             ProjectLogger().warning('Memory wiped.')
         elif detected_cmd == ACTIONS.QUIET.value:
             sink._sink.put(RequestObject(request_id, speaker, termination=True, priority=0))
-
-        if self.frozen:
-            return 'I\'m a teapot', 418
+            emit('interrupt', to=request_id)
 
         stream = self.sink_streamer(sink)
-        return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
+        return stream
 
-    def handle_chat(self):
-        request_id = current_request_id()
-        user = request.form['user']
-        message = request.form['message']
-
-        if user is None or message is None:
-            return 'Invalid chat request', 500
-
-        if '!FREEZE' in message:
-            self.frozen = True
-            return 'Freezed', 202
-        elif '!UNFREEZE' in message:
-            self.frozen = False
-            return 'Unfreezed', 202
-
+    def handle_chat(self, request_id, user, message):
         request_obj = RequestObject(request_id, user)
         request_obj.set_text_request(message)
 
@@ -121,12 +104,23 @@ class Brain:
         self.text_intake.put(request_obj)
 
         stream = self.sink_streamer(sink)
-        return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
+        return stream
 
 
 APP_NAME = 'hyperion_brain'
 app = Flask(__name__)
 RequestID(app)
+socketio = SocketIO(app)
+
+
+@socketio.on('connect')
+def connect():
+    ProjectLogger().info(f'Client {request.sid} connected')
+
+
+@socketio.on('disconnect')
+def disconnect():
+    ProjectLogger().info(f'Client {request.sid} disconnected')
 
 
 @app.route('/name', methods=['GET'])
@@ -135,13 +129,67 @@ def name():
 
 
 @app.route('/audio', methods=['POST'])
-def audio_stream():
-    return brain.handle_audio()
+def http_audio_stream():
+    request_id = current_request_id()
+    speech = request.files['speech'].read()
+    speaker = request.files['speaker'].read().decode('utf-8')
+
+    stream = brain.handle_audio(request_id, speaker, speech)
+
+    if brain.frozen:
+        return 'I\'m a teapot', 418
+
+    return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
+
+
+@socketio.on('audio')
+def sio_audio_stream(data):
+    request_id = request.sid
+    speaker = data['speaker']
+    speech = data['speech']
+
+    stream = brain.handle_audio(request_id, speaker, speech)
+    for frame in stream:
+        emit('answer', dict(requester=speaker, answer=frame), to=request_id)
+        socketio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
 
 
 @app.route('/chat', methods=['POST'])
-def chat():
-    return brain.handle_chat()
+def http_chat():
+    request_id = current_request_id()
+    user = request.form['user']
+    message = request.form['message']
+
+    if user is None or message is None:
+        return 'Invalid chat request', 500
+
+    if '!FREEZE' in message:
+        brain.frozen = True
+        brain.chat.frozen = True
+        return 'Freezed', 202
+    elif '!UNFREEZE' in message:
+        brain.frozen = False
+        brain.chat.frozen = False
+        return 'Unfreezed', 202
+
+    stream = brain.handle_chat(request_id, user, message)
+    return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
+
+
+@socketio.on('chat')
+def sio_chat(data):
+    request_id = request.sid
+    user = data['user']
+    message = data['message']
+
+    if user is None or message is None:
+        return
+
+    stream = brain.handle_chat(request_id, user, message)
+    # _ = [emit('answer', dict(requester=user, answer=frame), to=request_id) for frame in stream]
+    for frame in stream:
+        emit('answer', dict(requester=user, answer=frame), to=request_id)
+        socketio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
 
 
 @app.route('/video')
@@ -166,7 +214,7 @@ def main(args):
     global brain
     ctx = get_ctx(args)
     brain = Brain(ctx, args)
-    brain.boot()
+    brain.start(socketio, app)
 
 
 if __name__ == '__main__':

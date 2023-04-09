@@ -71,7 +71,10 @@ class Producer(ThreadedTask):
         return Sink(queue)
 
     def create_identified_sink(self, identifier):
-        assert identifier not in self._identified_out_queues, 'Error identified queue already exists.'
+        # assert identifier not in self._identified_out_queues, 'Error identified queue already exists.'
+        if identifier in self._identified_out_queues:
+            return Sink(self._identified_out_queues[identifier])
+
         queue = PriorityQueue()
         self._identified_out_queues[identifier] = queue
         return Sink(queue)
