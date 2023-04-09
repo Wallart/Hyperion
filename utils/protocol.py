@@ -7,8 +7,8 @@ def frame_decode(frame):
     while True:
         chunk_header = frame_copy[:3].decode('utf-8')
         if chunk_header == 'TIM':
-            decoded['TIM'] = struct.unpack('f', frame_copy[3:7])[0]
-            frame_copy = frame_copy[7:]
+            decoded['TIM'] = struct.unpack('d', frame_copy[3:11])[0]
+            frame_copy = frame_copy[11:]
         else:
             chunk_size = int.from_bytes(frame_copy[3:7], 'big')
             chunk_content = frame_copy[7:7+chunk_size]
@@ -38,7 +38,7 @@ def frame_encode(timestamp, idx, request, answer, pcm):
     pcm_len = len(pcm) * 2  # because each value is coded on 2 bytes (16 bits)
 
     frame = bytes('TIM', 'utf-8')
-    frame += struct.pack('f', timestamp)  # we need space magic to convert float to bytes
+    frame += struct.pack('d', timestamp)  # we need space magic to convert float to bytes
 
     frame += bytes('REQ', 'utf-8')
     frame += req_len.to_bytes(4, 'big')
