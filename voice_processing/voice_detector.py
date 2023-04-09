@@ -1,3 +1,4 @@
+import os.path
 from time import time
 
 from utils.logger import ProjectLogger
@@ -9,12 +10,12 @@ import torch
 
 class VoiceDetector(Consumer, Producer):
 
-    def __init__(self, sampling_rate, model_path=None, activation_threshold=.8):
+    def __init__(self, sampling_rate, model_path='~/.hyperion/vad', activation_threshold=.8):
         super().__init__()
 
         self._sampling_rate = sampling_rate
         self._act_thresh = activation_threshold
-        self._vad = VAD.from_hparams(source='speechbrain/vad-crdnn-libriparty', savedir=model_path)
+        self._vad = VAD.from_hparams(source='speechbrain/vad-crdnn-libriparty', savedir=os.path.expanduser(model_path))
 
         self._buffer = None
 

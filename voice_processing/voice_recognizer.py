@@ -13,13 +13,13 @@ import numpy as np
 
 class VoiceRecognizer(Consumer, Producer):
 
-    def __init__(self, recog_threshold=0.25):
+    def __init__(self, model_path='~/.hyperion/recog', recog_threshold=0.25):
         super().__init__()
 
         self.sample_rate = 16000  # Model is using 16kHZ samples
         self._recog_threshold = recog_threshold
         self._speakers_sample_dir = os.path.join(os.getcwd(), 'resources', 'speakers_samples')
-        self._recog = SpeakerRecognition.from_hparams(source='speechbrain/spkrec-ecapa-voxceleb')
+        self._recog = SpeakerRecognition.from_hparams(source='speechbrain/spkrec-ecapa-voxceleb', savedir=os.path.expanduser(model_path))
 
     def load_wavfile(self, file_path):
         wav, _ = librosa.load(file_path, sr=self.sample_rate)
