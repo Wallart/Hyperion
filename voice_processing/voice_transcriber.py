@@ -3,28 +3,25 @@ import queue
 from time import time
 from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
-from speechbrain.pretrained import EncoderASR, EncoderDecoderASR
 
 import torch
 import whisper
 import numpy as np
 
+VALID_SIZES = ['tiny', 'base', 'small', 'medium', 'large']
+
 
 class VoiceTranscriber(Consumer, Producer):
 
-    def __init__(self, ctx, model_size='small', confidence_threshold=.7, model_path='~/.hyperion'):
+    def __init__(self, ctx, model_size='medium', confidence_threshold=.8, model_path='~/.hyperion'):
         super().__init__()
 
         self._ctx = ctx
         self._confidence_threshold = confidence_threshold
-        valid_sizes = ['tiny', 'base', 'small', 'medium', 'large']
-        assert model_size in valid_sizes
+        assert model_size in VALID_SIZES
 
-        # small gère mieux le franglais que base
-        self._asr = whisper.load_model('medium', download_root=os.path.expanduser(os.path.join(model_path, 'whisper')), device=ctx[0])
-
-        # self._asr2 = EncoderASR.from_hparams(source='speechbrain/asr-wav2vec2-commonvoice-fr', savedir=model_path)
-        # self._asr3 = EncoderDecoderASR.from_hparams(source='speechbrain/asr-crdnn-commonvoice-fr', savedir=model_path)
+        model_path = os.path.expanduser(os.path.join(model_path, 'whisper'))
+        self._asr = whisper.load_model(model_size, download_root=model_path, device=ctx[0])
 
     def transcribe(self, voice_chunk):
         if type(voice_chunk) == np.ndarray:
