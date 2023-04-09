@@ -1,7 +1,9 @@
 from time import sleep
+from gui import UIAction
 from PIL import Image, ImageTk
 from pygments import lex, highlight
 from pygments.lexers import PythonLexer
+from gui.params_window import ParamsWindow
 from pygments.formatters import HtmlFormatter
 
 import os
@@ -107,9 +109,17 @@ class ChatWindow(customtkinter.CTk):
         self._handler = threading.Thread(target=self.message_handler, daemon=True)
         self._handler.start()
 
+        self._params_window = None
+        self.current_input_device = None
+        self.current_output_device = None
+
+    def set_devices_name(self, input_name, output_name):
+        self.current_input_device = input_name
+        self.current_output_device = output_name
+
     def on_close(self):
         self._running = False
-        self._out_message_queue.put(None)
+        self._out_message_queue.put((UIAction.QUIT,))
         self.destroy()
 
     def on_configure(self, event):
@@ -132,7 +142,7 @@ class ChatWindow(customtkinter.CTk):
 
         typed_message = self.text_entry.get()
         self.text_entry.delete('0', 'end')
-        self._out_message_queue.put((username, typed_message))
+        self._out_message_queue.put((UIAction.SEND_MESSAGE, username, typed_message))
         self._insert_message(username, typed_message, pending=True)
 
     def on_clear(self):
@@ -143,7 +153,10 @@ class ChatWindow(customtkinter.CTk):
         self._previous_text = None
 
     def on_gear(self):
-        pass
+        if self._params_window is None or not self._params_window.winfo_exists():
+            self._params_window = ParamsWindow(self._out_message_queue, self.current_input_device, self.current_output_device)
+        else:
+            self._params_window.focus()
 
     def _save_config(self):
         with open(self._savefile, 'w') as f:

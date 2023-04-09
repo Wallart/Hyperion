@@ -1,3 +1,4 @@
+from time import sleep
 from utils.threading import Producer
 from utils.logger import ProjectLogger
 
@@ -8,16 +9,23 @@ class AudioInput(Producer):
         super().__init__()
         self._source = source
 
+    def change(self, new_source):
+        ProjectLogger().info('Changing Input device.')
+        self._source.close()
+        self._source = new_source
+
     def stop(self):
         super().stop()
         self._source.close()
 
     def run(self) -> None:
-        self._source.open()
-        generator = self._source()
-        for audio_chunk in generator:
-            # if not self.running:
-            #     break
-            self._dispatch(audio_chunk)
+        while self.running:
+            self._source.open()
+            generator = self._source()
+            for audio_chunk in generator:
+                # if not self.running:
+                #     break
+                self._dispatch(audio_chunk)
 
-        ProjectLogger().info('Audio input closed.')
+            ProjectLogger().info('Audio input closed.')
+            sleep(.5)

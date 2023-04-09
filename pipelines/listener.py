@@ -1,5 +1,6 @@
 from time import time
 from audio import float32_to_int16
+from gui import UIAction
 from utils.logger import ProjectLogger
 from gui.chat_window import ChatWindow
 from utils.protocol import frame_decode
@@ -36,21 +37,22 @@ class Listener:
         self._bot_name = res.content.decode('utf-8')
 
         source = InDevice(opts.in_idx, self._in_sample_rate, rms=opts.rms) if self._dummy_file is None else InFile(self._dummy_file, self._in_sample_rate)
-        audio_in = AudioInput(source)
+        self.audio_in = AudioInput(source)
         detector = VoiceDetector(ctx, self._in_sample_rate, activation_threshold=.9)
         self.audio_out = AudioOutput(opts.out_idx, self._out_sample_rate)
         self.intake = self.audio_out.create_intake()
 
         if opts.recog:
             recognizer = VoiceRecognizer(ctx)
-            self.sink = audio_in.pipe(detector).pipe(recognizer).create_sink()
-            self.threads = [audio_in, detector, recognizer, self.audio_out]
+            self.sink = self.audio_in.pipe(detector).pipe(recognizer).create_sink()
+            self.threads = [self.audio_in, detector, recognizer, self.audio_out]
         else:
-            self.sink = audio_in.pipe(detector).create_sink()
-            self.threads = [audio_in, detector, self.audio_out]
+            self.sink = self.audio_in.pipe(detector).create_sink()
+            self.threads = [self.audio_in, detector, self.audio_out]
 
         if not opts.no_gui:
             self._gui = ChatWindow(self._bot_name, self._bot_name)
+            self._gui.set_devices_name(source.device_name, self.audio_out.device_name)
             self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=False)
             self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
             self.threads.extend([self._audio_handler, self._text_handler])
@@ -177,12 +179,16 @@ class Listener:
             try:
                 # one thread is enough for text
                 event = self._gui.drain_message()
-                if event is None:
+                if event[0] == UIAction.QUIT:
                     self.stop()
                     break
-
-                username, text = event
-                self._process_text_request(username, text)
+                elif event[0] == UIAction.SEND_MESSAGE:
+                    username, text = event[1], event[2]
+                    self._process_text_request(username, text)
+                elif event[0] == UIAction.CHANGE_INPUT_DEVICE:
+                    self.audio_in.change(InDevice(event[1], self._in_sample_rate, rms=self._opts.rms))
+                elif event[0] == UIAction.CHANGE_OUTPUT_DEVICE:
+                    self.audio_out.change(event[1])
             except queue.Empty:
                 continue
 
