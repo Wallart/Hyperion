@@ -44,8 +44,8 @@ class ChatWindow(customtkinter.CTk):
         self.textbox.grid(row=0, column=1, columnspan=3, padx=(7, 7), pady=(10, 0), sticky='nsew')
 
         # color tags
-        self.textbox.tag_config('bot', foreground='yellow')
-        self.textbox.tag_config('author', foreground='cyan')
+        self.textbox.tag_config('bot', foreground='#f2cb5a')
+        self.textbox.tag_config('author', foreground='#2969d9')
 
         self.entry = customtkinter.CTkEntry(self, placeholder_text='Send a message...')
         self.entry.grid(row=1, column=1, columnspan=1, padx=(7, 4), pady=(10, 10), sticky='nsew')
