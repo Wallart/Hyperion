@@ -8,6 +8,7 @@ import logging
 class ChatGPT:
 
     def __init__(self, max_memory=400):
+        self._max_ctx_tokens = 4097  # from openai api
         self._max_memory = max_memory
         self._model = 'gpt-3.5-turbo'
         with open(os.path.join(os.getcwd(), 'resources', 'openai_api_key.txt')) as f:
@@ -21,6 +22,13 @@ class ChatGPT:
             ChatGPT._build_context_line('user', 'Mon chat s\'appelle Petit Poulet.')
         ]
         self._working_memory = []
+
+    def tokens_count(self):
+        count = 0
+        for line in self._global_context + self._working_memory:
+            count += len(line['content'])
+        return count
+
     @staticmethod
     def _build_context_line(role, content):
         return {'role': role, 'content': content}
@@ -31,6 +39,9 @@ class ChatGPT:
 
         new_message = ChatGPT._build_context_line(role, input)
         self._working_memory.append(new_message)
+
+        while self.tokens_count() > self._max_ctx_tokens:
+            self._working_memory.pop()
 
         messages = self._global_context + self._working_memory
         response = openai.ChatCompletion.create(
