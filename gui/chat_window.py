@@ -1,5 +1,8 @@
 from time import sleep
 from PIL import Image
+from pygments import lex, highlight
+from pygments.lexers import PythonLexer
+from pygments.formatters import HtmlFormatter
 
 import os
 import queue
@@ -20,6 +23,7 @@ class ChatWindow(customtkinter.CTk):
         self._in_message_queue = queue.Queue()
         self._out_message_queue = queue.Queue()
         self._previous_speaker = None
+        self._code_block = False
         self.bot_name = bot_name
 
         # configure window
@@ -46,6 +50,22 @@ class ChatWindow(customtkinter.CTk):
         # color tags
         self.textbox.tag_config('bot', foreground='#f2cb5a')
         self.textbox.tag_config('author', foreground='#2969d9')
+        # code colors
+        self.textbox.tag_config('Token.Keyword', foreground='#CC7A00')
+        self.textbox.tag_config('Token.Keyword.Constant', foreground='#CC7A00')
+        self.textbox.tag_config('Token.Keyword.Declaration', foreground='#CC7A00')
+        self.textbox.tag_config('Token.Keyword.Namespace', foreground='#CC7A00')
+        self.textbox.tag_config('Token.Keyword.Pseudo', foreground='#CC7A00')
+        self.textbox.tag_config('Token.Keyword.Reserved', foreground='#CC7A00')
+        self.textbox.tag_config('Token.Keyword.Type', foreground='#CC7A00')
+        self.textbox.tag_config('Token.Name.Builtin', foreground='#8888C6')
+        self.textbox.tag_config('Token.Name.Class', foreground='#003D99')
+        self.textbox.tag_config('Token.Name.Exception', foreground='#003D99')
+        self.textbox.tag_config('Token.Name.Function', foreground='#003D99')
+        self.textbox.tag_config('Token.Operator.Word', foreground='#CC7A00')
+        self.textbox.tag_config('Token.Comment.Single', foreground='#B80000')
+        self.textbox.tag_config('Token.Literal.String.Single', foreground='#248F24')
+        self.textbox.tag_config('Token.Literal.String.Double', foreground='#248F24')
 
         self.entry = customtkinter.CTkEntry(self, placeholder_text='Send a message...')
         self.entry.grid(row=1, column=1, columnspan=1, padx=(7, 4), pady=(10, 10), sticky='nsew')
@@ -83,9 +103,28 @@ class ChatWindow(customtkinter.CTk):
             for char in message:
                 self._textbox_write(char)
                 sleep(0.03)
-            self._textbox_write('\n')
         else:
-            self._textbox_write(f'{message}\n')
+            self._textbox_write(message)
+
+        # self._colorize_code()
+        self._textbox_write('\n')
+
+    # def _colorize_code(self):
+    #     lastline_index = self.textbox.index('end-1c linestart')
+    #     lastline = self.textbox.get(lastline_index, tk.END)
+    #     line, col = lastline_index.split('.')
+    #
+    #     if lastline.startswith('```') or lastline.startswith(f'{self._previous_speaker} : ```'):
+    #         self._code_block = True
+    #
+    #     if self._code_block:
+    #         for token, content in lex(lastline, PythonLexer()):
+    #             start_idx = lastline.index(content)
+    #             end_idx = start_idx + len(content)
+    #             self.textbox.tag_add(str(token), f'{line}.{start_idx}', f'{line}.{end_idx}')
+    #
+    #     if lastline.endswith('```\n'):
+    #         self._code_block = False
 
     def _textbox_write(self, text, is_name=False):
         self.textbox.configure(state=tk.NORMAL)
