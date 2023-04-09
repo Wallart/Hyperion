@@ -1,0 +1,10 @@
+torch==1.13.1
+transformers
+speechbrain
+datasets
+# Visualization
+matplotlib
+# Sound processing
+sounddevice
+pyaudio
+librosa

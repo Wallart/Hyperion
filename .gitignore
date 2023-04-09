@@ -1,0 +1,5 @@
+.idea/
+.DS_Store
+pretrained_models/
+model_checkpoints/
+__pycache__/
