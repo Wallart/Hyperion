@@ -13,8 +13,6 @@ import numpy as np
 
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
-
     OUT_SAMPLE_RATE = 24000
     target_url = 'http://deepbox:9999'
     audio_clazz = partial(Microphone)

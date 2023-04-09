@@ -1,9 +1,9 @@
 from time import time
+from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
 from speechbrain.pretrained import EncoderASR, EncoderDecoderASR
 
 import torch
-import logging
 import whisper
 import numpy as np
 
@@ -42,7 +42,7 @@ class VoiceTranscriber(Consumer, Producer):
         _, probs = self._asr.detect_language(mel)
         lang = max(probs, key=probs.get)
         score = probs[lang]
-        logging.info(f'Detected language: {lang} {round(score, 4)}')
+        ProjectLogger().info(f'Detected language: {lang} {round(score, 4)}')
 
         # decode the audio
         options = whisper.DecodingOptions(fp16=False)
@@ -57,13 +57,13 @@ class VoiceTranscriber(Consumer, Producer):
     def run(self):
         while True:
             voice_chunk = self._in_queue.get()
-            logging.info('Transcribing voice...')
+            ProjectLogger().info('Transcribing voice...')
             t0 = time()
             text, lang, score = self.transcribe(voice_chunk)
 
             if score < self._confidence_threshold:
-                logging.info(f'Score ({score}) too low for : {text}')
+                ProjectLogger().info(f'Score ({score}) too low for : {text}')
                 self._dispatch(None)
             else:
                 self._dispatch(text)
-            logging.info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+            ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')

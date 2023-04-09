@@ -3,11 +3,11 @@ from librosa import resample
 from pyaudio import PyAudio, paInt16
 # from audio.aec.time_domain_adaptive_filters.apa import apa
 # from audio.aec.time_domain_adaptive_filters.rls import rls
+from utils.logger import ProjectLogger
 from audio.audio_source import AudioSource
 from audio import int16_to_float32, find_offset, float64_to_int16
 
 import audioop
-import logging
 import numpy as np
 import noisereduce as nr
 
@@ -68,7 +68,7 @@ class Microphone(AudioSource):
     #     return found_chunk
 
     def start(self):
-        logging.info(f'Start listening device {self.name()}')
+        ProjectLogger().info(f'Start listening device {self.name()}')
         self._stream.start_stream()
         self._listening = True
         self._generator = self._init_generator()
@@ -78,7 +78,7 @@ class Microphone(AudioSource):
         self._stream.stop_stream()
         self._stream.close()
         self._pyaudio.terminate()
-        logging.info(f'Closed device {self.name()}')
+        ProjectLogger().info(f'Closed device {self.name()}')
 
     # def acoustic_echo_cancellation(self, chunk, feedback_chunk):
     #     aec_ed = apa(feedback_chunk, chunk, N=256, P=5, mu=0.1)

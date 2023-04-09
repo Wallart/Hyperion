@@ -1,12 +1,13 @@
 from time import time
 from glob import glob
+
+from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
 from speechbrain.pretrained import SpeakerRecognition
 
 import os
 import torch
 import librosa
-import logging
 import numpy as np
 
 
@@ -51,7 +52,7 @@ class VoiceRecognizer(Consumer, Producer):
         speaker = list_speakers[speaker_idx]
         best_score = computed_scores[speaker]
 
-        logging.info(f'Speakers scores : {computed_scores}')
+        ProjectLogger().info(f'Speakers scores : {computed_scores}')
         if best_score < self._recog_threshold:
             return 'Unknown'
 
@@ -62,9 +63,9 @@ class VoiceRecognizer(Consumer, Producer):
             audio_chunk = self._in_queue.get()
             t0 = time()
             recognized_speaker = self.recognize(audio_chunk)
-            logging.info(f'{recognized_speaker}\'s speaking...')
+            ProjectLogger().info(f'{recognized_speaker}\'s speaking...')
             self._dispatch((audio_chunk, recognized_speaker))
-            logging.debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+            ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
 
 
 if __name__ == '__main__':

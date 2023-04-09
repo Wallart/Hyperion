@@ -1,9 +1,10 @@
 from time import time
+
+from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
 from speechbrain.pretrained import VAD
 
 import torch
-import logging
 
 
 class VoiceDetector(Consumer, Producer):
@@ -46,4 +47,4 @@ class VoiceDetector(Consumer, Producer):
             else:
                 self._detect(audio_chunk)
 
-            logging.debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+            ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')

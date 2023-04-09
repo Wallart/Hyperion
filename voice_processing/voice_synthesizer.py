@@ -1,12 +1,12 @@
 from time import time
 from gtts import gTTS
+from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
 
 import io
 import os
 import pydub
 import torch
-import logging
 import numpy as np
 import google.cloud.texttospeech as tts
 
@@ -33,7 +33,8 @@ class VoiceSynthesizer(Consumer, Producer):
         self._language_code = 'fr-FR'
         self._voice_name = 'fr-FR-Neural2-B'
 
-        with open(os.path.join(os.getcwd(), 'resources', 'google_api_key.txt')) as f:
+        root_dir = os.path.dirname(os.path.dirname(__file__))
+        with open(os.path.join(root_dir, 'resources', 'google_api_key.txt')) as f:
             api_key = f.readlines()[0]
 
         self._client = tts.TextToSpeechClient(client_options={'api_key': api_key})
@@ -95,14 +96,14 @@ class VoiceSynthesizer(Consumer, Producer):
                 self._dispatch(None)
                 continue
 
-            logging.info(f'Synthesizing speech...')
+            ProjectLogger().info(f'Synthesizing speech...')
             t0 = time()
 
             try:
                 wav = self._infer(text)
                 self._dispatch(wav)
             except Exception as e:
-                logging.error(f'Synthesizer muted : {e}')
+                ProjectLogger().error(f'Synthesizer muted : {e}')
                 self._dispatch(None)
 
-            logging.info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+            ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')

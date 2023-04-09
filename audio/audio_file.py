@@ -2,9 +2,12 @@ from time import sleep
 from audio.audio_source import AudioSource
 
 import os
-import logging
 import librosa
 import numpy as np
+
+from utils.logger import ProjectLogger
+
+
 # import soundfile as sd
 
 
@@ -34,9 +37,9 @@ class AudioFile(AudioSource):
             i = i % len(self._wav)
             yield wav_chunk
             if i == 0:
-                logging.info('wav file sent. Sleeping 30 secs')
+                ProjectLogger().info('wav file sent. Sleeping 30 secs')
                 sleep(30)
-                logging.info('sleep time is over.')
+                ProjectLogger().info('sleep time is over.')
 
     def name(self):
         return self._file_name

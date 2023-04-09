@@ -1,10 +1,14 @@
+#!/usr/bin/python
+
+from daemonocle import Daemon
 from brain.chat_gpt import ChatGPT
 from flask import Flask, Response, request
 from utils import TEXT_SEPARATOR, CHUNK_SEPARATOR
+from utils.logger import ProjectLogger
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
 
-import logging
+import os
 import argparse
 import numpy as np
 
@@ -56,12 +60,13 @@ class Brain:
             return Response(response='Speak louder motherfucker !', status=204, mimetype='text/plain')
 
         chat_input = f'{speaker} : {transcription}'
-        logging.info(chat_input)
+        ProjectLogger().info(chat_input)
 
         self.intake_2.put(chat_input)
         return Response(response=Brain.sink_streamer(transcription, self.sink_2a, self.sink_2b), status=200, mimetype='application/octet-stream')
 
 
+APP_NAME = 'hyperion_brain'
 app = Flask(__name__)
 
 
@@ -75,13 +80,31 @@ def video_stream():
     return 'Not yet implemented', 500
 
 
-if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
+def main():
+    try:
+        global brain
+        brain = Brain(args.port, args.debug)
+        brain.boot()
+    except Exception as e:
+        ProjectLogger().error(f'Fatal error occurred : {e}')
 
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyperion\'s brain')
-    parser.add_argument('--port', type=int, default=9999, help='Listening port')
+    parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port')
     parser.add_argument('--debug', action='store_true', help='Enables flask debugging')
+    parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
     args = parser.parse_args()
 
-    brain = Brain(args.port, args.debug)
-    brain.boot()
+    _ = ProjectLogger(args, APP_NAME)
+
+    if args.daemon:
+        pid_file = os.path.join(os.path.sep, 'tmp', f'{APP_NAME.lower()}.pid')
+        if os.path.isfile(pid_file):
+            ProjectLogger().error('Daemon already running.')
+            exit(1)
+
+        daemon = Daemon(worker=main, pid_file=pid_file)
+        daemon.do_action('start')
+    else:
+        main()

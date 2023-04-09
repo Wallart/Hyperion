@@ -1,10 +1,10 @@
 from time import time
+from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
 
 import os
 import random
 import openai
-import logging
 
 # from openai api
 MAX_TOKENS = 4097
@@ -29,7 +29,8 @@ class ChatGPT(Consumer, Producer):
         # Usually they are words, sometimes it's just a letter or a comma.
         self._max_ctx_tokens = MAX_TOKENS - (MAX_TOKENS * .05)
 
-        with open(os.path.join(os.getcwd(), 'resources', 'openai_api_key.txt')) as f:
+        root_dir = os.path.dirname(os.path.dirname(__file__))
+        with open(os.path.join(root_dir, 'resources', 'openai_api_key.txt')) as f:
             api_key = f.readlines()[0]
 
         openai.api_key = api_key
@@ -77,9 +78,9 @@ class ChatGPT(Consumer, Producer):
             t0 = time()
 
             try:
-                logging.info(f'Requesting ChatGPT...')
+                ProjectLogger().info(f'Requesting ChatGPT...')
                 chunked_response = self.answer(request)
-                logging.info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
+                ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
 
                 memory = ''
                 sentence = ''
@@ -95,16 +96,19 @@ class ChatGPT(Consumer, Producer):
                         memory += content
                         if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
                             sentence = sentence.strip()
-                            self._dispatch(sentence)
-                            logging.info(f'ChatGPT : {sentence}')
+                            if len(sentence) > 0:
+                                self._dispatch(sentence)
+                                ProjectLogger().info(f'ChatGPT : {sentence}')
+                            else:
+                                self._dispatch('J\'ai pas les mots.')
                             sentence = ''
 
                 memory = ChatGPT._build_context_line('assistant', memory)
                 self._working_memory.append(memory)
 
             except Exception as e:
-                logging.error(f'ChatGPT had a stroke. {e}')
-                logging.warning(f'Wiping working memory.')
+                ProjectLogger().error(f'ChatGPT had a stroke. {e}')
+                ProjectLogger().warning(f'Wiping working memory.')
                 self._working_memory = []
                 self._dispatch(self._error_sentences[random.randint(0, len(self._error_sentences) - 1)])
 
