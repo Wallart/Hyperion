@@ -36,7 +36,7 @@ class Listener:
         res = requests.get(url=f'{self._target_url}/name')
         self._bot_name = res.content.decode('utf-8')
 
-        source = InDevice(opts.in_idx, self._in_sample_rate, rms=opts.rms) if self._dummy_file is None else InFile(self._dummy_file, self._in_sample_rate)
+        source = InDevice(opts.in_idx, self._in_sample_rate, db=opts.db) if self._dummy_file is None else InFile(self._dummy_file, self._in_sample_rate)
         self.audio_in = AudioInput(source)
         detector = VoiceDetector(ctx, self._in_sample_rate, activation_threshold=.9)
         self.audio_out = AudioOutput(opts.out_idx, self._out_sample_rate)
@@ -52,7 +52,7 @@ class Listener:
 
         if not opts.no_gui:
             self._gui = ChatWindow(self._bot_name, self._bot_name)
-            self._gui.set_devices_name(source.device_name, self.audio_out.device_name)
+            self._gui.set_current_params(source.db_threshold, source.device_name, self.audio_out.device_name)
             self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=False)
             self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
             self.threads.extend([self._audio_handler, self._text_handler])
@@ -189,6 +189,8 @@ class Listener:
                     self.audio_in.change(InDevice(event[1], self._in_sample_rate, rms=self._opts.rms))
                 elif event[0] == UIAction.CHANGE_OUTPUT_DEVICE:
                     self.audio_out.change(event[1])
+                elif event[0] == UIAction.CHANGE_DB:
+                    self.audio_in._source.db_threshold = event[1]
             except queue.Empty:
                 continue
 

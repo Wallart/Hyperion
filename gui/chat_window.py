@@ -110,10 +110,13 @@ class ChatWindow(customtkinter.CTk):
         self._handler.start()
 
         self._params_window = None
+
+        self.db_thresh = 0
         self.current_input_device = None
         self.current_output_device = None
 
-    def set_devices_name(self, input_name, output_name):
+    def set_current_params(self, db, input_name, output_name):
+        self.db_thresh = db
         self.current_input_device = input_name
         self.current_output_device = output_name
 
@@ -154,7 +157,7 @@ class ChatWindow(customtkinter.CTk):
 
     def on_gear(self):
         if self._params_window is None or not self._params_window.winfo_exists():
-            self._params_window = ParamsWindow(self._out_message_queue, self.current_input_device, self.current_output_device)
+            self._params_window = ParamsWindow(self._out_message_queue, self.db_thresh, self.current_input_device, self.current_output_device)
         else:
             self._params_window.focus()
 

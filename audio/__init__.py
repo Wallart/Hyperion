@@ -1,5 +1,6 @@
 from scipy import signal
 
+import math
 import numpy as np
 
 
@@ -33,3 +34,7 @@ def float32_to_int16(audio):
 def float64_to_int16(audio):
     assert np.issubdtype(audio.dtype, np.float64), f'Cannot convert {audio.dtype} to Int16'
     return float32_to_int16(audio.astype(np.float32))
+
+
+def rms_to_db(rms):
+    return 20 * math.log10(rms)

@@ -7,7 +7,7 @@ from audio.aec.nonlinear_adaptive_filters import *
 from audio.aec.time_domain_adaptive_filters import *
 from audio.aec.frequency_domain_adaptive_filters import *
 from audio.io.sound_device_resource import SoundDeviceResource
-from audio import float32_to_int16, float64_to_int16, find_offset, int16_to_float32
+from audio import float32_to_int16, float64_to_int16, find_offset, int16_to_float32, rms_to_db
 
 import audioop
 import numpy as np
@@ -16,9 +16,9 @@ import noisereduce as nr
 
 class InDevice(SoundDeviceResource, AudioSource):
 
-    def __init__(self, device_idx, sample_rate, rms=1000, **kwargs):
+    def __init__(self, device_idx, sample_rate, db=60, **kwargs):
         super().__init__(device_idx, False, sample_rate, **kwargs)
-        self.rms_threshold = rms
+        self.db_threshold = db
         self._prev_buffer = np.zeros((self.chunk_size,), dtype=np.float32)
         self._current_feedback = None
         self._feedback_queue = Queue()
@@ -69,9 +69,10 @@ class InDevice(SoundDeviceResource, AudioSource):
 
             # root mean square of signal to detect if there is interesting things to record
             rms = audioop.rms(float32_to_int16(buffer), 2)
-            if rms >= self.rms_threshold:
+            db = rms_to_db(rms)
+            if db >= self.db_threshold:
                 listening = True
-            elif rms < self.rms_threshold and listened_chunks >= 4:  # eq to 2 sec of silence
+            elif db < self.db_threshold and listened_chunks >= 4:  # eq to 2 sec of silence
                 listening = False
                 listened_chunks = 0
                 ProjectLogger().info('Candidate noise detected.')

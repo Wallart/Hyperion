@@ -53,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
 
     parser.add_argument('--in-idx', type=int, default=-1, help='Audio input identifier')
-    parser.add_argument('--rms', type=int, default=1000, help='Sound detection threshold')
+    parser.add_argument('--db', type=int, default=60, help='Sound detection threshold in dB')
     parser.add_argument('--out-idx', type=int, default=-1, help='Audio output identifier')
     parser.add_argument('--target-url', type=str, default='localhost:9999', help='Brain target URL')
     parser.add_argument('--dummy-file', type=str, help='Play file instead of Brain\'s responses')
