@@ -6,6 +6,7 @@ from flask import Flask, Response, request
 from audio import int16_to_float32, float32_to_int16
 from utils import TEXT_SEPARATOR, CHUNK_SEPARATOR
 from utils.logger import ProjectLogger
+from utils.utils import get_ctx
 from voice_processing.voice_detector import VoiceDetector
 from voice_processing.voice_recognizer import VoiceRecognizer
 
@@ -18,15 +19,15 @@ import numpy as np
 
 class NetworkEar:
 
-    def __init__(self, port, debug, target_url, host='0.0.0.0', dummy_file=None, sample_rate=16000):
+    def __init__(self, ctx, port, debug, target_url, host='0.0.0.0', dummy_file=None, sample_rate=16000):
         self.host = host
         self.debug = debug
         self.port = port
         self.target_url = f'http://{target_url}'
         self.dummy_file = dummy_file if dummy_file is None else os.path.expanduser(dummy_file)
 
-        self.recognizer = VoiceRecognizer()
-        self.detector = VoiceDetector(sample_rate, activation_threshold=.9)
+        self.recognizer = VoiceRecognizer(ctx)
+        self.detector = VoiceDetector(ctx, sample_rate, activation_threshold=.9)
 
         self.intake = self.detector.create_intake()
         self.sink = self.detector.pipe(self.recognizer).create_sink()
@@ -94,7 +95,8 @@ def talk():
 def main():
     try:
         global ear
-        ear = NetworkEar(args.port, args.debug, args.target_url, dummy_file=args.dummy_file)
+        ctx = get_ctx(args)
+        ear = NetworkEar(ctx, args.port, args.debug, args.target_url, dummy_file=args.dummy_file)
         ear.boot()
     except Exception as e:
         ProjectLogger().error(f'Fatal error occurred : {e}')
@@ -107,6 +109,7 @@ if __name__ == '__main__':
     parser.add_argument('--target-url', type=str, default='localhost:9999', help='Brain target URL')
     parser.add_argument('--dummy-file', type=str, help='Play file instead of Brain\'s responses')
     parser.add_argument('--debug', action='store_true', help='Enables flask debugging')
+    parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
     args = parser.parse_args()
 
     _ = ProjectLogger(args, APP_NAME)

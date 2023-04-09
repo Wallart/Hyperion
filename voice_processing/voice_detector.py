@@ -1,26 +1,32 @@
-import os.path
 from time import time
-
 from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
 from speechbrain.pretrained import VAD
 
+import os
 import torch
 
 
 class VoiceDetector(Consumer, Producer):
 
-    def __init__(self, sampling_rate, model_path='~/.hyperion/vad', activation_threshold=.8):
+    def __init__(self, ctx, sampling_rate, model_path='~/.hyperion/vad', activation_threshold=.8):
         super().__init__()
 
+        self._ctx = ctx
         self._sampling_rate = sampling_rate
         self._act_thresh = activation_threshold
-        self._vad = VAD.from_hparams(source='speechbrain/vad-crdnn-libriparty', savedir=os.path.expanduser(model_path))
+        opts = {
+            'source': 'speechbrain/vad-crdnn-libriparty',
+            'savedir': os.path.expanduser(model_path),
+            # 'run_opts': {'device': ctx[0]}
+        }
+        ProjectLogger().info(opts)
+        self._vad = VAD.from_hparams(**opts).to(ctx[0])
 
         self._buffer = None
 
     def _detect(self, chunk):
-        chunk = torch.tensor(chunk)
+        chunk = torch.tensor(chunk)#.to(self._ctx[0])
         prob = self._vad.get_speech_prob_chunk(chunk)
         prob_th = self._vad.apply_threshold(prob, activation_th=self._act_thresh)
 

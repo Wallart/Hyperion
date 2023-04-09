@@ -5,6 +5,7 @@ from brain.chat_gpt import ChatGPT
 from flask import Flask, Response, request
 from utils import TEXT_SEPARATOR, CHUNK_SEPARATOR
 from utils.logger import ProjectLogger
+from utils.utils import get_ctx
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
 
@@ -14,12 +15,12 @@ import numpy as np
 
 
 class Brain:
-    def __init__(self, port, debug, host='0.0.0.0'):
+    def __init__(self, ctx, port, debug, host='0.0.0.0'):
         self.host = host
         self.port = port
         self.debug = debug
 
-        self.transcriber = VoiceTranscriber()
+        self.transcriber = VoiceTranscriber(ctx)
         self.synthesizer = VoiceSynthesizer()
         self.chat = ChatGPT()
 
@@ -83,7 +84,8 @@ def video_stream():
 def main():
     try:
         global brain
-        brain = Brain(args.port, args.debug)
+        ctx = get_ctx(args)
+        brain = Brain(ctx, args.port, args.debug)
         brain.boot()
     except Exception as e:
         ProjectLogger().error(f'Fatal error occurred : {e}')
@@ -94,6 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port')
     parser.add_argument('--debug', action='store_true', help='Enables flask debugging')
     parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
+    parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
     args = parser.parse_args()
 
     _ = ProjectLogger(args, APP_NAME)

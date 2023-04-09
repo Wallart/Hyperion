@@ -1,6 +1,5 @@
 from time import time
 from glob import glob
-
 from utils.logger import ProjectLogger
 from utils.threading import Consumer, Producer
 from speechbrain.pretrained import SpeakerRecognition
@@ -13,13 +12,19 @@ import numpy as np
 
 class VoiceRecognizer(Consumer, Producer):
 
-    def __init__(self, model_path='~/.hyperion/recog', recog_threshold=0.25):
+    def __init__(self, ctx, model_path='~/.hyperion/recog', recog_threshold=0.25):
         super().__init__()
 
         self.sample_rate = 16000  # Model is using 16kHZ samples
+        self._ctx = ctx
         self._recog_threshold = recog_threshold
         self._speakers_sample_dir = os.path.join(os.getcwd(), 'resources', 'speakers_samples')
-        self._recog = SpeakerRecognition.from_hparams(source='speechbrain/spkrec-ecapa-voxceleb', savedir=os.path.expanduser(model_path))
+        opts = {
+            'source': 'speechbrain/spkrec-ecapa-voxceleb',
+            'savedir': os.path.expanduser(model_path),
+            # 'run_opts': {'device': ctx[0]}
+        }
+        self._recog = SpeakerRecognition.from_hparams(**opts)
 
     def load_wavfile(self, file_path):
         wav, _ = librosa.load(file_path, sr=self.sample_rate)
