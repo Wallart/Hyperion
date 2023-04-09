@@ -57,11 +57,13 @@ class Brain:
         audio_chunk = np.frombuffer(speech, dtype=np.float32)
         self.intake_1.put(audio_chunk)
         transcription = self.sink_1.get()
-        if transcription is None:
-            return Response(response='Speak louder motherfucker !', status=204, mimetype='text/plain')
 
-        chat_input = f'{speaker} : {transcription}'
-        ProjectLogger().info(chat_input)
+        chat_input = None if transcription is None else f'{speaker} : {transcription}'
+        transcription = '' if transcription is None else transcription
+        if chat_input is None:
+            ProjectLogger().info(f'{speaker} : <UNKNOWN>')
+        else:
+            ProjectLogger().info(chat_input)
 
         self.intake_2.put(chat_input)
         return Response(response=Brain.sink_streamer(transcription, self.sink_2a, self.sink_2b), status=200, mimetype='application/octet-stream')

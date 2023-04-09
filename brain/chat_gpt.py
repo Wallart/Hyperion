@@ -15,6 +15,16 @@ class ChatGPT(Consumer, Producer):
     def __init__(self, name='Hypérion', model='gpt-3.5-turbo'):
         super().__init__()
 
+        self._deaf_sentences = [
+            'Je ne suis pas sûr d\'avoir compris.',
+            'Désolé j\'ai les esgourdes bouchées.',
+            'Je n\'ai pas entendu, peux-tu répéter ?',
+            'Hein ? Qu\'est-ce tu racontes ?',
+            'Articules quand tu parles !',
+            'Quoi ?',
+            'Pardon ?',
+            'Je comprends R mon reuf !'
+        ]
         self._error_sentences = [
             'Désolé j\'ai le cerveau lent.',
             'Je crois que je fais un micro-AVC...',
@@ -75,6 +85,10 @@ class ChatGPT(Consumer, Producer):
     def run(self) -> None:
         while True:
             request = self._in_queue.get()
+            if request is None:
+                self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
+                continue
+
             t0 = time()
 
             try:
