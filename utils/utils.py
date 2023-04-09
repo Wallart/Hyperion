@@ -155,6 +155,22 @@ class LivePlotter:
         self.fig.canvas.flush_events()
 
 
+def frame_decode(frame):
+    decoded = dict()
+    frame_copy = frame.copy()
+    while True:
+        chunk_header = frame_copy[:3].decode('utf-8')
+        chunk_size = int.from_bytes(frame_copy[3:7], 'big')
+        chunk_content = frame_copy[7:7+chunk_size]
+        if len(chunk_content) < chunk_size:
+            return None
+
+        decoded[chunk_header] = chunk_content if chunk_header == 'PCM' else chunk_content.decode('utf-8')
+        frame_copy = frame_copy[7+chunk_size:]
+        if chunk_header == 'PCM':
+            return decoded, frame_copy
+
+
 def frame_encode(request, answer, pcm):
     # beware of accents, they are using 2 bytes. Byte string might be longer than str
     answer = bytes(answer, 'utf-8')

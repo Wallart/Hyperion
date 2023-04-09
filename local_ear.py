@@ -1,13 +1,12 @@
 from time import time
 from functools import partial
 from daemonocle import Daemon
+from utils.utils import get_ctx, frame_decode
 from audio.audio_file import AudioFile
 from utils.logger import ProjectLogger
 from audio.microphone import Microphone
 from audio.audio_stream import AudioStream
 from audio.speakers_stream import SpeakersStream
-from utils import CHUNK_SEPARATOR, TEXT_SEPARATOR
-from utils.utils import get_ctx
 from voice_processing.voice_detector import VoiceDetector
 from voice_processing.voice_recognizer import VoiceRecognizer
 
@@ -66,19 +65,12 @@ class LocalEar:
                 if res.status_code != 200:
                     logging.warning(f'Something went wrong. HTTP {res.status_code}')
                 else:
-                    request = None
-                    for chunk in res.iter_lines(delimiter=CHUNK_SEPARATOR):
-                        sub_chunks = chunk.split(TEXT_SEPARATOR)
-                        if len(sub_chunks) == 3:
-                            request = sub_chunks[0].decode('utf-8')
-                            answer = sub_chunks[1].decode('utf-8')
-                            audio = sub_chunks[2]
-                            print(f'{recognized_speaker} : {request}')
-                        elif len(sub_chunks) == 2:
-                            answer = sub_chunks[0].decode('utf-8')
-                            audio = sub_chunks[1]
-                        else:
-                            continue
+                    response = bytearray(res.content)
+                    while len(response) > 0:
+                        decoded_frame, response = frame_decode(response)
+
+                        answer = decoded_frame['ANS']
+                        audio = decoded_frame['PCM']
 
                         print(f'ChatGPT : {answer}')
                         spoken_chunk = np.frombuffer(audio, dtype=np.int16)[1000:]  # remove popping sound
