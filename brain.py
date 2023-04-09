@@ -1,18 +1,17 @@
 #!/usr/bin/env python
 
 from time import time
-from daemonocle import Daemon
 from utils.logger import ProjectLogger
 from utils.request import RequestObject
 from utils.utils import get_ctx
 from utils.protocol import frame_encode
 from analysis.chat_gpt import ChatGPT, CHAT_MODELS
+from utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from flask import Flask, Response, request, g, stream_with_context
 from voice_processing.voice_transcriber import VoiceTranscriber, TRANSCRIPT_MODELS
 
-import os
 import argparse
 
 
@@ -136,39 +135,26 @@ def after_request(response):
     return response
 
 
+@handle_errors
 def main():
-    try:
-        global brain
-        ctx = get_ctx(args)
-        brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.whisper, args.no_memory, args.clear, args.prompt)
-        brain.boot()
-    except Exception as e:
-        ProjectLogger().error(f'Fatal error occurred : {e}')
+    global brain
+    ctx = get_ctx(args)
+    brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.whisper, args.no_memory, args.clear, args.prompt)
+    brain.boot()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyperion\'s brain')
-    parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port.')
-    parser.add_argument('--debug', action='store_true', help='Enables flask debugging.')
+    parser.add_argument('--debug', action='store_true', help='Enables debugging.')
+    parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
     parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon.')
+    parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port.')
     parser.add_argument('--clear', action='store_true', help='Clean persistent memory at startup')
     parser.add_argument('--no-memory', action='store_true', help='Start bot without persistent memory.')
     parser.add_argument('--name', type=str, default='Hypérion', help='Set bot name.')
-    parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
     parser.add_argument('--gpt', type=str, default=CHAT_MODELS[1], choices=CHAT_MODELS, help='GPT version to use.')
     parser.add_argument('--whisper', type=str, default=TRANSCRIPT_MODELS[3], choices=TRANSCRIPT_MODELS, help='Whisper version to use.')
     parser.add_argument('--prompt', type=str, default='base', help='Prompt file to use.')
     args = parser.parse_args()
 
-    _ = ProjectLogger(args, APP_NAME)
-
-    if args.daemon:
-        pid_file = os.path.join(os.path.sep, 'tmp', f'{APP_NAME.lower()}.pid')
-        if os.path.isfile(pid_file):
-            ProjectLogger().error('Daemon already running.')
-            exit(1)
-
-        daemon = Daemon(worker=main, pid_file=pid_file)
-        daemon.do_action('start')
-    else:
-        main()
+    startup(APP_NAME.lower(), args, main)

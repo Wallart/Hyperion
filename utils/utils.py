@@ -18,7 +18,7 @@ def get_ctx(args):
         ctx = [torch.device(f'cuda:{i}') for i in devices_id if i >= 0]
         ctx = ctx if len(ctx) > 0 else [torch.device('cpu')]
     else:
-        ProjectLogger().error('Cannot access GPU.')
+        ProjectLogger().warning('Cannot access GPU.')
         ctx = [torch.device('cpu')]
 
     ProjectLogger().info('Used context: {}'.format(', '.join([str(x) for x in ctx])))

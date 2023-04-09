@@ -1,9 +1,9 @@
 from time import time
-from daemonocle import Daemon
 from audio.io.audio_input import AudioInput
 from audio.io.source.in_file import InFile
 from audio.io.source.in_device import InDevice
 from audio.io.audio_output import AudioOutput
+from utils.execution import startup, handle_errors
 from utils.utils import get_ctx
 from utils.protocol import frame_decode
 # from audio.audio_file import AudioFile
@@ -20,21 +20,21 @@ import numpy as np
 
 class LocalEar:
 
-    def __init__(self, ctx, target_url, in_idx, out_idx, no_recog=False, dummy_file=None):
+    def __init__(self, ctx, opts):
         self._ctx = ctx
         self._in_sample_rate = 16000
         self._out_sample_rate = 24000
-        self._target_url = f'http://{target_url}'
-        self._dummy_file = dummy_file if dummy_file is None else os.path.expanduser(dummy_file)
-        self._no_recog = no_recog
+        self._target_url = f'http://{opts.target_url}'
+        self._dummy_file = opts.dummy_file if opts.dummy_file is None else os.path.expanduser(opts.dummy_file)
+        self._no_recog = opts.no_recog
 
-        source = InDevice(in_idx, self._in_sample_rate) if self._dummy_file is None else InFile(self._dummy_file, self._in_sample_rate)
+        source = InDevice(opts.in_idx, self._in_sample_rate, rms=opts.rms) if self._dummy_file is None else InFile(self._dummy_file, self._in_sample_rate)
         audio_in = AudioInput(source)
         detector = VoiceDetector(ctx, self._in_sample_rate, activation_threshold=.9)
-        audio_out = AudioOutput(out_idx, self._out_sample_rate)
+        audio_out = AudioOutput(opts.out_idx, self._out_sample_rate)
         self.intake = audio_out.create_intake()
 
-        if no_recog:
+        if opts.no_recog:
             self.sink = audio_in.pipe(detector).create_sink()
             self.threads = [audio_in, detector, audio_out]
         else:
@@ -109,37 +109,24 @@ class LocalEar:
 APP_NAME = 'hyperion_local_ear'
 
 
-def main():
-    try:
-        ctx = get_ctx(args)
-        ear = LocalEar(ctx, args.target_url, args.in_idx, args.out_idx, args.no_recog, dummy_file=args.dummy_file)
-        ear.boot()
-    except Exception as e:
-        ProjectLogger().error(f'Fatal error occurred : {e}')
-        raise e
+@handle_errors
+def main(args):
+    ctx = get_ctx(args)
+    ear = LocalEar(ctx, args)
+    ear.boot()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyperion\'s local ear')
-    parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
+    parser.add_argument('--daemon', action='store_true', help='Run in daemon')
     parser.add_argument('--debug', action='store_true', help='Enables debugging.')
+    parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
+
     parser.add_argument('--in-idx', type=int, default=-1, help='Audio input identifier')
+    parser.add_argument('--rms', type=int, default=1000, help='Sound detection threshold')
     parser.add_argument('--out-idx', type=int, default=-1, help='Audio output identifier')
     parser.add_argument('--target-url', type=str, default='localhost:9999', help='Brain target URL')
     parser.add_argument('--dummy-file', type=str, help='Play file instead of Brain\'s responses')
-    parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
     parser.add_argument('--no-recog', action='store_true', help='Start bot without user recognition.')
-    args = parser.parse_args()
-
-    _ = ProjectLogger(args, APP_NAME)
-
-    if args.daemon:
-        pid_file = os.path.join(os.path.sep, 'tmp', f'{APP_NAME.lower()}.pid')
-        if os.path.isfile(pid_file):
-            ProjectLogger().error('Daemon already running.')
-            exit(1)
-
-        daemon = Daemon(worker=main, pid_file=pid_file)
-        daemon.do_action('start')
-    else:
-        main()
+    
+    startup(APP_NAME.lower(), parser, main)

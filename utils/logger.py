@@ -1,4 +1,4 @@
-from utils import Singleton
+from utils import Singleton, get_log_root
 
 import os
 import sys
@@ -8,18 +8,20 @@ import logging
 class ProjectLogger(metaclass=Singleton):
     def __init__(self, *args):
         conf = {}
+        level = logging.INFO
         self._name = os.path.basename(sys.argv[0])
         if len(args) > 0:
             opts, name = args
+            level = logging.DEBUG if opts.debug else level
             self._name = name
             self._foreground = not opts.daemon if hasattr(opts, 'daemon') else True
 
             if not self._foreground:
-                conf['filename'] = os.path.expanduser(os.path.join(os.path.sep, 'tmp', 'log', f'{self._name}.log'))
+                conf['filename'] = os.path.join(get_log_root(), f'{self._name}.log')
 
         logging.basicConfig(**conf)
         self._logger = logging.getLogger(self._name)
-        self._logger.setLevel(logging.DEBUG if opts.debug else logging.INFO)
+        self._logger.setLevel(level)
 
     def error(self, msg):
         self._logger.log(logging.ERROR, msg)

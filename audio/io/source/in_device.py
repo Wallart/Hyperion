@@ -16,9 +16,9 @@ import noisereduce as nr
 
 class InDevice(SoundDeviceResource, AudioSource):
 
-    def __init__(self, device_idx, sample_rate, **kwargs):
+    def __init__(self, device_idx, sample_rate, rms=1000, **kwargs):
         super().__init__(device_idx, False, sample_rate, **kwargs)
-
+        self.rms_threshold = rms
         self._prev_buffer = np.zeros((self.chunk_size,), dtype=np.float32)
         self._current_feedback = None
         self._feedback_queue = Queue()
@@ -69,9 +69,9 @@ class InDevice(SoundDeviceResource, AudioSource):
 
             # root mean square of signal to detect if there is interesting things to record
             rms = audioop.rms(float32_to_int16(buffer), 2)
-            if rms >= 1000:
+            if rms >= self.rms_threshold:
                 listening = True
-            elif rms < 1000 and listened_chunks >= 4:  # eq to 2 sec of silence
+            elif rms < self.rms_threshold and listened_chunks >= 4:  # eq to 2 sec of silence
                 listening = False
                 listened_chunks = 0
                 ProjectLogger().info('Candidate noise detected.')

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from time import time, sleep
-from daemonocle import Daemon
+from utils.execution import startup, handle_errors
 from utils.logger import ProjectLogger
 from utils.utils import get_ctx
 from utils.protocol import frame_encode
@@ -19,17 +19,18 @@ import numpy as np
 
 class NetworkEar:
 
-    def __init__(self, ctx, port, debug, target_url, no_recog=False, host='0.0.0.0', dummy_file=None, sample_rate=16000):
+    def __init__(self, ctx, opts, host='0.0.0.0', sample_rate=16000):
         self.host = host
-        self.debug = debug
-        self.port = port
-        self.target_url = f'http://{target_url}'
-        self.dummy_file = dummy_file if dummy_file is None else os.path.expanduser(dummy_file)
-        self._no_recog = no_recog
+        self.debug = opts.debug
+        self.port = opts.port
+        self.target_url = f'http://{opts.target_url}'
+        self.dummy_file = opts.dummy_file if opts.dummy_file is None else os.path.expanduser(opts.dummy_file)
+        self._no_recog = opts.no_recog
 
         detector = VoiceDetector(ctx, sample_rate, activation_threshold=.9)
         self.intake = detector.create_intake()
-        if no_recog:
+
+        if opts.no_recog:
             self.sink = detector.create_sink()
             self.threads = [detector]
         else:
@@ -119,36 +120,23 @@ def after_request(response):
     return response
 
 
-def main():
-    try:
-        global ear
-        ctx = get_ctx(args)
-        ear = NetworkEar(ctx, args.port, args.debug, args.target_url, args.no_recog, dummy_file=args.dummy_file)
-        ear.boot()
-    except Exception as e:
-        ProjectLogger().error(f'Fatal error occurred : {e}')
+@handle_errors
+def main(args):
+    global ear
+    ctx = get_ctx(args)
+    ear = NetworkEar(ctx, args)
+    ear.boot()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyperion\'s network ear')
-    parser.add_argument('-p', '--port', type=int, default=9998, help='Listening port')
-    parser.add_argument('-d', '--daemon', action='store_true', help='Run as daemon')
-    parser.add_argument('--target-url', type=str, default='localhost:9999', help='Brain target URL')
-    parser.add_argument('--dummy-file', type=str, help='Play file instead of Brain\'s responses')
-    parser.add_argument('--debug', action='store_true', help='Enables flask debugging')
+    parser.add_argument('--daemon', action='store_true', help='Run in daemon')
+    parser.add_argument('--debug', action='store_true', help='Enables debugging.')
     parser.add_argument('--gpus', type=str, default='', help='GPUs id to use, for example 0,1, etc. -1 to use cpu. Default: use all GPUs.')
+
+    parser.add_argument('-p', '--port', type=int, default=9998, help='Listening port')
+    parser.add_argument('-t', '--target-url', type=str, default='localhost:9999', help='Brain target URL')
+    parser.add_argument('--dummy-file', type=str, help='Play file instead of Brain\'s responses')
     parser.add_argument('--no-recog', action='store_true', help='Start bot without user recognition.')
-    args = parser.parse_args()
 
-    _ = ProjectLogger(args, APP_NAME)
-
-    if args.daemon:
-        pid_file = os.path.join(os.path.sep, 'tmp', f'{APP_NAME.lower()}.pid')
-        if os.path.isfile(pid_file):
-            ProjectLogger().error('Daemon already running.')
-            exit(1)
-
-        daemon = Daemon(worker=main, pid_file=pid_file)
-        daemon.do_action('start')
-    else:
-        main()
+    startup(APP_NAME.lower(), parser, main)
