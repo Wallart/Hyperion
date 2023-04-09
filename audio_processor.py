@@ -19,7 +19,7 @@ if __name__ == '__main__':
     OUT_SAMPLE_RATE = 24000
     target_url = 'http://deepbox:9999'
     # audio_clazz = partial(AudioFile, '~/datasets/test.wav')
-    audio_clazz = partial(Microphone, device_idx=0)
+    audio_clazz = partial(Microphone)
 
     with audio_clazz(duration_ms=512) as source:
         stream = AudioStream(source)
