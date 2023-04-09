@@ -23,6 +23,17 @@ class VoiceRecognizer(Consumer, Producer):
         sample_dir = os.path.join(os.getcwd(), 'resources', 'speakers_samples')
         self.speakers_references = self.load_references(sample_dir)
 
+        smallest_speaker = min([speaker_batch.shape[1] for speaker_batch in list(self.speakers_references.values())])
+        speakers_batch = [speaker_batch[:, :smallest_speaker] for speaker_batch in list(self.speakers_references.values())]
+        self.speakers_batch = np.concatenate(speakers_batch, axis=0)
+
+        self.speakers_batch_indexes = {}
+        prev_pos = 0
+        for i, (speaker, batch) in enumerate(self.speakers_references.items()):
+            if i > 0:
+                prev_pos += len(list(self.speakers_references.values())[i - 1])
+            self.speakers_batch_indexes[speaker] = (prev_pos, prev_pos + len(batch) - 1)
+
         opts = {
             'source': 'speechbrain/spkrec-ecapa-voxceleb',
             'savedir': os.path.expanduser(os.path.join(model_path, 'recog')),
@@ -56,25 +67,24 @@ class VoiceRecognizer(Consumer, Producer):
         if type(audio_chunk) == np.ndarray:
             audio_chunk = torch.tensor(audio_chunk)
 
-        audio_chunk = audio_chunk.unsqueeze(0)
+        audio_chunk = audio_chunk.unsqueeze(0).repeat(len(self.speakers_batch), 1)
+        scores, _ = self._recog.verify_batch(torch.tensor(self.speakers_batch), audio_chunk)
 
-        computed_scores = {}
-        for speaker, references in self.speakers_references.items():
-            audio_chunk_tmp = audio_chunk.repeat(len(references), 1)
-            t0 = time()
-            scores, _ = self._recog.verify_batch(torch.tensor(references), audio_chunk_tmp)
-            ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} RECOG INF exec. time')
-            computed_scores[speaker] = round(scores.max().item(), 4)
+        speakers_scores = {}
+        for k, (start, end) in self.speakers_batch_indexes.items():
+            speaker_scores = scores[start:end + 1, :]
+            speaker_score = round(speaker_scores.max().item(), 4)
+            speakers_scores[k] = speaker_score
 
-        speaker_idx = np.argmax(list(computed_scores.values()))
-        speaker = list(computed_scores.keys())[speaker_idx]
-        best_score = computed_scores[speaker]
+        best_speaker_idx = np.argmax(list(speakers_scores.values()))
+        best_score = list(speakers_scores.values())[best_speaker_idx]
+        best_speaker = list(speakers_scores.keys())[best_speaker_idx]
 
-        ProjectLogger().info(f'Speakers scores : {computed_scores}')
+        ProjectLogger().info(f'Speakers scores : {speakers_scores}')
         if best_score < self._recog_threshold:
             return 'Unknown'
 
-        return speaker[0].upper() + speaker[1:]
+        return best_speaker[0].upper() + best_speaker[1:]
 
     def run(self):
         while self.running:
