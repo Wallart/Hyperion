@@ -3,6 +3,6 @@
 pretrained_models/
 model_checkpoints/
 __pycache__/
-resources/speakers_samples
+resources/speakers_samples/*/
 resources/google_api_key.txt
 resources/openai_api_key.txt
