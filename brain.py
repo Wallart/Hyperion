@@ -38,8 +38,7 @@ class Brain:
 
         _ = [t.join() for t in self.threads]
 
-    @staticmethod
-    def sink_streamer(user_request, text_sink, audio_sink):
+    def sink_streamer(self, user_request, text_sink, audio_sink):
         while True:
             text_answer_id, audio_answer_id = None, None
             text_answer, audio_answer = None, None
@@ -85,7 +84,22 @@ class Brain:
             ProjectLogger().info(chat_input)
 
         self.intake_2.put((chat_input, request_id))
-        stream = Brain.sink_streamer(transcription, self.sink_2a, self.sink_2b)
+        stream = self.sink_streamer(transcription, self.sink_2a, self.sink_2b)
+        return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
+
+    def handle_chat(self):
+        request_id = current_request_id()
+        user = request.form['user']
+        sentence = request.form['sentence']
+
+        if user is None or sentence is None:
+            return 'Invalid chat request', 500
+
+        chat_input = f'{user} : {sentence}'
+        ProjectLogger().info(chat_input)
+
+        self.intake_2.put((chat_input, request_id))
+        stream = self.sink_streamer(sentence, self.sink_2a, self.sink_2b)
         return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 
@@ -97,6 +111,11 @@ RequestID(app)
 @app.route('/audio', methods=['POST'])
 def audio_stream():
     return brain.handle_audio()
+
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    return brain.handle_chat()
 
 
 @app.route('/video')
