@@ -16,7 +16,7 @@ class SoundDeviceResource(ABC):
         self.output = output
 
         self.device_type = 'Output' if self.output else 'Input'
-        self.default_device = sd.default.device[0] if 'Input' else sd.default.device[1]
+        self.default_device = sd.default.device[1] if self.output else sd.default.device[0]
         self.device_idx = None
         self.device_name = None
         try:
