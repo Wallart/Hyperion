@@ -91,6 +91,10 @@ class VoiceSynthesizer(Consumer, Producer):
     def run(self) -> None:
         while True:
             text = self._in_queue.get()
+            if text is None:
+                self._dispatch(None)
+                continue
+
             logging.info(f'Synthesizing speech...')
             t0 = time()
 

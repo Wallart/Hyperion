@@ -3,13 +3,31 @@ from flask import Flask, Response, request
 from voice_processing.voice_detector import VoiceDetector
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
-from requests_toolbelt import MultipartEncoder
 
 import logging
-
 import numpy as np
 
 app = Flask(__name__)
+
+TEXT_SEPARATOR = b'----TEXT-END----\n'
+CHUNK_SEPARATOR = b'----CHUNK-END----\n'
+
+
+def sink_streamer(request, text_sink, audio_sink):
+    i = 0
+    while True:
+        text_chunk = text_sink.get()
+        audio_chunk = audio_sink.get()
+        if audio_chunk is None:
+            return
+
+        req = bytes(request, 'utf-8')
+        resp = bytes(text_chunk, 'utf-8')
+        audio_bytes = audio_chunk.tobytes()
+        response = resp + TEXT_SEPARATOR + audio_bytes + CHUNK_SEPARATOR
+        response = req + TEXT_SEPARATOR + response if i == 0 else response
+        i += 1
+        yield response
 
 
 @app.route('/audio', methods=['POST'])
@@ -25,12 +43,9 @@ def audio_stream():
 
     chat_input = f'{speaker} : {transcription}'
     logging.info(chat_input)
-    response = chat.answer(chat_input)
-    logging.info(f'ChatGPT : {response}')
 
-    intake_2.put(response)
-    encoder = MultipartEncoder(fields={'request': chat_input, 'response': response, 'audio': ('audio', sink_2.get().tobytes())})
-    return Response(response=encoder.to_string(), status=200, mimetype=encoder.content_type)
+    intake_2.put(chat_input)
+    return Response(response=sink_streamer(transcription, sink_2a, sink_2b), status=200, mimetype='application/octet-stream')
 
 
 @app.route('/video')
@@ -48,9 +63,11 @@ if __name__ == '__main__':
     chat = ChatGPT()
 
     intake_1, sink_1 = transcriber.create_intake(), transcriber.create_sink()
-    intake_2, sink_2 = synthesizer.create_intake(), synthesizer.create_sink()
+    intake_2, sink_2a, sink_2b = chat.create_intake(), chat.create_sink(), chat.pipe(synthesizer).create_sink()
+    # intake_2, sink_2 = synthesizer.create_intake(), synthesizer.create_sink()
 
     transcriber.start()
     synthesizer.start()
+    chat.start()
 
     app.run(host='0.0.0.0', debug=True, threaded=True, port=9999)

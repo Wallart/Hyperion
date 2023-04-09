@@ -1,13 +1,24 @@
 from time import time
+from utils.threading import Consumer, Producer
 
 import os
+import random
 import openai
 import logging
 
 
-class ChatGPT:
+class ChatGPT(Consumer, Producer):
 
     def __init__(self, max_memory=400):
+        super().__init__()
+
+        self._error_sentences = [
+            'Désolé j\'ai le cerveau lent.',
+            'Je crois que je fais un micro-AVC...',
+            'Désolé ! Je sais pas, je sais plus... Je suis fatigué.',
+            'Qu\'est-ce qui est jaune et qui attend ? Jonathan !'
+        ]
+
         self._max_ctx_tokens = 4097  # from openai api
         self._max_memory = max_memory
         self._model = 'gpt-3.5-turbo'
@@ -31,17 +42,14 @@ class ChatGPT:
     def tokens_count(self):
         count = 0
         for line in self._global_context + self._working_memory:
-            count += len(line['content'])
+            count += len(line['content'].split(' '))
         return count
 
     @staticmethod
     def _build_context_line(role, content):
         return {'role': role, 'content': content}
 
-    def answer(self, input, role='user'):
-        logging.info(f'Requesting ChatGPT...')
-        t0 = time()
-
+    def answer(self, input, role='user', stream=True):
         new_message = ChatGPT._build_context_line(role, input)
         self._working_memory.append(new_message)
 
@@ -51,17 +59,52 @@ class ChatGPT:
         messages = self._global_context + self._working_memory
         response = openai.ChatCompletion.create(
             model=self._model,
-            messages=messages
+            messages=messages,
+            stream=stream
         )
-        parsed_response = dict(response['choices'][0]['message'])
-        self._working_memory.append(parsed_response)
-        if len(self._working_memory) > self._max_memory:
-            self._working_memory.pop()
+        return response
 
-        logging.info(f'ChatGPT processed in {time() - t0:.3f} sec(s)')
-        return parsed_response['content']
+    def run(self) -> None:
+        while True:
+            request = self._in_queue.get()
+            t0 = time()
+
+            try:
+                logging.info(f'Requesting ChatGPT...')
+                chunked_response = self.answer(request)
+                logging.info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
+
+                memory = ''
+                sentence = ''
+                for chunk in chunked_response:
+                    stopped = chunk['choices'][0]['finish_reason'] == 'stop'
+                    if stopped:
+                        break
+
+                    anwser = chunk['choices'][0]['delta']
+                    if 'content' in anwser:
+                        content = anwser['content']
+                        sentence += content
+                        memory += content
+                        if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
+                            sentence = sentence.strip()
+                            print(f'Dispatched : {sentence}')
+                            self._dispatch(sentence)
+                            sentence = ''
+
+                memory = ChatGPT._build_context_line('assistant', memory)
+                self._working_memory.append(memory)
+                if len(self._working_memory) > self._max_memory:
+                    self._working_memory.pop()
+
+            except Exception as e:
+                logging.error(f'ChatGPT had a stroke. {e}')
+                self._dispatch(self._error_sentences[random.randint(0, len(self._error_sentences) - 1)])
+
+            # To close streaming response
+            self._dispatch(None)
 
 
 if __name__ == '__main__':
     chat = ChatGPT()
-    chat.answer('En quelle année est né Nicolas Sarkozy ?')
+    chat.answer('En quelle année est né Nicolas Sarkozy ?', stream=False)
