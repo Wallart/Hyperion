@@ -20,9 +20,10 @@ class ThreadedTask(Thread):
 class Sink:
     def __init__(self, queue):
         self._sink = queue
+        self._timeout = 0.1
 
     def drain(self):
-        job = self._sink.get()
+        job = self._sink.get(timeout=self._timeout)
         self._sink.task_done()
         return job
 

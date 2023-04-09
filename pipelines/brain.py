@@ -1,3 +1,5 @@
+import queue
+
 from audio import int16_to_float32
 from analysis.chat_gpt import ChatGPT
 from utils.logger import ProjectLogger
@@ -58,13 +60,18 @@ class Brain:
             _ = [t.stop() for t in self.threads]
 
         _ = [t.join() for t in self.threads]
+        self.sio.stop()
 
     def sink_streamer(self, sink):
         while True:
             if self.frozen:
                 return
 
-            request_obj = sink.drain()
+            # TODO Ship into drain ?
+            try:
+                request_obj = sink.drain()
+            except queue.Empty:
+                continue
 
             if request_obj.text_answer is None and request_obj.audio_answer is None and request_obj.termination:
                 self.synthesizer.delete_identified_sink(request_obj.identifier)
@@ -109,11 +116,27 @@ class Brain:
         self.audio_intake.put(buffer)
         self.audio_intake.put(None)  # end of speech
 
-        speech, speaker = self.audio_sink.drain()
+        # TODO Ship into drain ?
+        speech, speaker = None, None
+        while True:
+            try:
+                speech, speaker = self.audio_sink.drain()
+                break
+            except queue.Empty:
+                continue
+
         return speaker, speech.numpy()
 
     def handle_commands(self, request_id, request_sid, speaker, sink):
-        detected_cmd = self.cmd_sink.drain()
+        # TODO Ship into drain ?
+        detected_cmd = None
+        while True:
+            try:
+                detected_cmd = self.cmd_sink.drain()
+                break
+            except queue.Empty:
+                continue
+
         if detected_cmd == ACTIONS.SLEEP.value:
             self.frozen = True
             self.chat.frozen = True
