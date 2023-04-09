@@ -6,11 +6,12 @@ from speechbrain.pretrained import VAD
 
 import os
 import torch
+import queue
 
 
 class VoiceDetector(Consumer, Producer):
 
-    def __init__(self, ctx, sampling_rate, model_path='~/.hyperion/vad', activation_threshold=.8):
+    def __init__(self, ctx, sampling_rate, model_path='~/.hyperion', activation_threshold=.8):
         super().__init__()
 
         self._ctx = ctx
@@ -18,7 +19,7 @@ class VoiceDetector(Consumer, Producer):
         self._act_thresh = activation_threshold
         opts = {
             'source': 'speechbrain/vad-crdnn-libriparty',
-            'savedir': os.path.expanduser(model_path),
+            'savedir': os.path.expanduser(os.path.join(model_path, 'vad')),
             # 'run_opts': {'device': ctx[0]}
         }
         self._vad = VAD.from_hparams(**opts).to(ctx[0])
@@ -49,17 +50,17 @@ class VoiceDetector(Consumer, Producer):
 
     def run(self):
         while self.running:
-            task = self._in_queue.get(0.1)
-            if task is None:
+            try:
+                task = self._in_queue.get(timeout=self._timeout)
+                t0 = time()
+                if task is None:  # silence token received
+                    self._flush()
+                else:
+                    self._detect(task)
+
+                self._in_queue.task_done()
+                ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+            except queue.Empty:
                 continue
-
-            t0 = time()
-            if type(task) == int:  # silence token received
-                self._flush()
-            else:
-                self._detect(int16_to_float32(task))
-
-            self._in_queue.task_done()
-            ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
 
         ProjectLogger().info('Voice Detector stopped.')

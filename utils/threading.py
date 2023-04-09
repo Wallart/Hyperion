@@ -22,6 +22,7 @@ class Consumer(ThreadedTask):
     def __init__(self):
         super().__init__()
         self._in_queue = None
+        self._timeout = 0.1
 
     def set_in_queue(self, queue):
         self._in_queue = queue

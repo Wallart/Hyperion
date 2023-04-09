@@ -1,5 +1,7 @@
 from time import time
 from daemonocle import Daemon
+
+from audio import int16_to_float32
 from audio.io.audio_input import AudioInput
 from audio.io.source.in_file import InFile
 from audio.io.source.in_device import InDevice
@@ -26,7 +28,7 @@ class LocalEar:
         self._target_url = f'http://{target_url}'
         self._dummy_file = dummy_file if dummy_file is None else os.path.expanduser(dummy_file)
 
-        source = InDevice(in_idx, self._in_sample_rate) if self._dummy_file is None else InDevice(self._dummy_file, self._in_sample_rate)
+        source = InDevice(in_idx, self._in_sample_rate) if self._dummy_file is None else InFile(self._dummy_file, self._in_sample_rate)
         audio_in = AudioInput(source)
         detector = VoiceDetector(ctx, self._in_sample_rate, activation_threshold=.9)
         recognizer = VoiceRecognizer(ctx)
@@ -43,7 +45,8 @@ class LocalEar:
         except KeyboardInterrupt as interrupt:
             _ = [t.stop() for t in self.threads]
 
-        _ = [t.join() for t in self.threads]
+        # _ = [t.join() for t in self.threads]
+        _ = [t.join() for t in self.threads[1:]]
 
     def _process_request(self, recognized_speaker, audio_chunk):
         t0 = time()

@@ -6,13 +6,14 @@ from speechbrain.pretrained import SpeakerRecognition
 
 import os
 import torch
+import queue
 import librosa
 import numpy as np
 
 
 class VoiceRecognizer(Consumer, Producer):
 
-    def __init__(self, ctx, model_path='~/.hyperion/recog', recog_threshold=0.25):
+    def __init__(self, ctx, model_path='~/.hyperion', recog_threshold=0.25):
         super().__init__()
 
         self.sample_rate = 16000  # Model is using 16kHZ samples
@@ -21,7 +22,7 @@ class VoiceRecognizer(Consumer, Producer):
         self._speakers_sample_dir = os.path.join(os.getcwd(), 'resources', 'speakers_samples')
         opts = {
             'source': 'speechbrain/spkrec-ecapa-voxceleb',
-            'savedir': os.path.expanduser(model_path),
+            'savedir': os.path.expanduser(os.path.join(model_path, 'recog')),
             # 'run_opts': {'device': ctx[0]}
         }
         self._recog = SpeakerRecognition.from_hparams(**opts)
@@ -65,12 +66,19 @@ class VoiceRecognizer(Consumer, Producer):
 
     def run(self):
         while self.running:
-            audio_chunk = self._in_queue.get()
-            t0 = time()
-            recognized_speaker = self.recognize(audio_chunk)
-            ProjectLogger().info(f'{recognized_speaker}\'s speaking...')
-            self._dispatch((audio_chunk, recognized_speaker))
-            ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+            try:
+                audio_chunk = self._in_queue.get(timeout=self._timeout)
+                t0 = time()
+                recognized_speaker = self.recognize(audio_chunk)
+                ProjectLogger().info(f'{recognized_speaker}\'s speaking...')
+                self._dispatch((audio_chunk, recognized_speaker))
+
+                self._in_queue.task_done()
+                ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
+            except queue.Empty:
+                continue
+
+        ProjectLogger().info('Voice Recognizer stopped.')
 
 
 if __name__ == '__main__':

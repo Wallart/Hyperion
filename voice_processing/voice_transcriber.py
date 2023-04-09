@@ -11,7 +11,7 @@ import numpy as np
 
 class VoiceTranscriber(Consumer, Producer):
 
-    def __init__(self, ctx, model_size='small', confidence_threshold=.7, model_path='~/.hyperion/whisper'):
+    def __init__(self, ctx, model_size='small', confidence_threshold=.7, model_path='~/.hyperion'):
         super().__init__()
 
         self._ctx = ctx
@@ -20,7 +20,7 @@ class VoiceTranscriber(Consumer, Producer):
         assert model_size in valid_sizes
 
         # small gère mieux le franglais que base
-        self._asr = whisper.load_model('medium', download_root=os.path.expanduser(model_path), device=ctx[0])
+        self._asr = whisper.load_model('medium', download_root=os.path.expanduser(os.path.join(model_path, 'whisper')), device=ctx[0])
 
         # self._asr2 = EncoderASR.from_hparams(source='speechbrain/asr-wav2vec2-commonvoice-fr', savedir=model_path)
         # self._asr3 = EncoderDecoderASR.from_hparams(source='speechbrain/asr-crdnn-commonvoice-fr', savedir=model_path)
