@@ -74,9 +74,9 @@ class Listener:
         self.running = False
         _ = [t.stop() for t in self.threads if hasattr(t, 'stop')]
 
-    def interrupt(self):
-        self._gui.mute()
-        self.audio_out.mute()
+    def interrupt(self, timestamp):
+        self._gui.mute(timestamp)
+        self.audio_out.mute(timestamp)
 
     def _process_request(self, api_endpoint, payload, requester=None):
         t0 = time()
@@ -139,18 +139,19 @@ class Listener:
 
     def _distribute(self, recognized_speaker, decoded_frame):
         idx = decoded_frame['IDX']
+        timestamp = decoded_frame['TIM']
         request = decoded_frame['REQ']
         answer = decoded_frame['ANS']
         audio = decoded_frame['PCM']
 
         if not self._opts.no_gui:
-            self._gui.queue_message(idx, recognized_speaker, request, answer)
+            self._gui.queue_message(timestamp, idx, recognized_speaker, request, answer)
 
         ProjectLogger().info(f'{recognized_speaker} : {request}')
         ProjectLogger().info(f'ChatGPT : {answer}')
         spoken_chunk = np.frombuffer(audio, dtype=np.int16)
         if len(spoken_chunk) > 0:
-            self.intake.put((idx, spoken_chunk))
+            self.intake.put((timestamp, spoken_chunk))
             # self.source.set_feedback(spoken_chunk, self._out_sample_rate)
 
     def _audio_request_handler(self):

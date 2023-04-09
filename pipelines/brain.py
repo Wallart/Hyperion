@@ -1,5 +1,4 @@
-import queue
-
+from time import time
 from audio import int16_to_float32
 from analysis.chat_gpt import ChatGPT
 from utils.logger import ProjectLogger
@@ -11,6 +10,7 @@ from voice_processing.voice_recognizer import VoiceRecognizer
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
 
+import queue
 import numpy as np
 
 
@@ -53,9 +53,9 @@ class Brain:
     def start(self, sio, flask_app):
         try:
             _ = [t.start() for t in self.threads]
-            # app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
+            # flask_app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
             self.sio = sio
-            self.sio.run(flask_app, host=self.host, debug=self.debug, port=self.port)
+            self.sio.run(flask_app, host=self.host, debug=self.debug, port=self.port, allow_unsafe_werkzeug=True)
         except KeyboardInterrupt as interrupt:
             _ = [t.stop() for t in self.threads]
 
@@ -82,7 +82,7 @@ class Brain:
                 ProjectLogger().warning('Speech synthesis failed.')
                 request_obj.audio_answer = np.zeros((0,))
 
-            yield frame_encode(request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
+            yield frame_encode(request_obj.timestamp, request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
     def handle_speech(self, request_id, request_sid, speaker, speech):
         request_obj = RequestObject(request_id, speaker)
@@ -150,4 +150,4 @@ class Brain:
             ProjectLogger().warning('Memory wiped.')
         elif detected_cmd == ACTIONS.QUIET.value:
             sink._sink.put(RequestObject(request_id, speaker, termination=True, priority=0))
-            self.sio.emit('interrupt', to=request_sid)
+            self.sio.emit('interrupt', time(), to=request_sid)

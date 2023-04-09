@@ -11,6 +11,8 @@ class RequestObject:
         self.identifier = identifier
         self.user = user
 
+        self.timestamp = None
+
         self.text_request = None
         self.audio_request = None
         self.request_lang = None

@@ -15,8 +15,8 @@ sio = socketio.Client()
 
 
 @sio.on('interrupt')
-def on_interrupt():
-    listener.interrupt()
+def on_interrupt(timestamp):
+    listener.interrupt(timestamp)
 
 
 @sio.event

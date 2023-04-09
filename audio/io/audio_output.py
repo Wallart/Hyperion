@@ -17,12 +17,13 @@ class AudioOutput(SoundDeviceResource, Consumer):
         self.sample_rate = sample_rate
         # self._previously_played = None
         self._interrupted = False
+        self._interrupt_stamp = 0
 
     def stop(self):
         super().stop()
         self.close()
 
-    def mute(self):
+    def mute(self, timestamp):
         ProjectLogger().info('Silence required !')
         self._stream.abort(ignore_errors=True)
 
@@ -31,17 +32,17 @@ class AudioOutput(SoundDeviceResource, Consumer):
 
         # TODO not thread safe ?
         self._interrupted = True
+        self._interrupt_stamp = timestamp
 
     def run(self) -> None:
         self.open()
         while self._stream.active:
             try:
-                idx, audio = self._consume()
+                timestamp, audio = self._consume()
                 t0 = time()
-                # TODO Checking sentence idx won't be enough. We should have uuid to requests
-                if self._interrupted and idx == 0:
-                    self._interrupted = False
-                elif self._interrupted and idx > 0:
+
+                if timestamp <= self._interrupt_stamp:
+                    ProjectLogger().info('Ignored invalid sentences.')
                     continue
 
                 audio = resample(int16_to_float32(audio), orig_sr=self.sample_rate, target_sr=self.device_default_sr)
@@ -56,5 +57,6 @@ class AudioOutput(SoundDeviceResource, Consumer):
                 continue
 
         if self._interrupted:
+            self._interrupted = False
             ProjectLogger().info('Restarting output stream.')
             self.run()

@@ -140,6 +140,7 @@ class ChatGPT(Consumer, Producer):
                         new_request_obj = deepcopy(request_obj)
                         new_request_obj.text_answer = sentence
                         new_request_obj.num_answer = sentence_num
+                        new_request_obj.timestamp = t0
                         self._dispatch(new_request_obj)
                         ProjectLogger().info(f'ChatGPT : {sentence}')
                         sentence = ''
