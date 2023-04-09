@@ -98,7 +98,7 @@ def main():
     try:
         global brain
         ctx = get_ctx(args)
-        brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.no_memory, args.clear)
+        brain = Brain(ctx, args.port, args.debug, args.name, args.gpt, args.no_memory, args.clear, args.prompt)
         brain.boot()
     except Exception as e:
         ProjectLogger().error(f'Fatal error occurred : {e}')
