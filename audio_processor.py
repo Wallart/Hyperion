@@ -66,9 +66,9 @@ if __name__ == '__main__':
                         else:
                             continue
 
-                    print(f'ChatGPT : {answer}')
-                    spoken_chunk = np.frombuffer(audio, dtype=np.float32)
-                    intake.put(spoken_chunk)
+                        print(f'ChatGPT : {answer}')
+                        spoken_chunk = np.frombuffer(audio, dtype=np.float32)
+                        intake.put(spoken_chunk)
 
                 logging.info(f'Request processed in {time() - t0:.3f} sec(s).')
             except Exception as e:
