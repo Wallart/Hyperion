@@ -29,7 +29,7 @@ def audio_stream():
     logging.info(f'ChatGPT : {response}')
 
     intake_2.put(response)
-    encoder = MultipartEncoder(fields={'text': response, 'audio': ('audio', sink_2.get().tobytes())})
+    encoder = MultipartEncoder(fields={'request': chat_input, 'response': response, 'audio': ('audio', sink_2.get().tobytes())})
     return Response(response=encoder.to_string(), status=200, mimetype=encoder.content_type)
 
 

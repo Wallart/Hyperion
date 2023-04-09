@@ -19,8 +19,8 @@ if __name__ == '__main__':
 
     OUT_SAMPLE_RATE = 24000
     target_url = 'http://deepbox:9999'
-    audio_clazz = partial(AudioFile, './resources/speakers_samples/stef/stef.wav')
-    # audio_clazz = partial(Microphone)
+    # audio_clazz = partial(AudioFile, './resources/speakers_samples/stef/stef.wav')
+    audio_clazz = partial(Microphone)
 
     with audio_clazz(duration_ms=512) as source:
         stream = AudioStream(source)
@@ -53,13 +53,15 @@ if __name__ == '__main__':
                 if res.status_code != 200:
                     logging.warning(f'Something went wrong. HTTP {res.status_code}')
                 else:
-                    raw_text, raw_audio = MultipartDecoder.from_response(res).parts
+                    raw_request, raw_response, raw_audio = MultipartDecoder.from_response(res).parts
 
-                    written_response = raw_text.text
+                    written_request = raw_request.text
+                    written_response = raw_response.text
                     spoken_response = np.frombuffer(raw_audio.content, dtype=np.float32)
                     # sd.stop()
                     # sd.play(spoken_response, blocking=False, samplerate=OUT_SAMPLE_RATE)
                     intake.put(spoken_response)
+                    logging.info(written_request)
                     logging.info(f'ChatGPT : {written_response}')
 
                 logging.info(f'Request processed in {time() - t0:.3f} sec(s).')
