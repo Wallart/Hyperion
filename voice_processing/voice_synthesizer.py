@@ -45,7 +45,7 @@ class VoiceSynthesizer(Consumer, Producer):
         response = self._client.synthesize_speech(input=text_input, voice=voice_params, audio_config=audio_config)
 
         wav_array = np.frombuffer(response.audio_content, dtype=np.int16)
-        return wav_array.astype(np.float32) / (2 ** 16 / 2)
+        return wav_array#.astype(np.float32) / (2 ** 16 / 2)
 
     def _init_google_translate_synth(self):
         self.sample_rate = 24000
@@ -98,6 +98,11 @@ class VoiceSynthesizer(Consumer, Producer):
             logging.info(f'Synthesizing speech...')
             t0 = time()
 
-            wav = self._infer(text)
-            self._dispatch(wav)
+            try:
+                wav = self._infer(text)
+                self._dispatch(wav)
+            except Exception as e:
+                logging.error(f'Synthesizer muted : {e}')
+                self._dispatch(None)
+
             logging.info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
