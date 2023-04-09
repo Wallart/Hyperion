@@ -20,7 +20,8 @@ class VoiceRecognizer(Consumer, Producer):
         self._ctx = ctx
         self._recog_threshold = recog_threshold
 
-        sample_dir = os.path.join(os.getcwd(), 'resources', 'speakers_samples')
+        root_dir = os.path.dirname(os.path.dirname(__file__))
+        sample_dir = os.path.join(root_dir, 'resources', 'speakers_samples')
         self.speakers_references = self.load_references(sample_dir)
 
         smallest_speaker = min([speaker_batch.shape[1] for speaker_batch in list(self.speakers_references.values())])
