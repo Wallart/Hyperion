@@ -116,12 +116,15 @@ class ChatWindow(customtkinter.CTk):
         self.textbox.configure(state=tk.NORMAL)
         self.textbox.delete('0.0', tk.END)
         self.textbox.configure(state=tk.DISABLED)
+        self._previous_speaker = None
+        self._previous_text = None
 
     def on_gear(self):
         pass
 
     def _insert_message(self, author, message, with_delay=False, pending=False):
         if message == self._previous_text:
+            # found = self.textbox.tag_ranges('pending')
             lastline_index = self.textbox.index('end-1c linestart')
             line, col = lastline_index.split('.')
             line = int(line) - 1
