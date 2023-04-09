@@ -1,5 +1,5 @@
-from queue import Queue
 from threading import Thread
+from queue import Queue, PriorityQueue
 
 
 class ThreadedTask(Thread):
@@ -72,7 +72,7 @@ class Producer(ThreadedTask):
 
     def create_identified_sink(self, identifier):
         assert identifier not in self._identified_out_queues, 'Error identified queue already exists.'
-        queue = Queue()
+        queue = PriorityQueue()
         self._identified_out_queues[identifier] = queue
         return Sink(queue)
 
@@ -84,7 +84,10 @@ class Producer(ThreadedTask):
     #     return self._identified_out_queues[identifier]
 
     def _put(self, job, identifier):
+        if identifier not in self._identified_out_queues:
+            return False
         self._identified_out_queues[identifier].put(job)
+        return True
 
     def _dispatch(self, job):
         _ = [q.put(job) for q in self._out_queues]

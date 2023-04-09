@@ -3,7 +3,8 @@ import numpy as np
 
 class RequestObject:
 
-    def __init__(self, identifier, user, termination=False):
+    def __init__(self, identifier, user, termination=False, priority=1):
+        self.priority = priority
         self.termination = termination
         self.identifier = identifier
         self.user = user
@@ -21,3 +22,9 @@ class RequestObject:
 
     def set_text_request(self, text):
         self.text_request = text
+
+    def __eq__(self, other):
+        return self.priority == other.priority
+
+    def __gt__(self, other):
+        return self.priority > other.priority
