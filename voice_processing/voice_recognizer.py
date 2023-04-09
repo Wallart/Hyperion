@@ -28,6 +28,7 @@ class VoiceRecognizer(Consumer, Producer):
         self._recog = SpeakerRecognition.from_hparams(**opts)
 
     def load_wavfile(self, file_path):
+        # TODO Librosa fires a warning. ResourceWarning: unclosed file
         wav, _ = librosa.load(file_path, sr=self.sample_rate)
         return wav
 

@@ -60,16 +60,16 @@ class VoiceTranscriber(Consumer, Producer):
     def run(self):
         while self.running:
             try:
-                voice_chunk = self._in_queue.get(timeout=self._timeout)
+                voice_chunk, request_id = self._in_queue.get(timeout=self._timeout)
                 ProjectLogger().info('Transcribing voice...')
                 t0 = time()
                 text, lang, score = self.transcribe(voice_chunk)
 
                 if score < self._confidence_threshold:
                     ProjectLogger().info(f'Score ({score}) too low for : {text}')
-                    self._dispatch(None)
+                    self._dispatch((None, request_id))
                 else:
-                    self._dispatch(text)
+                    self._dispatch((text, request_id))
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:
                 continue

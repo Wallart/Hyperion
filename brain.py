@@ -2,12 +2,13 @@
 
 from time import time
 from daemonocle import Daemon
-from brain.chat_gpt import ChatGPT, CHAT_MODELS
 from utils.logger import ProjectLogger
 from utils.utils import get_ctx, frame_encode
-from flask import Flask, Response, request, g
+from brain.chat_gpt import ChatGPT, CHAT_MODELS
+from flask_log_request_id import RequestID, current_request_id
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from voice_processing.voice_transcriber import VoiceTranscriber
+from flask import Flask, Response, request, g, stream_with_context
 
 import os
 import argparse
@@ -21,12 +22,12 @@ class Brain:
         self.debug = debug
 
         transcriber = VoiceTranscriber(ctx)
-        synthesizer = VoiceSynthesizer()
-        chat = ChatGPT(name, model, memory, clear, prompt)
+        self.synthesizer = VoiceSynthesizer()
+        self.chat = ChatGPT(name, model, memory, clear, prompt)
 
         self.intake_1, self.sink_1 = transcriber.create_intake(), transcriber.create_sink()
-        self.intake_2, self.sink_2a, self.sink_2b = chat.create_intake(), chat.create_sink(), chat.pipe(synthesizer).create_sink()
-        self.threads = [transcriber, synthesizer, chat]
+        self.intake_2, self.sink_2a, self.sink_2b = self.chat.create_intake(), self.chat.create_sink(), self.chat.pipe(self.synthesizer).create_sink()
+        self.threads = [transcriber, self.synthesizer, self.chat]
 
     def boot(self):
         try:
@@ -38,14 +39,34 @@ class Brain:
         _ = [t.join() for t in self.threads]
 
     @staticmethod
-    def sink_streamer(request, text_sink, audio_sink):
+    def sink_streamer(user_request, text_sink, audio_sink):
         while True:
-            text_chunk = text_sink.get()
-            audio_chunk = audio_sink.get()
-            if audio_chunk is None:
+            text_answer_id, audio_answer_id = None, None
+            text_answer, audio_answer = None, None
+
+            while audio_answer_id != current_request_id():
+                text_answer, text_answer_id = text_sink.get()
+                audio_answer, audio_answer_id, creation_date = audio_sink.get()
+                if audio_answer_id == current_request_id():
+                    break
+
+                ProjectLogger().warning(f'Expired answer -> {text_answer}')
+
+            if text_answer is None:
+                # ChatGPT sent a stop token.
                 return
 
-            encoded_frame = frame_encode(request, text_chunk, audio_chunk)
+            if audio_answer is None:
+                # if text answer not empty but audio is, means speech synthesis api call failed
+                ProjectLogger().warning('Speech synthesis failed.')
+                return
+
+            # seems impossible...
+            if text_answer_id != audio_answer_id:
+                ProjectLogger().error('Text request_id differs from Audio request_id.')
+                return
+
+            encoded_frame = frame_encode(user_request, text_answer, audio_answer)
             yield encoded_frame
 
     def handle_audio(self):
@@ -53,8 +74,8 @@ class Brain:
         speaker = request.files['speaker'].read().decode('utf-8')
 
         audio_chunk = np.frombuffer(speech, dtype=np.float32)
-        self.intake_1.put(audio_chunk)
-        transcription = self.sink_1.get()
+        self.intake_1.put((audio_chunk, current_request_id()))
+        transcription, request_id = self.sink_1.get()
 
         chat_input = None if transcription is None else f'{speaker} : {transcription}'
         transcription = '' if transcription is None else transcription
@@ -63,13 +84,14 @@ class Brain:
         else:
             ProjectLogger().info(chat_input)
 
-        self.intake_2.put(chat_input)
+        self.intake_2.put((chat_input, request_id))
         stream = Brain.sink_streamer(transcription, self.sink_2a, self.sink_2b)
-        return Response(response=stream, mimetype='application/octet-stream')
+        return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 
 APP_NAME = 'hyperion_brain'
 app = Flask(__name__)
+RequestID(app)
 
 
 @app.route('/audio', methods=['POST'])

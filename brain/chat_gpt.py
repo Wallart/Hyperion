@@ -107,7 +107,7 @@ class ChatGPT(Consumer, Producer):
         )
         return response
 
-    def _process_request(self, request):
+    def _process_request(self, request, request_id):
         try:
             t0 = time()
             ProjectLogger().info(f'Requesting ChatGPT...')
@@ -127,7 +127,7 @@ class ChatGPT(Consumer, Producer):
                     memory += content
                     if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
                         sentence = sentence.strip()
-                        self._dispatch(sentence)
+                        self._dispatch((sentence, request_id))
                         ProjectLogger().info(f'ChatGPT : {sentence}')
                         sentence = ''
 
@@ -135,24 +135,26 @@ class ChatGPT(Consumer, Producer):
 
         except Exception as e:
             ProjectLogger().error(f'ChatGPT had a stroke. {e}')
-            self._dispatch(self._error_sentences[random.randint(0, len(self._error_sentences) - 1)])
+            placeholder = self._error_sentences[random.randint(0, len(self._error_sentences) - 1)]
+            self._dispatch((placeholder, request_id))
             # TODO Make it thread safe
             # self._clear_context()
 
         # To close streaming response
-        self._dispatch(None)
+        self._dispatch((None, request_id))
 
     def run(self) -> None:
         with ThreadPoolExecutor(max_workers=4) as executor:
             while self.running:
                 try:
-                    request = self._in_queue.get(timeout=self._timeout)
+                    request, request_id = self._in_queue.get(timeout=self._timeout)
                     if request is None:
-                        self._dispatch(self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)])
-                        self._dispatch(None)  # To close streaming response
+                        placeholder = self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)]
+                        self._dispatch((placeholder, request_id))
+                        self._dispatch((None, request_id))  # To close streaming response
                         continue
 
-                    future = executor.submit(self._process_request, request)
+                    future = executor.submit(self._process_request, request, request_id)
                 except queue.Empty:
                     continue
 

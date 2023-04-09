@@ -24,8 +24,12 @@ sounddevice
 
 # HTTP
 flask
+flask_log_request_id
 requests
 requests_toolbelt
 
 # Cold storage
 tinydb
+
+# GUI
+#textual[dev]

@@ -50,5 +50,8 @@ class Producer(ThreadedTask):
         self._out_queues.append(queue)
         return queue
 
+    def requeue(self, job):
+        self._dispatch(job)
+
     def _dispatch(self, job):
         _ = [q.put(job) for q in self._out_queues]
