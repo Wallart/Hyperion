@@ -96,6 +96,7 @@ class ChatGPT(Consumer, Producer):
                         if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
                             sentence = sentence.strip()
                             self._dispatch(sentence)
+                            logging.info(f'ChatGPT : {sentence}')
                             sentence = ''
 
                 memory = ChatGPT._build_context_line('assistant', memory)
