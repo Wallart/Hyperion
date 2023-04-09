@@ -41,7 +41,7 @@ class VoiceSynthesizer(Consumer, Producer):
     def _google_cloud_synthesizer(self, text):
         text_input = tts.SynthesisInput(text=text)
         voice_params = tts.VoiceSelectionParams(language_code=self._language_code, name=self._voice_name)
-        audio_config = tts.AudioConfig(audio_encoding=tts.AudioEncoding.LINEAR16)
+        audio_config = tts.AudioConfig(audio_encoding=tts.AudioEncoding.LINEAR16, speaking_rate=1.2)
         response = self._client.synthesize_speech(input=text_input, voice=voice_params, audio_config=audio_config)
 
         wav_array = np.frombuffer(response.audio_content, dtype=np.int16)
