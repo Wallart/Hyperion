@@ -26,8 +26,16 @@ class Microphone(AudioSource):
         # self._num_padding_chunks = int(self._padding_duration_ms / self._chunk_duration_ms)
         # self._num_window_chunks = int(400 / self._chunk_duration_ms)  # 400 ms/ 30ms  ge
         # self._num_window_chunks_end = self._num_window_chunks * 2
-
-        self._stream = self._pyaudio.open(format=self._format, channels=self._channels, rate=self._sampling_rate, input=True, start=False, frames_per_buffer=self._chunk_size)
+        opts = {
+            'input': True,
+            'start': False,
+            'format': self._format,
+            'channels': self._channels,
+            'rate': self._sampling_rate,
+            'frames_per_buffer': self._chunk_size,
+            'input_device_index': self._device_idx
+        }
+        self._stream = self._pyaudio.open(**opts)
 
     def start(self):
         logging.info(f'Start listening device {self.name()}')

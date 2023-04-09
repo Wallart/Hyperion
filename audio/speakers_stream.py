@@ -11,7 +11,7 @@ class SpeakersStream(Consumer):
     def __init__(self, sample_rate, channels):
         super().__init__()
         self.sample_rate = sample_rate
-        self._speakers = sd.OutputStream(sample_rate, channels=channels, dtype=np.float32)
+        self._speakers = sd.OutputStream(sample_rate, channels=channels, dtype=np.int16)
 
     # def __del__(self):
     #     self._speakers.stop()
@@ -22,6 +22,8 @@ class SpeakersStream(Consumer):
         while True:
             audio = self._in_queue.get()
             t0 = time()
-            self._speakers.write(audio)
+
+            audio = audio * ((2 ** 16) / 2) / max(audio)
+            self._speakers.write(audio.astype(np.int16))
             # sd.play(audio, blocking=False, samplerate=self.sample_rate)
-            logging.info(f'{self.__class__.__name__} {time() - t0} exec. time')
+            logging.info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
