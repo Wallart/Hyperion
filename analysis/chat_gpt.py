@@ -112,8 +112,12 @@ class ChatGPT(Consumer, Producer):
         return response
 
     def _process_request(self, request_obj):
+
+        t0 = time()
+        memory = ''
+        sentence = ''
+        sentence_num = 0
         try:
-            t0 = time()
             request_obj.text_request = fetch_urls(request_obj.text_request)
             ProjectLogger().info('Requesting ChatGPT...')
             chat_input = f'{request_obj.user} : {request_obj.text_request}'
@@ -121,9 +125,6 @@ class ChatGPT(Consumer, Producer):
             chunked_response = self.answer(chat_input)
             ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
 
-            memory = ''
-            sentence = ''
-            sentence_num = 0
             for chunk in chunked_response:
                 if chunk['choices'][0]['finish_reason'] == 'stop':
                     break
@@ -150,6 +151,7 @@ class ChatGPT(Consumer, Producer):
             ProjectLogger().error(f'ChatGPT had a stroke. {e}')
             placeholder = self._error_sentences[random.randint(0, len(self._error_sentences) - 1)]
             request_obj.text_answer = placeholder
+            request_obj.num_answer = sentence_num
             self._dispatch(request_obj)
 
         # To close streaming response
