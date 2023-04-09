@@ -22,7 +22,7 @@ class ChatGPT(Consumer, Producer):
 
     def __init__(self, name, model, no_memory, clear, prompt='base', cache_dir='~/.hyperion'):
         super().__init__()
-
+        self.frozen = False
         ProjectLogger().info(f'{name} using {model} as chat backend. No memory -> {no_memory}')
 
         self._mutex = Lock()
@@ -100,8 +100,8 @@ class ChatGPT(Consumer, Producer):
         return messages
 
     @acquire_mutex
-    def _clear_context(self):
-        raise NotImplemented()
+    def clear_context(self):
+        self._db.truncate()
 
     def answer(self, chat_input, role='user', stream=True):
         response = openai.ChatCompletion.create(
@@ -160,6 +160,9 @@ class ChatGPT(Consumer, Producer):
             while self.running:
                 try:
                     request_obj = self._consume()
+                    if self.frozen:
+                        continue
+
                     if request_obj.text_request == '':
                         placeholder = self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)]
                         request_obj.text_answer = placeholder

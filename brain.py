@@ -7,6 +7,7 @@ from utils.utils import get_ctx
 from utils.protocol import frame_encode
 from analysis.chat_gpt import ChatGPT, CHAT_MODELS
 from utils.execution import startup, handle_errors
+from analysis.command_detector import CommandDetector, ACTIONS
 from flask_log_request_id import RequestID, current_request_id
 from voice_processing.voice_synthesizer import VoiceSynthesizer
 from flask import Flask, Response, request, g, stream_with_context
@@ -30,10 +31,15 @@ class Brain:
 
         self.transcriber.pipe(self.chat).pipe(self.synthesizer)
 
+        # commands handling block
+        self.commands = CommandDetector()
+        self.transcriber.pipe(self.commands)
+        self.cmd_sink = self.commands.create_sink()
+
         self.audio_intake = self.transcriber.create_intake()
         self.text_intake = self.chat.get_intake()
 
-        self.threads = [self.transcriber, self.chat, self.synthesizer]
+        self.threads = [self.transcriber, self.commands, self.chat, self.synthesizer]
 
     def boot(self):
         try:
@@ -64,9 +70,6 @@ class Brain:
             yield frame_encode(request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
     def handle_audio(self):
-        if self.frozen:
-            return 'I\'m a teapot', 418
-
         request_id = current_request_id()
         speech = request.files['speech'].read()
         speaker = request.files['speaker'].read().decode('utf-8')
@@ -76,6 +79,22 @@ class Brain:
 
         sink = self.synthesizer.create_identified_sink(request_id)
         self.audio_intake.put(request_obj)
+
+        detected_cmd = self.cmd_sink.drain()
+        if detected_cmd == ACTIONS.SLEEP.value:
+            self.frozen = True
+            self.chat.frozen = True
+        elif detected_cmd == ACTIONS.WAKE.value:
+            self.frozen = False
+            self.chat.frozen = False
+        elif detected_cmd == ACTIONS.WIPE.value:
+            self.chat.clear_context()
+            ProjectLogger().warning('Memory wiped.')
+        elif detected_cmd == ACTIONS.QUIET.value:
+            sink._sink.put(RequestObject(request_id, speaker, termination=True, priority=0))
+
+        if self.frozen:
+            return 'I\'m a teapot', 418
 
         stream = self.sink_streamer(sink)
         return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
