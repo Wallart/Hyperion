@@ -78,7 +78,7 @@ class ChatGPT(Consumer, Producer):
     def _add_to_context(self, new_message):
         cache = [new_message]
         if not self._no_memory:
-            cache += self._db.all()
+            cache = self._db.all() + cache
             self._db.insert(new_message)
 
         while True:
