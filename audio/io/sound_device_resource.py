@@ -22,15 +22,18 @@ class SoundDeviceResource(ABC):
         except Exception as e:
             self._prompt_device_idx()
 
+        # important to avoid crackling sound when playing sound on speakers
+        # https://macreports.com/how-to-fix-the-popping-and-crackling-sound-on-mac/#:~:text=This%20popping%20or%20crackling%20sound,the%20format%20can%20fix%20this.
+        self.device_default_sr = sd.query_devices(self.device_idx)['default_samplerate']
         opts = {
             'device': self.device_idx,
             'channels': channels,
-            'samplerate': sample_rate
+            # 'samplerate': sample_rate
         }
         if output:
-            self._stream = sd.OutputStream(**opts)
+            self._stream = sd.OutputStream(**opts, samplerate=self.device_default_sr)
         else:
-            self._stream = sd.InputStream(**opts, blocksize=self.chunk_size)
+            self._stream = sd.InputStream(**opts, blocksize=self.chunk_size, samplerate=sample_rate)
 
     def get_callback(self):
         return None
