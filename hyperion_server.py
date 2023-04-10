@@ -31,6 +31,11 @@ def disconnect():
     ProjectLogger().info(f'Client {request.sid} disconnected')
 
 
+@app.route('/state', methods=['GET'])
+def state():
+    return 'Up and running', 200
+
+
 @app.route('/name', methods=['GET'])
 def name():
     return brain.name, 200
