@@ -30,8 +30,8 @@ class ChatGPT(Consumer, Producer):
         self._botname = name
         self._no_memory = no_memory
         # Seems that we have to reserve some tokens for chat completion...
-        # self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
-        self._max_ctx_tokens = MAX_TOKENS
+        self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
+        # self._max_ctx_tokens = MAX_TOKENS
 
         root_dir = os.path.dirname(os.path.dirname(__file__))
         self._resources_dir = os.path.join(root_dir, 'resources')
@@ -141,6 +141,10 @@ class ChatGPT(Consumer, Producer):
 
             for chunk in chunked_response:
                 if chunk['choices'][0]['finish_reason'] == 'stop':
+                    break
+
+                if chunk['choices'][0]['finish_reason'] == 'length':
+                    ProjectLogger().warning('Not enough left tokens to generate a complete answer')
                     break
 
                 answer = chunk['choices'][0]['delta']
