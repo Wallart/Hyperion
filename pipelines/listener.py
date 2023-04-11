@@ -76,7 +76,8 @@ class Listener:
         _ = [t.stop() for t in self.threads if hasattr(t, 'stop')]
 
     def interrupt(self, timestamp):
-        self._gui.mute(timestamp)
+        if not self._opts.no_gui:
+            self._gui.mute(timestamp)
         self.audio_out.mute(timestamp)
 
     def _process_request(self, api_endpoint, payload, requester=None):
