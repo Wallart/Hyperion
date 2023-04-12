@@ -14,6 +14,7 @@ import queue
 import random
 import openai
 import tiktoken
+import numpy as np
 
 CHAT_MODELS = ['gpt-3.5-turbo', 'gpt-4']
 
@@ -126,6 +127,22 @@ class ChatGPT(Consumer, Producer):
         )
         return response
 
+    def _dispatch_sentence(self, sentence, sentence_num, t0, request_obj):
+        sentence = sentence.strip()
+
+        new_request_obj = deepcopy(request_obj)
+        new_request_obj.text_answer = sentence
+        new_request_obj.num_answer = sentence_num
+        new_request_obj.timestamp = t0
+        self._dispatch(new_request_obj)
+        ProjectLogger().info(f'ChatGPT : {sentence}')
+
+    def _dispatch_error(self, sentence_num, request_obj):
+        placeholder = self._error_sentences[random.randint(0, len(self._error_sentences) - 1)]
+        request_obj.text_answer = placeholder
+        request_obj.num_answer = sentence_num
+        self._dispatch(request_obj)
+
     def _process_request(self, request_obj):
 
         t0 = time()
@@ -141,10 +158,13 @@ class ChatGPT(Consumer, Producer):
 
             for chunk in chunked_response:
                 if chunk['choices'][0]['finish_reason'] == 'stop':
+                    if sentence != '':
+                        self._dispatch_sentence(sentence, sentence_num, t0, request_obj)
                     break
 
                 if chunk['choices'][0]['finish_reason'] == 'length':
                     ProjectLogger().warning('Not enough left tokens to generate a complete answer')
+                    self._dispatch_error(sentence_num, request_obj)
                     break
 
                 answer = chunk['choices'][0]['delta']
@@ -152,26 +172,20 @@ class ChatGPT(Consumer, Producer):
                     content = answer['content']
                     sentence += content
                     memory += content
-                    if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
-                        sentence = sentence.strip()
 
-                        new_request_obj = deepcopy(request_obj)
-                        new_request_obj.text_answer = sentence
-                        new_request_obj.num_answer = sentence_num
-                        new_request_obj.timestamp = t0
-                        self._dispatch(new_request_obj)
-                        ProjectLogger().info(f'ChatGPT : {sentence}')
-                        sentence = ''
+                    sentence_ends = [sentence.find(e) for e in ['. ', '! ', '? ', '.\n', '!\n', '?\n']]
+                    sentence_end = sentence_ends[np.argmax(sentence_ends)] + 1
+                    # if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
+                    if sentence_end > 0:
+                        self._dispatch_sentence(sentence[:sentence_end], sentence_num, t0, request_obj)
+                        sentence = sentence[sentence_end:]
                         sentence_num += 1
 
             self._add_to_context(ChatGPT._build_context_line('assistant', memory))
 
         except Exception as e:
             ProjectLogger().error(f'ChatGPT had a stroke. {e}')
-            placeholder = self._error_sentences[random.randint(0, len(self._error_sentences) - 1)]
-            request_obj.text_answer = placeholder
-            request_obj.num_answer = sentence_num
-            self._dispatch(request_obj)
+            self._dispatch_error(sentence_num, request_obj)
 
         # To close streaming response
         self._dispatch(RequestObject(request_obj.identifier, request_obj.user, termination=True))
