@@ -24,9 +24,11 @@ class VoiceRecognizer(Consumer, Producer):
         sample_dir = os.path.join(root_dir, 'resources', 'speakers_samples')
         self.speakers_references = self.load_references(sample_dir)
 
-        smallest_speaker = min([speaker_batch.shape[1] for speaker_batch in list(self.speakers_references.values())])
-        speakers_batch = [speaker_batch[:, :smallest_speaker] for speaker_batch in list(self.speakers_references.values())]
-        self.speakers_batch = np.concatenate(speakers_batch, axis=0)
+        self.speakers_batch = None
+        if len(self.speakers_references) > 0:
+            smallest_speaker = min([speaker_batch.shape[1] for speaker_batch in list(self.speakers_references.values())])
+            speakers_batch = [speaker_batch[:, :smallest_speaker] for speaker_batch in list(self.speakers_references.values())]
+            self.speakers_batch = np.concatenate(speakers_batch, axis=0)
 
         self.speakers_batch_indexes = {}
         prev_pos = 0
@@ -65,6 +67,9 @@ class VoiceRecognizer(Consumer, Producer):
         return trimmed_wav
 
     def recognize(self, audio_chunk):
+        if self.speakers_batch is None:
+            return 'Unknown'
+
         if type(audio_chunk) == np.ndarray:
             audio_chunk = torch.tensor(audio_chunk)
 
