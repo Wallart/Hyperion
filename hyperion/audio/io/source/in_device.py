@@ -1,13 +1,13 @@
 from queue import Queue
 from librosa import resample
 from functools import partial
-from utils.logger import ProjectLogger
-from audio.io.source import AudioSource
-from audio.aec.nonlinear_adaptive_filters import *
-from audio.aec.time_domain_adaptive_filters import *
-from audio.aec.frequency_domain_adaptive_filters import *
-from audio.io.sound_device_resource import SoundDeviceResource
-from audio import float32_to_int16, float64_to_int16, find_offset, int16_to_float32, rms_to_db
+from hyperion.utils.logger import ProjectLogger
+from hyperion.audio.io.source import AudioSource
+from hyperion.audio.aec.nonlinear_adaptive_filters import *
+from hyperion.audio.aec.time_domain_adaptive_filters import *
+from hyperion.audio.aec.frequency_domain_adaptive_filters import *
+from hyperion.audio.io.sound_device_resource import SoundDeviceResource
+from hyperion.audio import float32_to_int16, float64_to_int16, find_offset, int16_to_float32, rms_to_db
 
 import audioop
 import numpy as np

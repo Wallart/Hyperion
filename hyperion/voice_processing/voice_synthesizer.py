@@ -1,8 +1,8 @@
 import queue
 from time import time
 from gtts import gTTS
-from utils.logger import ProjectLogger
-from utils.threading import Consumer, Producer
+from hyperion.utils.logger import ProjectLogger
+from hyperion.utils.threading import Consumer, Producer
 
 import io
 import os
@@ -34,8 +34,13 @@ class VoiceSynthesizer(Consumer, Producer):
         self._language_code = 'fr-FR'
         self._voice_name = 'fr-FR-Neural2-B'
 
-        root_dir = os.path.dirname(os.path.dirname(__file__))
-        with open(os.path.join(root_dir, 'resources', 'google_api_key.txt')) as f:
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        resources_dir = os.path.join(root_dir, 'resources')
+        if not os.path.exists(resources_dir):
+            # in production mode
+            resources_dir = os.path.expanduser('~/.hyperion')
+
+        with open(os.path.join(resources_dir, 'keys', 'google_api.key')) as f:
             api_key = f.readlines()[0]
 
         self._client = tts.TextToSpeechClient(client_options={'api_key': api_key})

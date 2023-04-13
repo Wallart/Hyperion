@@ -42,7 +42,10 @@ def prompt_device_idx():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Record voice inprint for a new speaker')
     parser.add_argument('name', type=str, help='Speaker name.')
+    parser.add_argument('samples_dir', default='~/.hyperion/speakers_samples', type=str, help='Speaker samples directory.')
     args = parser.parse_args()
+
+    args.samples_dir = os.path.expanduser(args.samples_dir)
 
     audio = PyAudio()
     device_idx = prompt_device_idx()
@@ -72,6 +75,6 @@ if __name__ == '__main__':
     stream.close()
     audio.terminate()
 
-    outdir = os.path.join(os.getcwd(), 'resources', 'speakers_samples', args.name)
+    outdir = os.path.join(args.samples_dir, args.name)
     os.makedirs(outdir, exist_ok=True)
     sf.write(os.path.join(outdir, f'{uuid4()}.wav'), wav_signal, SAMPLING_RATE)

@@ -1,9 +1,9 @@
 from time import time, sleep
 from librosa import resample
-from audio import int16_to_float32
-from utils.threading import Consumer
-from utils.logger import ProjectLogger
-from audio.io.sound_device_resource import SoundDeviceResource
+from hyperion.audio import int16_to_float32
+from hyperion.utils.threading import Consumer
+from hyperion.utils.logger import ProjectLogger
+from hyperion.audio.io.sound_device_resource import SoundDeviceResource
 
 import queue
 import logging

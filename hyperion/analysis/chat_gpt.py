@@ -2,12 +2,12 @@ from time import time
 from copy import deepcopy
 from threading import Lock
 from tinydb import TinyDB, Query
-from utils.logger import ProjectLogger
-from utils.request import RequestObject
-from utils.threading import Consumer, Producer
+from hyperion.utils.logger import ProjectLogger
+from hyperion.utils.request import RequestObject
+from hyperion.utils.threading import Consumer, Producer
 from concurrent.futures import ThreadPoolExecutor
-from utils.external_resources_parsing import fetch_urls
-from analysis import MAX_TOKENS, acquire_mutex, get_model_token_specs
+from hyperion.utils.external_resources_parsing import fetch_urls
+from hyperion.analysis import MAX_TOKENS, acquire_mutex, get_model_token_specs
 
 import os
 import queue
@@ -34,8 +34,12 @@ class ChatGPT(Consumer, Producer):
         self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
         # self._max_ctx_tokens = MAX_TOKENS
 
-        root_dir = os.path.dirname(os.path.dirname(__file__))
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         self._resources_dir = os.path.join(root_dir, 'resources')
+        if not os.path.exists(self._resources_dir):
+            # in production mode
+            self._resources_dir = os.path.expanduser(cache_dir)
+
         self._cache_dir = os.path.expanduser(cache_dir)
         os.makedirs(self._cache_dir, exist_ok=True)
 
@@ -64,7 +68,7 @@ class ChatGPT(Consumer, Producer):
         return [l.strip() for l in content]
 
     def _load_api_key(self):
-        return ChatGPT._load_file(os.path.join(self._resources_dir, 'openai_api_key.txt'))[0]
+        return ChatGPT._load_file(os.path.join(self._resources_dir, 'keys', 'openai_api.key'))[0]
 
     def _load_prompt(self, prompt_file):
         content = ChatGPT._load_file(os.path.join(self._resources_dir, 'prompts', prompt_file))

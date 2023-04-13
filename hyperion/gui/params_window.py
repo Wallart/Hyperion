@@ -1,5 +1,5 @@
-from gui import UIAction
-from audio.io.sound_device_resource import SoundDeviceResource
+from hyperion.gui import UIAction
+from hyperion.audio.io.sound_device_resource import SoundDeviceResource
 
 import customtkinter
 import tkinter as tk

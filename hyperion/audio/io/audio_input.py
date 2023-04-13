@@ -1,6 +1,6 @@
 from time import sleep
-from utils.threading import Producer
-from utils.logger import ProjectLogger
+from hyperion.utils.threading import Producer
+from hyperion.utils.logger import ProjectLogger
 
 
 class AudioInput(Producer):

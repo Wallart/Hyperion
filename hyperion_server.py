@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
 from time import time
-from utils.utils import get_ctx
-from pipelines.brain import Brain
-from utils.logger import ProjectLogger
+from hyperion.utils.utils import get_ctx
+from hyperion.pipelines.brain import Brain
+from hyperion.utils.logger import ProjectLogger
 from flask_socketio import SocketIO, emit
-from analysis.chat_gpt import CHAT_MODELS
-from utils.execution import startup, handle_errors
+from hyperion.analysis.chat_gpt import CHAT_MODELS
+from hyperion.utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
-from voice_processing.voice_transcriber import TRANSCRIPT_MODELS
+from hyperion.voice_processing.voice_transcriber import TRANSCRIPT_MODELS
 from flask import Flask, Response, request, g, stream_with_context
 
 import os

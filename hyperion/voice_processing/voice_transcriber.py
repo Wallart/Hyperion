@@ -1,8 +1,8 @@
 import os.path
 import queue
 from time import time
-from utils.logger import ProjectLogger
-from utils.threading import Consumer, Producer
+from hyperion.utils.logger import ProjectLogger
+from hyperion.utils.threading import Consumer, Producer
 
 import torch
 import whisper

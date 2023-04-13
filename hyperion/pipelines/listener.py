@@ -1,16 +1,16 @@
 from time import time
-from audio import float32_to_int16
-from gui import UIAction
-from utils.logger import ProjectLogger
-from gui.chat_window import ChatWindow
-from utils.protocol import frame_decode
-from audio.io.source.in_file import InFile
-from audio.io.audio_input import AudioInput
-from audio.io.audio_output import AudioOutput
-from audio.io.source.in_device import InDevice
+from hyperion.audio import float32_to_int16
+from hyperion.gui import UIAction
+from hyperion.utils.logger import ProjectLogger
+from hyperion.gui.chat_window import ChatWindow
+from hyperion.utils.protocol import frame_decode
+from hyperion.audio.io.source.in_file import InFile
+from hyperion.audio.io.audio_input import AudioInput
+from hyperion.audio.io.audio_output import AudioOutput
+from hyperion.audio.io.source.in_device import InDevice
 from concurrent.futures import ThreadPoolExecutor
-from voice_processing.voice_detector import VoiceDetector
-from voice_processing.voice_recognizer import VoiceRecognizer
+from hyperion.voice_processing.voice_detector import VoiceDetector
+from hyperion.voice_processing.voice_recognizer import VoiceRecognizer
 
 import os
 import queue

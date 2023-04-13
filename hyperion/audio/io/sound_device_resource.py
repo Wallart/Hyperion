@@ -1,6 +1,6 @@
 from abc import ABC
 from time import sleep
-from utils.logger import ProjectLogger
+from hyperion.utils.logger import ProjectLogger
 
 import sounddevice as sd
 

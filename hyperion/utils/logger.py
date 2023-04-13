@@ -1,4 +1,4 @@
-from utils import Singleton, get_log_root
+from hyperion.utils import Singleton, get_log_root
 
 import os
 import sys

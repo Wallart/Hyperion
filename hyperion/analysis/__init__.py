@@ -1,4 +1,4 @@
-from utils.logger import ProjectLogger
+from hyperion.utils.logger import ProjectLogger
 
 # from openai api
 MAX_TOKENS = 4097

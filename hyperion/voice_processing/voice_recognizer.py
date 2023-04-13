@@ -1,7 +1,7 @@
 from time import time
 from glob import glob
-from utils.logger import ProjectLogger
-from utils.threading import Consumer, Producer
+from hyperion.utils.logger import ProjectLogger
+from hyperion.utils.threading import Consumer, Producer
 from speechbrain.pretrained import SpeakerRecognition
 
 import os
@@ -20,8 +20,12 @@ class VoiceRecognizer(Consumer, Producer):
         self._ctx = ctx
         self._recog_threshold = recog_threshold
 
-        root_dir = os.path.dirname(os.path.dirname(__file__))
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         sample_dir = os.path.join(root_dir, 'resources', 'speakers_samples')
+        if not os.path.exists(sample_dir):
+            # in production mode
+            sample_dir = os.path.expanduser(os.path.join(model_path, 'speakers_samples'))
+
         self.speakers_references = self.load_references(sample_dir)
 
         self.speakers_batch = None

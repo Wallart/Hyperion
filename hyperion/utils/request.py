@@ -1,5 +1,5 @@
 from time import time
-from audio import int16_to_float32
+from hyperion.audio import int16_to_float32
 
 import numpy as np
 

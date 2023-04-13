@@ -1,6 +1,6 @@
 from time import sleep
-from utils.logger import ProjectLogger
-from audio.io.source import AudioSource
+from hyperion.utils.logger import ProjectLogger
+from hyperion.audio.io.source import AudioSource
 
 import os
 import librosa

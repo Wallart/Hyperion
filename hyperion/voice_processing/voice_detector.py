@@ -1,7 +1,7 @@
 from time import time
-from audio import int16_to_float32
-from utils.logger import ProjectLogger
-from utils.threading import Consumer, Producer
+from hyperion.audio import int16_to_float32
+from hyperion.utils.logger import ProjectLogger
+from hyperion.utils.threading import Consumer, Producer
 from speechbrain.pretrained import VAD
 
 import os

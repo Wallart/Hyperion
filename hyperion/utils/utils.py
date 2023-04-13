@@ -1,7 +1,7 @@
 from sys import stdout
 from time import time, sleep
-from utils.logger import ProjectLogger
-from utils.threading import Consumer
+from hyperion.utils.logger import ProjectLogger
+from hyperion.utils.threading import Consumer
 
 import wave
 import torch

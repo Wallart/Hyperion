@@ -1,9 +1,9 @@
-from gui import UIAction
+from hyperion.gui import UIAction
 from time import time, sleep
 from PIL import Image, ImageTk
 from pygments import lex, highlight
 from pygments.lexers import PythonLexer
-from gui.params_window import ParamsWindow
+from hyperion.gui.params_window import ParamsWindow
 from pygments.formatters import HtmlFormatter
 
 import os
@@ -21,7 +21,7 @@ customtkinter.set_default_color_theme('blue')  # Themes: 'blue' (standard), 'gre
 class ChatWindow(customtkinter.CTk):
     def __init__(self, bot_name, title='Chat window', savedir='~/.hyperion'):
         super().__init__()
-        root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         image_dir = os.path.join(root_dir, 'resources', 'gui')
 
         self._gui_params = {}

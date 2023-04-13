@@ -1,14 +1,14 @@
 from time import time
-from audio import int16_to_float32
-from analysis.chat_gpt import ChatGPT
-from utils.logger import ProjectLogger
-from utils.protocol import frame_encode
-from utils.request import RequestObject
-from analysis.command_detector import CommandDetector, ACTIONS
-from voice_processing.voice_detector import VoiceDetector
-from voice_processing.voice_recognizer import VoiceRecognizer
-from voice_processing.voice_synthesizer import VoiceSynthesizer
-from voice_processing.voice_transcriber import VoiceTranscriber
+from hyperion.audio import int16_to_float32
+from hyperion.analysis.chat_gpt import ChatGPT
+from hyperion.utils.logger import ProjectLogger
+from hyperion.utils.protocol import frame_encode
+from hyperion.utils.request import RequestObject
+from hyperion.analysis.command_detector import CommandDetector, ACTIONS
+from hyperion.voice_processing.voice_detector import VoiceDetector
+from hyperion.voice_processing.voice_recognizer import VoiceRecognizer
+from hyperion.voice_processing.voice_synthesizer import VoiceSynthesizer
+from hyperion.voice_processing.voice_transcriber import VoiceTranscriber
 
 import queue
 import numpy as np

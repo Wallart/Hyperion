@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from utils.utils import get_ctx
-from utils.logger import ProjectLogger
-from pipelines.listener import Listener
-from utils.execution import startup, handle_errors
+from hyperion.utils.utils import get_ctx
+from hyperion.utils.logger import ProjectLogger
+from hyperion.pipelines.listener import Listener
+from hyperion.utils.execution import startup, handle_errors
 
 import os
 import argparse
