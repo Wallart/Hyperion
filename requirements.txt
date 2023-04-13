@@ -39,6 +39,9 @@ requests_toolbelt
 # Cold storage
 tinydb
 
+# openai deps
+plotly
+
 # other
 urlextract
 bs4
