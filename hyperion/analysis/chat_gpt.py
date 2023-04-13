@@ -61,6 +61,9 @@ class ChatGPT(Consumer, Producer):
         openai.api_key = self._load_api_key()
         # self._working_memory = []
 
+        self._video_ctx = None
+        self._video_ctx_timestamp = time()
+
     @staticmethod
     def _load_file(path):
         with open(path) as f:
@@ -109,6 +112,13 @@ class ChatGPT(Consumer, Producer):
             cache = self._db.all() + cache
             self._db.insert(new_message)
 
+        if self._video_ctx is not None and time() - self._video_ctx_timestamp < 20:
+            video_ctx = f'[VIDEO STREAM] {self._video_ctx}'
+            cache.append(ChatGPT._build_context_line('system', video_ctx))
+            ProjectLogger().info(video_ctx)
+        else:
+            self._video_ctx = None
+
         while True:
             messages = self._global_context + cache
             found_tokens = self._tokens_count(messages)
@@ -122,6 +132,11 @@ class ChatGPT(Consumer, Producer):
     @acquire_mutex
     def clear_context(self):
         self._db.truncate()
+
+    def add_video_context(self, frame_description):
+        if self._video_ctx is None or frame_description != self._video_ctx:
+            self._video_ctx = frame_description
+            self._video_ctx_timestamp = time()
 
     def answer(self, chat_input, role='user', name=None, stream=True):
         response = openai.ChatCompletion.create(

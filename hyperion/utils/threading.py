@@ -42,8 +42,8 @@ class Consumer(ThreadedTask):
     def get_intake(self):
         return self._in_queue
 
-    def create_intake(self):
-        queue = Queue()
+    def create_intake(self, maxsize=0):
+        queue = Queue(maxsize)
         self.set_in_queue(queue)
         return queue
 

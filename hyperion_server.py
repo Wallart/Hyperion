@@ -145,9 +145,15 @@ def sio_chat(data):
         sio.sleep(0)  # force flush all emit calls. Should we import geventlet ?
 
 
-@app.route('/video')
+@app.route('/video', methods=['POST'])
 def video_stream():
-    return 'Not yet implemented', 500
+    width = int(request.headers['frame_width'])
+    height = int(request.headers['frame_height'])
+    channels = int(request.headers['frame_channels'])
+    frame = request.files['frame'].read()
+
+    brain.handle_frame(frame, width, height, channels)
+    return 'Frame processed', 200
 
 
 @app.before_request

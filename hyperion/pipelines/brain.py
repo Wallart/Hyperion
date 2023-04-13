@@ -9,6 +9,7 @@ from hyperion.voice_processing.voice_detector import VoiceDetector
 from hyperion.voice_processing.voice_recognizer import VoiceRecognizer
 from hyperion.voice_processing.voice_synthesizer import VoiceSynthesizer
 from hyperion.voice_processing.voice_transcriber import VoiceTranscriber
+from hyperion.video.visual_question_answering import VisualQuestionAnswering
 
 import queue
 import numpy as np
@@ -34,12 +35,16 @@ class Brain:
         self.synthesizer = VoiceSynthesizer()
         self.transcriber.pipe(self.chat).pipe(self.synthesizer)
 
+        # video processing
+        self.vqa = VisualQuestionAnswering(ctx, self.chat)
+
         # commands handling block
         self.commands = CommandDetector()
         self.transcriber.pipe(self.commands)
 
         # intakes
         self.audio_intake = self.detector.create_intake()
+        self.video_intake = self.vqa.create_intake(maxsize=1)
         self.speech_intake = self.transcriber.create_intake()
         self.cmd_intake = self.commands.get_intake()
         self.chat_intake = self.chat.get_intake()
@@ -48,7 +53,7 @@ class Brain:
         self.audio_sink = self.recognizer.create_sink()
         self.cmd_sink = self.commands.create_sink()
 
-        self.threads = [self.transcriber, self.commands, self.chat, self.synthesizer, self.recognizer, self.detector]
+        self.threads = [self.transcriber, self.commands, self.chat, self.synthesizer, self.recognizer, self.detector, self.vqa]
 
     def start(self, sio, flask_app):
         try:
@@ -151,3 +156,8 @@ class Brain:
         elif detected_cmd == ACTIONS.QUIET.value:
             sink._sink.put(RequestObject(request_id, speaker, termination=True, priority=0))
             self.sio.emit('interrupt', time(), to=request_sid)
+
+    def handle_frame(self, frame, width, height, channels):
+        frame = np.frombuffer(frame, dtype=np.uint8)
+        reshaped_frame = frame.reshape((height, width, channels))
+        self.video_intake.put(reshaped_frame)
