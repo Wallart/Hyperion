@@ -108,16 +108,16 @@ class ChatGPT(Consumer, Producer):
     @acquire_mutex
     def _add_to_context(self, new_message):
         cache = [new_message]
-        if not self._no_memory:
-            cache = self._db.all() + cache
-            self._db.insert(new_message)
-
         if self._video_ctx is not None and time() - self._video_ctx_timestamp < 20:
             video_ctx = f'[VIDEO STREAM] {self._video_ctx}'
-            cache.append(ChatGPT._build_context_line('system', video_ctx))
+            cache.insert(0, ChatGPT._build_context_line('system', video_ctx))
             ProjectLogger().info(video_ctx)
         else:
             self._video_ctx = None
+
+        if not self._no_memory:
+            cache = self._db.all() + cache
+            self._db.insert(new_message)
 
         while True:
             messages = self._global_context + cache
