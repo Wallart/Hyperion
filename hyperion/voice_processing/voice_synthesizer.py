@@ -1,4 +1,3 @@
-import queue
 from time import time
 from gtts import gTTS
 from hyperion.utils.logger import ProjectLogger
@@ -6,7 +5,7 @@ from hyperion.utils.threading import Consumer, Producer
 
 import io
 import os
-import pydub
+import queue
 import torch
 import numpy as np
 import google.cloud.texttospeech as tts
@@ -58,6 +57,7 @@ class VoiceSynthesizer(Consumer, Producer):
         self.sample_rate = 24000
 
     def _google_translate_synthesizer(self, text):
+        import pydub
         tts = gTTS(text, lang='fr', slow=False)
         data = None
         for raw_buffer in tts.stream():
