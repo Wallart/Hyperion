@@ -3,6 +3,7 @@ openai
 torch==1.13.1
 openai-whisper
 tiktoken
+salesforce-lavis
 
 # TTS
 gTTS
