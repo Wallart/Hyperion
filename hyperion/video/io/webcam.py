@@ -37,9 +37,9 @@ class Webcam:
     def _init_generator(self):
         while self._cap.isOpened() and self.running:
             ret, frame = self._cap.read()
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             if not ret:
                 continue
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             yield frame
         ProjectLogger().info('Camera stream stopped.')
 
