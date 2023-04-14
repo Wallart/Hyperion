@@ -66,8 +66,8 @@ class Producer(ThreadedTask):
         consumer.set_in_queue(queue)
         return consumer
 
-    def create_sink(self):
-        queue = Queue()
+    def create_sink(self, maxsize=0):
+        queue = Queue(maxsize)
         self._out_queues.append(queue)
         return Sink(queue)
 

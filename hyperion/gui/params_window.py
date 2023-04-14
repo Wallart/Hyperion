@@ -4,13 +4,15 @@ from hyperion.audio.io.sound_device_resource import SoundDeviceResource
 import customtkinter
 import tkinter as tk
 
+from hyperion.utils.logger import ProjectLogger
+
 
 class ParamsWindow(customtkinter.CTkToplevel):
 
-    def __init__(self, out_queue, db_threshold, current_input_device, current_output_device):
+    def __init__(self, x, y, out_queue, db_threshold, current_input_device, current_output_device, switch_camera):
         super().__init__()
         self.title('Parameters')
-        self.geometry('325x150')
+        self.geometry(f'325x180+{x}+{y}')
         self.resizable(False, False)
         self.wm_attributes('-topmost', True)
 
@@ -43,11 +45,23 @@ class ParamsWindow(customtkinter.CTkToplevel):
         self.scaling_optionemenu.grid(row=2, column=1, padx=(0, 10), pady=(5, 0))
 
         self.db_slider_label = customtkinter.CTkLabel(self, text='dBs threshold:', width=100, anchor=tk.W)
-        self.db_slider_label.grid(row=3, column=0, padx=(label_left_pad, 5), pady=(5, vertical_pad))
+        self.db_slider_label.grid(row=3, column=0, padx=(label_left_pad, 5), pady=(5, 0))
         self.db_slider = customtkinter.CTkSlider(self, from_=0, to=100, number_of_steps=100, command=self.on_threshold_change)
         self.db_slider.set(db_threshold)
         self.db_slider.grid(row=3, column=1)
         # self.db_slider.place(relx=10, rely=5, anchor=tk.W)
+
+        self.video_label = customtkinter.CTkLabel(self, text='Enable video:', width=100, anchor=tk.W)
+        self.video_label.grid(row=4, column=0, padx=(label_left_pad, 5), pady=(5, vertical_pad))
+        self.video_switch = customtkinter.CTkSwitch(self, text='Camera', command=self.on_camera_switch)
+        self.video_switch.grid(row=4, column=1, padx=(label_left_pad, 5), pady=(5, 0))
+        if switch_camera:
+            self.video_switch.select()
+        else:
+            self.video_switch.deselect()
+
+    def on_camera_switch(self):
+        self.out_queue.put((UIAction.CAMERA_SWITCH, self.video_switch.get()))
 
     def on_threshold_change(self, decibel):
         self.out_queue.put((UIAction.CHANGE_DB, decibel))
@@ -59,9 +73,9 @@ class ParamsWindow(customtkinter.CTkToplevel):
     def on_input_selected(self, selection):
         corresponding_idx = list(self.input_devices.keys())[list(self.input_devices.values()).index(selection)]
         self.out_queue.put((UIAction.CHANGE_INPUT_DEVICE, corresponding_idx))
-        print(self.input_devices)
-        print(f'{selection} -> {corresponding_idx}')
+        ProjectLogger().info(f'{self.input_devices} in {selection}')
 
     def on_output_selected(self, selection):
         corresponding_idx = list(self.output_devices.keys())[list(self.output_devices.values()).index(selection)]
         self.out_queue.put((UIAction.CHANGE_OUTPUT_DEVICE, corresponding_idx))
+        ProjectLogger().info(f'{self.output_devices} in {selection}')

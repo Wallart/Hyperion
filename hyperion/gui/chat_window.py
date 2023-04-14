@@ -1,10 +1,11 @@
-from hyperion.gui import UIAction
 from time import time, sleep
 from PIL import Image, ImageTk
+from hyperion.gui import UIAction
 from pygments import lex, highlight
 from pygments.lexers import PythonLexer
-from hyperion.gui.params_window import ParamsWindow
 from pygments.formatters import HtmlFormatter
+from hyperion.gui.params_window import ParamsWindow
+from hyperion.gui.feedback_window import FeedbackWindow
 
 import os
 import json
@@ -31,6 +32,8 @@ class ChatWindow(customtkinter.CTk):
                 self._gui_params = json.load(f)
 
         self._running = True
+        self._startup_time = time()
+
         self._in_message_queue = queue.Queue()
         self._out_message_queue = queue.Queue()
         self._previous_speaker = None
@@ -109,15 +112,10 @@ class ChatWindow(customtkinter.CTk):
         self._handler.start()
 
         self._params_window = None
+        self._feedback_window = None
+        self._frame_queue = None
 
-        self.db_thresh = 0
-        self.current_input_device = None
-        self.current_output_device = None
-
-    def set_current_params(self, db, input_name, output_name):
-        self.db_thresh = db
-        self.current_input_device = input_name
-        self.current_output_device = output_name
+        self.params_delegate = None
 
     def on_close(self):
         self._running = False
@@ -125,7 +123,7 @@ class ChatWindow(customtkinter.CTk):
         self.destroy()
 
     def on_configure(self, event):
-        if self._running:
+        if self._running and time() - self._startup_time >= 1:
             self._gui_params['x'] = event.x
             self._gui_params['y'] = event.y
             self._gui_params['width'] = event.width
@@ -156,7 +154,9 @@ class ChatWindow(customtkinter.CTk):
 
     def on_gear(self):
         if self._params_window is None or not self._params_window.winfo_exists():
-            self._params_window = ParamsWindow(self._out_message_queue, self.db_thresh, self.current_input_device, self.current_output_device)
+            db, input_dev, out_dev, camera_on = self.params_delegate()
+            x, y = self._gui_params['x'], self._gui_params['y']
+            self._params_window = ParamsWindow(x, y, self._out_message_queue, db, input_dev, out_dev, camera_on)
         else:
             self._params_window.focus()
 
@@ -252,6 +252,33 @@ class ChatWindow(customtkinter.CTk):
                 self._insert_message(timestamp, self.bot_name, answer, with_delay=True)
             except queue.Empty:
                 continue
+
+    def frame_handler(self):
+        while True:
+            try:
+                frame = self._frame_queue.drain()
+                if frame is None:
+                    self._feedback_window.destroy()
+                    self._feedback_window = None
+                    self._frame_queue = None
+                    break
+
+                if self._feedback_window is not None:
+                    self._feedback_window.show(frame)
+            except queue.Empty:
+                continue
+
+    def set_camera_feedback(self, sink, width, height):
+        if self._feedback_window is None or not self._feedback_window.winfo_exists():
+            self._feedback_window = FeedbackWindow(width, height)
+        else:
+            self._feedback_window.focus()
+
+        if self._frame_queue is None:
+            self._frame_queue = sink
+
+        handler = threading.Thread(target=self.frame_handler, daemon=True)
+        handler.start()
 
 
 if __name__ == '__main__':

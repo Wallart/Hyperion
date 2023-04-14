@@ -21,9 +21,7 @@ class SoundDeviceResource(ABC):
         self.device_name = None
         try:
             device_idx = self.default_device if device_idx == -1 else device_idx
-            device = sd.query_devices(device_idx, kind=self.device_type.lower())
-            self.device_idx = device['index']
-            self.device_name = device['name']
+            self.set_device(device_idx)
         except Exception as e:
             self._prompt_device_idx()
 
@@ -45,6 +43,11 @@ class SoundDeviceResource(ABC):
 
     # def get_callback(self):
     #     return None
+
+    def set_device(self, device_idx):
+        device = sd.query_devices(device_idx, kind=self.device_type.lower())
+        self.device_idx = device['index']
+        self.device_name = device['name']
 
     def open(self):
         self._stream.start()

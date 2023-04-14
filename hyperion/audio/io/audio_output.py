@@ -25,8 +25,8 @@ class AudioOutput(SoundDeviceResource, Consumer):
 
     def change(self, device_idx):
         ProjectLogger().info('Changing Output device.')
-        self.device_idx = device_idx
         self.close()
+        self.set_device(device_idx)
         self._init_stream()
 
     def mute(self, timestamp):

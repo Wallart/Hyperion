@@ -9,6 +9,7 @@ from hyperion.audio.io.audio_input import AudioInput
 from hyperion.audio.io.audio_output import AudioOutput
 from hyperion.audio.io.source.in_device import InDevice
 from concurrent.futures import ThreadPoolExecutor
+from hyperion.video.video_input import VideoInput
 from hyperion.voice_processing.voice_detector import VoiceDetector
 from hyperion.voice_processing.voice_recognizer import VoiceRecognizer
 
@@ -50,9 +51,14 @@ class Listener:
             self.sink = self.audio_in.pipe(detector).create_sink()
             self.threads = [self.audio_in, detector, self.audio_out]
 
+        self._camera_handler = None
+
         if not opts.no_gui:
+            def params_delegate():
+                return source.db_threshold, self.audio_in._source.device_name, self.audio_out.device_name, self._camera_handler is not None
+
             self._gui = ChatWindow(self._bot_name, self._bot_name)
-            self._gui.set_current_params(source.db_threshold, source.device_name, self.audio_out.device_name)
+            self._gui.params_delegate = params_delegate
             self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=False)
             self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
             self.threads.extend([self._audio_handler, self._text_handler])
@@ -69,11 +75,15 @@ class Listener:
             self.stop()
 
         _ = [t.join() for t in self.threads]
+        if self._camera_handler is not None:
+            self._camera_handler.join()
         sio.disconnect()
 
     def stop(self):
         self.running = False
         _ = [t.stop() for t in self.threads if hasattr(t, 'stop')]
+        if self._camera_handler is not None:
+            self._camera_handler.stop()
 
     def interrupt(self, timestamp):
         if not self._opts.no_gui:
@@ -187,11 +197,20 @@ class Listener:
                     username, text = event[1], event[2]
                     self._process_text_request(username, text)
                 elif event[0] == UIAction.CHANGE_INPUT_DEVICE:
-                    self.audio_in.change(InDevice(event[1], self._in_sample_rate, db=self._opts.db))
+                    self.audio_in.change(InDevice(event[1], self._in_sample_rate, db=self.audio_in._source.db_threshold))
                 elif event[0] == UIAction.CHANGE_OUTPUT_DEVICE:
                     self.audio_out.change(event[1])
                 elif event[0] == UIAction.CHANGE_DB:
                     self.audio_in._source.db_threshold = event[1]
+                elif event[0] == UIAction.CAMERA_SWITCH:
+                    if event[1] == 0 and self._camera_handler is not None:
+                        self._camera_handler.stop()
+                        self._camera_handler.join()
+                        self._camera_handler = None
+                    elif event[1] == 1 and self._camera_handler is None:
+                        self._camera_handler = VideoInput(self._target_url)
+                        self._camera_handler.start()
+                        self._gui.set_camera_feedback(self._camera_handler.create_sink(maxsize=1), self._camera_handler.width, self._camera_handler.height)
             except queue.Empty:
                 continue
 

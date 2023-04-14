@@ -7,3 +7,4 @@ class UIAction(Enum):
     CHANGE_INPUT_DEVICE = 2
     CHANGE_OUTPUT_DEVICE = 3
     CHANGE_DB = 4
+    CAMERA_SWITCH = 5
