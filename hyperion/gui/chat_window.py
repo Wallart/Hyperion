@@ -263,7 +263,7 @@ class ChatWindow(customtkinter.CTk):
                     self._frame_queue = None
                     break
 
-                if self._feedback_window is not None:
+                if self._feedback_window is not None and self._feedback_window.winfo_exists():
                     self._feedback_window.show(frame)
             except queue.Empty:
                 continue
