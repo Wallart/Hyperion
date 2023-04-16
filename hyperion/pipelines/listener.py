@@ -55,7 +55,8 @@ class Listener:
 
         if not opts.no_gui:
             def params_delegate():
-                return source.db_threshold, self.audio_in._source.device_name, self.audio_out.device_name, self._camera_handler is not None
+                cam_device = -1 if self._camera_handler is None else self._camera_handler.device
+                return source.db_threshold, self.audio_in._source.device_name, self.audio_out.device_name, cam_device
 
             self._gui = ChatWindow(self._bot_name, self._bot_name)
             self._gui.params_delegate = params_delegate
@@ -185,6 +186,11 @@ class Listener:
 
         ProjectLogger().info('Audio request handler stopped.')
 
+    def _stop_camera_handler(self):
+        self._camera_handler.stop()
+        self._camera_handler.join()
+        self._camera_handler = None
+
     def _text_request_handler(self):
         while self.running:
             try:
@@ -202,15 +208,16 @@ class Listener:
                     self.audio_out.change(event[1])
                 elif event[0] == UIAction.CHANGE_DB:
                     self.audio_in._source.db_threshold = event[1]
-                elif event[0] == UIAction.CAMERA_SWITCH:
-                    if event[1] == 0 and self._camera_handler is not None:
-                        self._camera_handler.stop()
-                        self._camera_handler.join()
-                        self._camera_handler = None
-                    elif event[1] == 1 and self._camera_handler is None:
-                        self._camera_handler = VideoInput(self._target_url)
-                        self._camera_handler.start()
-                        self._gui.set_camera_feedback(self._camera_handler.create_sink(maxsize=1), self._camera_handler.width, self._camera_handler.height)
+                elif event[0] == UIAction.DISABLED_CAMERA_DEVICE:
+                    if self._camera_handler is not None:
+                        self._stop_camera_handler()
+                elif event[0] == UIAction.CHANGE_CAMERA_DEVICE:
+                    if self._camera_handler is not None:
+                        self._stop_camera_handler()
+
+                    self._camera_handler = VideoInput(event[1], self._target_url)
+                    self._camera_handler.start()
+                    self._gui.set_camera_feedback(self._camera_handler.create_sink(maxsize=1), self._camera_handler.width, self._camera_handler.height)
             except queue.Empty:
                 continue
 

@@ -12,11 +12,11 @@ class Webcam:
         self.framerate = framerate
         self.running = False
 
-        self._device = device_idx
+        self.device_idx = device_idx
         self._generator: Generator = ...
 
     def __enter__(self):
-        self._cap = cv2.VideoCapture(self._device)
+        self._cap = cv2.VideoCapture(self.device_idx)
         self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         self._cap.set(cv2.CAP_PROP_FPS, self.framerate)
@@ -41,6 +41,8 @@ class Webcam:
                 continue
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             yield frame
+
+        self._cap.release()
         ProjectLogger().info('Camera stream stopped.')
 
 

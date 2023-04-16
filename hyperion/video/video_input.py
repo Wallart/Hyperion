@@ -1,3 +1,4 @@
+from hyperion.video.io import VideoDevices
 from hyperion.video.io.webcam import Webcam
 from hyperion.utils.threading import Producer
 from hyperion.utils.logger import ProjectLogger
@@ -7,10 +8,14 @@ import requests
 
 class VideoInput(Producer):
 
-    def __init__(self, target, interval=3):
+    def __init__(self, device, target, interval=3):
         super().__init__()
         self._target = target
         self._interval = interval
+
+        self.device = device
+        self.device_idx = VideoDevices.query_device(device)['index']
+
         self.width = 640
         self.height = 480
         self.webcam = None
@@ -21,12 +26,14 @@ class VideoInput(Producer):
             self.webcam.close()
 
     def run(self) -> None:
-        with Webcam(width=self.width, height=self.height) as self.webcam:
+        with Webcam(device_idx=self.device_idx, width=self.width, height=self.height) as self.webcam:
             idx = 0
             stream = self.webcam()
-            ProjectLogger().info(f'Video stream at {self.webcam.width}x{self.webcam.height}@{self.webcam.framerate} opened.')
+            specs = f'{self.webcam.width}x{self.webcam.height}@{self.webcam.framerate}'
+            ProjectLogger().info(f'Video stream {specs} on device {self.device_idx} opened.')
             while self.running:
                 for frame in stream:
+                    height, width, channels = frame.shape
                     self._dispatch(frame)
                     if idx == 0:
                         opts = {
@@ -36,9 +43,9 @@ class VideoInput(Producer):
                                 ('frame', ('frame', frame, 'image/jpeg')),
                             ],
                             'headers': {
-                                'frame_width': str(self.webcam.width),
-                                'frame_height': str(self.webcam.height),
-                                'frame_channels': '3'
+                                'frame_width': str(width),
+                                'frame_height': str(height),
+                                'frame_channels': str(channels)
                             }
                         }
                         res = requests.post(**opts)
@@ -49,4 +56,4 @@ class VideoInput(Producer):
                     idx += 1
                     idx = idx % (self._interval * int(self.webcam.framerate))
                 self._dispatch(None)
-        ProjectLogger().info('Camera closed.')
+        ProjectLogger().info(f'Camera {self.device_idx} closed.')

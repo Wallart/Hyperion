@@ -22,7 +22,8 @@ class FeedbackWindow(customtkinter.CTkToplevel):
         self._current_img = None
 
     def show(self, img_array):
-        # img = Image.open('/Users/wallart/Desktop/sing.jpeg').resize((self.width, self.height))
-        # self._current_img = ImageTk.PhotoImage(img)
-        self._current_img = ImageTk.PhotoImage(image=Image.fromarray(img_array))
-        self.canvas.create_image(0, 0, state=tk.NORMAL, image=self._current_img, anchor=tk.NW)
+        try:
+            self._current_img = ImageTk.PhotoImage(image=Image.fromarray(img_array))
+            self.canvas.create_image(0, 0, state=tk.NORMAL, image=self._current_img, anchor=tk.NW)
+        except:
+            pass
