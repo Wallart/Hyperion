@@ -4,7 +4,6 @@ from hyperion.utils.threading import Consumer
 from hyperion.utils.logger import ProjectLogger
 from lavis.models import load_model_and_preprocess
 
-import torch
 import queue
 
 
@@ -30,8 +29,9 @@ class VisualQuestionAnswering(Consumer):
 
                 image = Image.fromarray(frame)
                 processed_image = self.vis_processors['eval'](image).unsqueeze(0).to(self._ctx[-1])
-                captions = self.model.generate({'image': processed_image})
-                self._gpt_delegate.add_video_context(captions[0])
+                caption = self.model.generate({'image': processed_image})[0]
+                self._gpt_delegate.add_video_context(caption)
+                ProjectLogger().info(caption)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:
