@@ -108,7 +108,7 @@ class ChatWindow(customtkinter.CTk):
         self.gear_button = customtkinter.CTkButton(self, fg_color='transparent', border_width=0, text='', width=20, image=self.gear_icon, command=self.on_gear, hover_color='#313436')
         self.gear_button.grid(row=1, column=3, padx=(0, 7), pady=(10, 10), sticky='nsew')
 
-        self._message_thread = threading.Thread(target=self.message_handler, daemon=True)
+        self._message_thread = threading.Thread(target=self.message_handler)
         self._message_thread.start()
 
         self._video_thread = None
@@ -262,14 +262,16 @@ class ChatWindow(customtkinter.CTk):
                 if frame is None:
                     break
 
-                if self._feedback_window is not None and self._feedback_window.winfo_exists():
+                if self._feedback_window is not None:
                     self._feedback_window.show(frame)
             except queue.Empty:
                 continue
 
-        self._frame_queue = None
-        self._feedback_window.destroy()
-        self._feedback_window = None
+        # if running proper release
+        if self._running:
+            self._frame_queue = None
+            self._feedback_window.destroy()
+            self._feedback_window = None
 
     def set_camera_feedback(self, sink, width, height):
         if self._video_thread is not None:
