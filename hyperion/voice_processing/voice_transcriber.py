@@ -1,9 +1,9 @@
-import os.path
-import queue
 from time import time
+from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.threading import Consumer, Producer
 
+import queue
 import torch
 import whisper
 import numpy as np
@@ -13,15 +13,14 @@ TRANSCRIPT_MODELS = ['tiny', 'base', 'small', 'medium', 'large']
 
 class VoiceTranscriber(Consumer, Producer):
 
-    def __init__(self, ctx, model_size, confidence_threshold=.8, model_path='~/.hyperion'):
+    def __init__(self, ctx, model_size, confidence_threshold=.8):
         super().__init__()
 
         self._ctx = ctx
         self._confidence_threshold = confidence_threshold
         assert model_size in TRANSCRIPT_MODELS
 
-        model_path = os.path.expanduser(os.path.join(model_path, 'whisper'))
-        self._asr = whisper.load_model(model_size, download_root=model_path, device=ctx[0])
+        self._asr = whisper.load_model(model_size, download_root=ProjectPaths().cache_dir / 'whisper', device=ctx[0])
 
     def transcribe(self, voice_chunk):
         if type(voice_chunk) == np.ndarray:

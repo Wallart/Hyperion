@@ -1,11 +1,11 @@
 from enum import Enum
 from time import time
+from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
-from hyperion.utils.threading import Consumer, Producer
 from concurrent.futures import ThreadPoolExecutor
+from hyperion.utils.threading import Consumer, Producer
 from openai.embeddings_utils import cosine_similarity, get_embedding, get_embeddings
 
-import os
 import json
 import queue
 import numpy as np
@@ -22,13 +22,7 @@ class CommandDetector(Consumer, Producer):
     def __init__(self, threshold=.8):
         super().__init__()
 
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        resources_dir = os.path.join(root_dir, 'resources')
-        if not os.path.exists(resources_dir):
-            # in production mode
-            resources_dir = os.path.expanduser('~/.hyperion')
-
-        self._commands_file = os.path.join(resources_dir, 'default_sentences', 'commands.json')
+        self._commands_file = ProjectPaths().resources_dir / 'default_sentences' / 'commands.json'
 
         with open(self._commands_file) as f:
             self._commands = json.load(f)

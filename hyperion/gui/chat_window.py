@@ -1,11 +1,11 @@
 from time import time, sleep
 from PIL import Image, ImageTk
 from hyperion.gui import UIAction
+from hyperion.utils import ProjectPaths
 from hyperion.gui.code_formatter import CodeFormatter
 from hyperion.gui.params_window import ParamsWindow
 from hyperion.gui.feedback_window import FeedbackWindow
 
-import os
 import json
 import queue
 import threading
@@ -18,14 +18,14 @@ customtkinter.set_default_color_theme('blue')  # Themes: 'blue' (standard), 'gre
 
 
 class ChatWindow(customtkinter.CTk):
-    def __init__(self, bot_name, title='Chat window', savedir='~/.hyperion'):
+    def __init__(self, bot_name, title='Chat window'):
         super().__init__()
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-        image_dir = os.path.join(root_dir, 'resources', 'gui')
+
+        image_dir = ProjectPaths().resources_dir / 'gui'
 
         self._gui_params = {}
-        self._savefile = os.path.expanduser(os.path.join(savedir, 'gui_params.json'))
-        if os.path.isfile(self._savefile):
+        self._savefile = ProjectPaths().cache_dir / 'gui_params.json'
+        if self._savefile.exists():
             with open(self._savefile) as f:
                 self._gui_params = json.load(f)
 
@@ -52,7 +52,7 @@ class ChatWindow(customtkinter.CTk):
         self.attributes('-alpha', 0.95)
         # self.wm_attributes('-topmost', True)  # always on top
         # self.overrideredirect(True)  # hide title bar
-        image = Image.open(os.path.join(image_dir, 'icon.png')).resize((512, 512))
+        image = Image.open(image_dir / 'icon.png').resize((512, 512))
         self.iconphoto(True, ImageTk.PhotoImage(image))
         self.bind('<Configure>', self.on_configure)
         self.protocol('WM_DELETE_WINDOW', self.on_close)
@@ -61,8 +61,8 @@ class ChatWindow(customtkinter.CTk):
         # self.grid_columnconfigure((2, 3), weight=0)
         self.grid_rowconfigure(0, weight=1)
 
-        self.trash_icon = customtkinter.CTkImage(Image.open(os.path.join(image_dir, 'trash.png')), size=(20, 20))
-        self.gear_icon = customtkinter.CTkImage(Image.open(os.path.join(image_dir, 'settings.png')), size=(20, 20))
+        self.trash_icon = customtkinter.CTkImage(Image.open(image_dir / 'trash.png'), size=(20, 20))
+        self.gear_icon = customtkinter.CTkImage(Image.open(image_dir /'settings.png'), size=(20, 20))
 
         # create textbox
         self.textbox = customtkinter.CTkTextbox(self, state=tk.DISABLED, border_color='#55595c', border_width=2)

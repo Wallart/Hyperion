@@ -1,6 +1,6 @@
 from functools import partial
 from daemonocle import Daemon
-from . import get_log_root
+from . import ProjectPaths
 from .logger import ProjectLogger
 
 import os
@@ -17,7 +17,7 @@ def handle_errors(fn):
         except Exception as e:
             ProjectLogger().error(f'Fatal error occurred : {e}')
             # name = os.path.basename(sys.argv[0])
-            traceback_file = os.path.join(get_log_root(), f'{app_name.lower()}-error.log')
+            traceback_file = ProjectPaths().log_dir / f'{app_name.lower()}-error.log'
             ProjectLogger().error(f'Traceback saved at {traceback_file}')
             with open(traceback_file, 'w') as f:
                 f.write(traceback.format_exc())
@@ -38,7 +38,7 @@ def kill(pid_file):
             os.kill(pid_value, signal.SIGKILL)
         except Exception as e:
             ProjectLogger().warning(f'Invalid pid number in {pid_file}')
-        os.remove(pid_file)
+        pid_file.unlink()
 
 
 def startup(app_name, parser, fn):
@@ -49,12 +49,12 @@ def startup(app_name, parser, fn):
     opts = parser.parse_args()
     _ = ProjectLogger(opts, app_name)
 
-    pid_file = os.path.join(os.path.sep, 'tmp', f'{app_name.lower()}.pid')
+    pid_file = ProjectPaths().pid_dir / f'{app_name.lower()}.pid'
     if hasattr(opts, 'action'):
-        if opts.action == 'stop' and os.path.isfile(pid_file):
+        if opts.action == 'stop' and pid_file.exists():
             kill(pid_file)
         elif opts.action in ['start', 'restart']:
-            if os.path.isfile(pid_file):
+            if pid_file.exists():
                 if opts.action == 'restart':
                     ProjectLogger().warning('Already running. Restarting app...')
                     kill(pid_file)

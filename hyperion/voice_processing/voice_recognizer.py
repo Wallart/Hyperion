@@ -1,5 +1,6 @@
 from time import time
 from glob import glob
+from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.threading import Consumer, Producer
 from speechbrain.pretrained import SpeakerRecognition
@@ -13,19 +14,14 @@ import numpy as np
 
 class VoiceRecognizer(Consumer, Producer):
 
-    def __init__(self, ctx, model_path='~/.hyperion', recog_threshold=0.25):
+    def __init__(self, ctx, recog_threshold=0.25):
         super().__init__()
 
         self.sample_rate = 16000  # Model is using 16kHZ samples
         self._ctx = ctx
         self._recog_threshold = recog_threshold
 
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        sample_dir = os.path.join(root_dir, 'resources', 'speakers_samples')
-        if not os.path.exists(sample_dir):
-            # in production mode
-            sample_dir = os.path.expanduser(os.path.join(model_path, 'speakers_samples'))
-
+        sample_dir = ProjectPaths().resources_dir / 'speakers_samples'
         self.speakers_references = self.load_references(sample_dir)
 
         self.speakers_batch = None
@@ -43,18 +39,18 @@ class VoiceRecognizer(Consumer, Producer):
 
         opts = {
             'source': 'speechbrain/spkrec-ecapa-voxceleb',
-            'savedir': os.path.expanduser(os.path.join(model_path, 'recog')),
+            'savedir': ProjectPaths().cache_dir / 'recog',
             'run_opts': {'device': str(ctx[0])}
         }
         self._recog = SpeakerRecognition.from_hparams(**opts)
 
     def load_references(self, sample_dir):
         speakers_references = {}
-        for speaker in os.listdir(sample_dir):
-            if not os.path.isdir(os.path.join(sample_dir, speaker)):
+        for speaker in sample_dir.glob('*'):
+            if not (sample_dir / speaker).is_dir():
                 continue
 
-            wav_files = glob(os.path.join(sample_dir, speaker, '*.wav'))
+            wav_files = list((sample_dir / speaker).glob('*.wav'))
             if len(wav_files) == 0:
                 continue
 

@@ -4,6 +4,18 @@ from hyperion.utils.logger import ProjectLogger
 MAX_TOKENS = 4097
 
 
+def load_file(path):
+    with open(path) as f:
+        content = f.readlines()
+    return [l.strip() for l in content]
+
+
+def build_context_line(role, content, name=None):
+    if name is None:
+        return {'role': role, 'content': content}
+    return {'role': role, 'content': content, 'name': name}
+
+
 def acquire_mutex(fn):
     def wrapper(*args):
         mutex = args[0]._mutex

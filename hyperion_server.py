@@ -6,6 +6,7 @@ from hyperion.pipelines.brain import Brain
 from hyperion.utils.logger import ProjectLogger
 from flask_socketio import SocketIO, emit
 from hyperion.analysis.chat_gpt import CHAT_MODELS
+from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
 from hyperion.voice_processing.voice_transcriber import TRANSCRIPT_MODELS
@@ -39,6 +40,25 @@ def state():
 @app.route('/name', methods=['GET'])
 def name():
     return brain.name, 200
+
+
+@app.route('/prompts', methods=['GET'])
+def list_prompts():
+    return PromptManager.list_prompts(), 200
+
+
+@app.route('/prompt', methods=['GET'])
+def get_prompt():
+    return brain.chat.prompt_manager.get_prompt(), 200
+
+
+@app.route('/prompt', methods=['POST'])
+def set_prompt():
+    prompt = request.form['prompt']
+    if not brain.chat.prompt_manager.set_prompt(prompt):
+        return f'{prompt} prompt not found', 404
+
+    return 'Default prompt changed', 200
 
 
 @app.route('/speech', methods=['POST'])

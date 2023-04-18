@@ -1,17 +1,16 @@
 from time import time
-from hyperion.audio import int16_to_float32
+from speechbrain.pretrained import VAD
+from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.threading import Consumer, Producer
-from speechbrain.pretrained import VAD
 
-import os
 import torch
 import queue
 
 
 class VoiceDetector(Consumer, Producer):
 
-    def __init__(self, ctx, sampling_rate, model_path='~/.hyperion', activation_threshold=.8):
+    def __init__(self, ctx, sampling_rate, activation_threshold=.8):
         super().__init__()
 
         self._ctx = ctx
@@ -19,7 +18,7 @@ class VoiceDetector(Consumer, Producer):
         self._act_thresh = activation_threshold
         opts = {
             'source': 'speechbrain/vad-crdnn-libriparty',
-            'savedir': os.path.expanduser(os.path.join(model_path, 'vad')),
+            'savedir': ProjectPaths().cache_dir / 'vad',
             # Model is so small and fast that CPU has been hardcoded in hyperparams.yaml from the savedir
             # 'run_opts': {'device': ctx[0]}
         }

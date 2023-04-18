@@ -1,4 +1,4 @@
-from hyperion.utils import Singleton, get_log_root
+from hyperion.utils import Singleton, ProjectPaths
 
 import os
 import sys
@@ -17,7 +17,7 @@ class ProjectLogger(metaclass=Singleton):
             self._foreground = not opts.daemon if hasattr(opts, 'daemon') else True
 
             if not self._foreground:
-                conf['filename'] = os.path.join(get_log_root(), f'{self._name}.log')
+                conf['filename'] = ProjectPaths().log_dir / f'{self._name}.log'
 
         logging.basicConfig(**conf)
         self._logger = logging.getLogger(self._name)
