@@ -60,7 +60,7 @@ class ChatGPT(Consumer, Producer):
         return num_tokens
 
     @acquire_mutex
-    def _add_to_context(self, new_message):
+    def _add_to_context(self, new_message, preprompt=None):
         cache = [new_message]
         if self._video_ctx is not None and time() - self._video_ctx_timestamp < 20:
             video_ctx = f'[VIDEO STREAM] {self._video_ctx}'
@@ -70,11 +70,11 @@ class ChatGPT(Consumer, Producer):
             self._video_ctx = None
 
         if not self._no_memory:
-            cache = self.prompt_manager.all() + cache
-            self.prompt_manager.insert(new_message)
+            cache = self.prompt_manager.all(preprompt) + cache
+            self.prompt_manager.insert(new_message, preprompt)
 
         while True:
-            messages = self.prompt_manager.preprompt() + cache
+            messages = self.prompt_manager.preprompt(preprompt) + cache
             found_tokens = self._tokens_count(messages)
             if found_tokens < self._max_ctx_tokens:
                 ProjectLogger().info(f'Sending a {found_tokens} tokens request.')
@@ -84,18 +84,18 @@ class ChatGPT(Consumer, Producer):
         return messages
 
     @acquire_mutex
-    def clear_context(self):
-        self.prompt_manager.truncate()
+    def clear_context(self, preprompt=None):
+        self.prompt_manager.truncate(preprompt)
 
     def add_video_context(self, frame_description):
         if self._video_ctx is None or frame_description != self._video_ctx:
             self._video_ctx = frame_description
             self._video_ctx_timestamp = time()
 
-    def answer(self, chat_input, role='user', name=None, stream=True):
+    def answer(self, chat_input, role='user', name=None, preprompt=None, stream=True):
         response = openai.ChatCompletion.create(
             model=self._model,
-            messages=self._add_to_context(build_context_line(role, chat_input, name=name)),
+            messages=self._add_to_context(build_context_line(role, chat_input, name=name), preprompt),
             stream=stream
         )
         return response
@@ -126,7 +126,7 @@ class ChatGPT(Consumer, Producer):
             request_obj.text_request = fetch_urls(request_obj.text_request)
             ProjectLogger().info('Requesting ChatGPT...')
             ProjectLogger().info(f'{request_obj.user} : {request_obj.text_request}')
-            chunked_response = self.answer(request_obj.text_request, name=request_obj.user)
+            chunked_response = self.answer(request_obj.text_request, name=request_obj.user, preprompt=request_obj.preprompt)
             ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
 
             for chunk in chunked_response:
@@ -154,7 +154,7 @@ class ChatGPT(Consumer, Producer):
                         sentence = sentence[sentence_end:]
                         sentence_num += 1
 
-            self._add_to_context(build_context_line('assistant', memory))
+            self._add_to_context(build_context_line('assistant', memory), request_obj.preprompt)
 
         except Exception as e:
             ProjectLogger().error(f'ChatGPT had a stroke. {e}')

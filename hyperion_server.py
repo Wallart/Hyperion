@@ -65,11 +65,12 @@ def set_prompt():
 def http_speech_stream():
     request_id = current_request_id()
     request_sid = request.headers['SID']
+    preprompt = request.headers['preprompt'] if 'preprompt' in request.headers else None
 
     speech = request.files['speech'].read()
     speaker = request.files['speaker'].read().decode('utf-8')
 
-    stream = brain.handle_speech(request_id, request_sid, speaker, speech)
+    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt)
 
     if brain.frozen:
         return 'I\'m a teapot', 418
@@ -81,6 +82,7 @@ def http_speech_stream():
 def http_audio_stream():
     request_id = current_request_id()
     request_sid = request.headers['SID']
+    preprompt = request.headers['preprompt'] if 'preprompt' in request.headers else None
 
     audio = request.files['audio'].read() if 'audio' in request.files else request.data
 
@@ -88,7 +90,7 @@ def http_audio_stream():
     if speaker is None and speech is None:
         return 'No speech detected', 204
 
-    stream = brain.handle_speech(request_id, request_sid, speaker, speech)
+    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt)
 
     if brain.frozen:
         return 'I\'m a teapot', 418
@@ -129,6 +131,7 @@ def sio_audio_stream(audio):
 def http_chat():
     request_id = current_request_id()
     request_sid = request.headers['SID']
+    preprompt = request.headers['preprompt'] if 'preprompt' in request.headers else None
 
     user = request.form['user']
     message = request.form['message']
@@ -145,7 +148,7 @@ def http_chat():
         brain.chat.frozen = False
         return 'Unfreezed', 202
 
-    stream = brain.handle_chat(request_id, request_sid, user, message)
+    stream = brain.handle_chat(request_id, request_sid, user, message, preprompt)
     return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 

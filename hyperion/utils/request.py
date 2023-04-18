@@ -17,6 +17,7 @@ class RequestObject:
         self.text_request = None
         self.audio_request = None
         self.request_lang = None
+        self.preprompt = None
 
         self.num_answer = 0
         self.text_answer = None
@@ -31,6 +32,9 @@ class RequestObject:
 
     def set_text_request(self, text):
         self.text_request = text
+
+    def set_preprompt(self, preprompt):
+        self.preprompt = preprompt
 
     def __eq__(self, other):
         return self.priority == other.priority

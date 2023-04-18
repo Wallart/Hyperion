@@ -17,11 +17,11 @@ def build_context_line(role, content, name=None):
 
 
 def acquire_mutex(fn):
-    def wrapper(*args):
+    def wrapper(*args, **kwargs):
         mutex = args[0]._mutex
         try:
             mutex.acquire()
-            res = fn(*args)
+            res = fn(*args, **kwargs)
         finally:
             mutex.release()
         return res

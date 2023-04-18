@@ -34,9 +34,6 @@ class Listener:
         self._dummy_file = opts.dummy_file if opts.dummy_file is None else os.path.expanduser(opts.dummy_file)
         self._recog = opts.recog
 
-        res = requests.get(url=f'{self._target_url}/name')
-        self._bot_name = res.content.decode('utf-8')
-
         source = InDevice(opts.in_idx, self._in_sample_rate, db=opts.db) if self._dummy_file is None else InFile(self._dummy_file, self._in_sample_rate)
         self.audio_in = AudioInput(source)
         detector = VoiceDetector(ctx, self._in_sample_rate, activation_threshold=.9)
@@ -51,14 +48,24 @@ class Listener:
             self.sink = self.audio_in.pipe(detector).create_sink()
             self.threads = [self.audio_in, detector, self.audio_out]
 
+        self._requests_preprompt = None
         self._camera_handler = None
 
         if not opts.no_gui:
+            res = requests.get(url=f'{self._target_url}/name')
+            bot_name = res.content.decode('utf-8')
+
+            res = requests.get(url=f'{self._target_url}/prompts')
+            prompts = res.json()
+
+            res = requests.get(url=f'{self._target_url}/prompt')
+            current_prompt = res.content.decode('utf-8')
+
             def params_delegate():
                 cam_device = -1 if self._camera_handler is None else self._camera_handler.device
                 return source.db_threshold, self.audio_in._source.device_name, self.audio_out.device_name, cam_device
 
-            self._gui = ChatWindow(self._bot_name, self._bot_name)
+            self._gui = ChatWindow(bot_name, prompts, current_prompt, title=bot_name)
             self._gui.params_delegate = params_delegate
             self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=False)
             self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
@@ -93,10 +100,14 @@ class Listener:
 
     def _process_request(self, api_endpoint, payload, requester=None):
         t0 = time()
+        headers = {'SID': self.sid}
+        if self._requests_preprompt is not None:
+            headers['preprompt'] = self._requests_preprompt
+
         opts = {
             'url': f'{self._target_url}/{api_endpoint}',
             'stream': True,
-            'headers': {'SID': self.sid}
+            'headers': headers
         }
         if api_endpoint == 'chat':
             opts['data'] = payload
@@ -218,6 +229,8 @@ class Listener:
                     self._camera_handler = VideoInput(event[1], self._target_url)
                     self._camera_handler.start()
                     self._gui.set_camera_feedback(self._camera_handler.create_sink(maxsize=1), self._camera_handler.width, self._camera_handler.height)
+                elif event[0] == UIAction.CHANGE_PROMPT:
+                    self._requests_preprompt = event[1]
             except queue.Empty:
                 continue
 

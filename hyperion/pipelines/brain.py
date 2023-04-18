@@ -89,26 +89,28 @@ class Brain:
 
             yield frame_encode(request_obj.timestamp, request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
-    def handle_speech(self, request_id, request_sid, speaker, speech):
+    def handle_speech(self, request_id, request_sid, speaker, speech, preprompt=None):
         request_obj = RequestObject(request_id, speaker)
         request_obj.set_audio_request(speech)
+        request_obj.set_preprompt(preprompt)
 
         sink = self.synthesizer.create_identified_sink(request_id)
         self.speech_intake.put(request_obj)
 
-        self.handle_commands(request_id, request_sid, speaker, sink)
+        self.handle_commands(request_id, request_sid, speaker, preprompt, sink)
 
         stream = self.sink_streamer(sink)
         return stream
 
-    def handle_chat(self, request_id, request_sid, user, message):
+    def handle_chat(self, request_id, request_sid, user, message, preprompt=None):
         request_obj = RequestObject(request_id, user)
         request_obj.set_text_request(message)
+        request_obj.set_preprompt(preprompt)
 
         sink = self.synthesizer.create_identified_sink(request_id)
 
         self.cmd_intake.put(request_obj)
-        self.handle_commands(request_id, request_sid, user, sink)
+        self.handle_commands(request_id, request_sid, user, preprompt, sink)
         self.chat_intake.put(request_obj)
 
         stream = self.sink_streamer(sink)
@@ -133,7 +135,7 @@ class Brain:
         speech = speech if speech is None else speech.numpy()
         return speaker, speech
 
-    def handle_commands(self, request_id, request_sid, speaker, sink):
+    def handle_commands(self, request_id, request_sid, speaker, preprompt, sink):
         # TODO Ship into drain ?
         detected_cmd = None
         while True:
@@ -151,7 +153,7 @@ class Brain:
             self.chat.frozen = False
             sink._sink.put(RequestObject(request_id, speaker, termination=True))  # to avoid deadlocked sink
         elif detected_cmd == ACTIONS.WIPE.value:
-            self.chat.clear_context()
+            self.chat.clear_context(preprompt)
             ProjectLogger().warning('Memory wiped.')
         elif detected_cmd == ACTIONS.QUIET.value:
             sink._sink.put(RequestObject(request_id, speaker, termination=True, priority=0))

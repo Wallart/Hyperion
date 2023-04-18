@@ -9,3 +9,4 @@ class UIAction(Enum):
     CHANGE_DB = 4
     CHANGE_CAMERA_DEVICE = 5
     DISABLED_CAMERA_DEVICE = 6
+    CHANGE_PROMPT = 7
