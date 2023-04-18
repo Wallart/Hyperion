@@ -8,3 +8,4 @@ dist/
 *.egg-info/
 **/resources/speakers_samples/*/
 **/resources/keys/*.key
+*.spec
