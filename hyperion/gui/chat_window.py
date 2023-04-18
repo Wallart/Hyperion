@@ -1,9 +1,7 @@
 from time import time, sleep
 from PIL import Image, ImageTk
 from hyperion.gui import UIAction
-from pygments import lex, highlight
-from pygments.lexers import PythonLexer
-from pygments.formatters import HtmlFormatter
+from hyperion.gui.code_formatter import CodeFormatter
 from hyperion.gui.params_window import ParamsWindow
 from hyperion.gui.feedback_window import FeedbackWindow
 
@@ -38,7 +36,7 @@ class ChatWindow(customtkinter.CTk):
         self._out_message_queue = queue.Queue()
         self._previous_speaker = None
         self._previous_text = None
-        self._code_block = False
+
         self._interrupt_stamp = 0
         self.bot_name = bot_name
 
@@ -75,22 +73,7 @@ class ChatWindow(customtkinter.CTk):
         self.textbox.tag_config('author', foreground='#2969d9')
         self.textbox.tag_config('pending', foreground='#989899')
 
-        # code colors
-        self.textbox.tag_config('Token.Keyword', foreground='#CC7A00')
-        self.textbox.tag_config('Token.Keyword.Constant', foreground='#CC7A00')
-        self.textbox.tag_config('Token.Keyword.Declaration', foreground='#CC7A00')
-        self.textbox.tag_config('Token.Keyword.Namespace', foreground='#CC7A00')
-        self.textbox.tag_config('Token.Keyword.Pseudo', foreground='#CC7A00')
-        self.textbox.tag_config('Token.Keyword.Reserved', foreground='#CC7A00')
-        self.textbox.tag_config('Token.Keyword.Type', foreground='#CC7A00')
-        self.textbox.tag_config('Token.Name.Builtin', foreground='#8888C6')
-        self.textbox.tag_config('Token.Name.Class', foreground='#003D99')
-        self.textbox.tag_config('Token.Name.Exception', foreground='#003D99')
-        self.textbox.tag_config('Token.Name.Function', foreground='#003D99')
-        self.textbox.tag_config('Token.Operator.Word', foreground='#CC7A00')
-        self.textbox.tag_config('Token.Comment.Single', foreground='#B80000')
-        self.textbox.tag_config('Token.Literal.String.Single', foreground='#248F24')
-        self.textbox.tag_config('Token.Literal.String.Double', foreground='#248F24')
+        self._formatter = CodeFormatter(self.textbox, self.bot_name)
 
         self.name_entry = customtkinter.CTkEntry(self, placeholder_text='Username', width=100)
         self.name_entry.grid(row=1, column=0, columnspan=1, padx=(7, 0), pady=(10, 10), sticky='nsew')
@@ -145,7 +128,8 @@ class ChatWindow(customtkinter.CTk):
         typed_message = self.text_entry.get()
         self.text_entry.delete('0', 'end')
         self._out_message_queue.put((UIAction.SEND_MESSAGE, username, typed_message))
-        self._insert_message(time(), username, typed_message, pending=True)
+        self._interrupt_stamp = time()  # will force flush currently writing messages
+        self.queue_message(time(), None, username, typed_message, None)
 
     def on_clear(self):
         self.textbox.configure(state=tk.NORMAL)
@@ -182,33 +166,17 @@ class ChatWindow(customtkinter.CTk):
         self._previous_text = message
 
         if with_delay:
-            for char in message:
+            for i, char in enumerate(message):
                 if timestamp <= self._interrupt_stamp and self.bot_name == author:
+                    self._textbox_write(message[i:])  # flush current message
                     break
                 self._textbox_write(char)
-                sleep(0.03)
+                sleep(0.01)
         else:
             self._textbox_write(message, pending=pending)
 
-        # self._colorize_code()
+        self._formatter.colorize(self._previous_speaker)
         self._textbox_write('\n')
-
-    # def _colorize_code(self):
-    #     lastline_index = self.textbox.index('end-1c linestart')
-    #     lastline = self.textbox.get(lastline_index, tk.END)
-    #     line, col = lastline_index.split('.')
-    #
-    #     if lastline.startswith('```') or lastline.startswith(f'{self._previous_speaker} : ```'):
-    #         self._code_block = True
-    #
-    #     if self._code_block:
-    #         for token, content in lex(lastline, PythonLexer()):
-    #             start_idx = lastline.index(content)
-    #             end_idx = start_idx + len(content)
-    #             self.textbox.tag_add(str(token), f'{line}.{start_idx}', f'{line}.{end_idx}')
-    #
-    #     if lastline.endswith('```\n'):
-    #         self._code_block = False
 
     def _textbox_write(self, text, is_name=False, pending=False):
         self.textbox.configure(state=tk.NORMAL)
@@ -245,13 +213,15 @@ class ChatWindow(customtkinter.CTk):
                 timestamp, idx, requester, request, answer = self._in_message_queue.get(timeout=0.1)
                 self._in_message_queue.task_done()
 
-                if timestamp <= self._interrupt_stamp:
-                    continue
+                if idx is None and answer is None:
+                    self._insert_message(timestamp, requester, request, pending=True)
+                else:
+                    if timestamp <= self._interrupt_stamp:
+                        continue
 
-                if idx == 0:
-                    self._insert_message(timestamp, requester, request)
-
-                self._insert_message(timestamp, self.bot_name, answer, with_delay=True)
+                    if idx == 0:
+                        self._insert_message(timestamp, requester, request)
+                    self._insert_message(timestamp, self.bot_name, answer, with_delay=True)
             except queue.Empty:
                 continue
 
