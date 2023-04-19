@@ -170,7 +170,7 @@ class ChatWindow(customtkinter.CTk):
 
     def on_clear(self):
         self.textbox.configure(state=tk.NORMAL)
-        self.textbox.delete(0, tk.END)
+        self.textbox.delete(0.0, tk.END)
         self.textbox.configure(state=tk.DISABLED)
         self._previous_speaker = None
         self._previous_text = None
