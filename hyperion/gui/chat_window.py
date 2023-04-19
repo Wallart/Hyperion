@@ -2,6 +2,7 @@ from time import time, sleep
 from PIL import Image, ImageTk
 from hyperion.gui import UIAction
 from hyperion.utils import ProjectPaths
+from hyperion.analysis import sanitize_username
 from hyperion.gui.code_formatter import CodeFormatter
 from hyperion.gui.params_window import ParamsWindow
 from hyperion.gui.feedback_window import FeedbackWindow
@@ -147,24 +148,29 @@ class ChatWindow(customtkinter.CTk):
             self._save_config()
 
     def on_focus_out(self, event):
-        username = self.name_entry.get()
-        if len(username) > 0:
+        username = sanitize_username(self.name_entry.get())
+        self.name_entry.delete(0, tk.END)
+        if username is not None and len(username) > 0:
+            self.name_entry.insert(0, username)
             self._gui_params['username'] = username
-            self._save_config()
+        else:
+            del self._gui_params['username']
+
+        self._save_config()
 
     def on_send(self, event):
         username = self.name_entry.get()
         username = 'Unknown' if username == '' else username
 
         typed_message = self.text_entry.get()
-        self.text_entry.delete('0', 'end')
+        self.text_entry.delete(0, tk.END)
         self._out_message_queue.put((UIAction.SEND_MESSAGE, username, typed_message))
         self._interrupt_stamp = time()  # will force flush currently writing messages
         self.queue_message(time(), None, username, typed_message, None)
 
     def on_clear(self):
         self.textbox.configure(state=tk.NORMAL)
-        self.textbox.delete('0.0', tk.END)
+        self.textbox.delete(0, tk.END)
         self.textbox.configure(state=tk.DISABLED)
         self._previous_speaker = None
         self._previous_text = None

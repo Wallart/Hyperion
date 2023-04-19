@@ -1,11 +1,27 @@
 from hyperion.utils.logger import ProjectLogger
 
+import re
+
 # from openai api
 MAX_TOKENS = {
     'gpt-3.5-turbo': 4096,
     'gpt-4': 8192,
     'gpt-4-32k': 32768
 }
+
+
+def sanitize_username(string):
+    """
+    GPT API only accept username matching this pattern
+    :param string:
+    :return:
+    """
+    pattern = r"[a-zA-Z0-9_-]{1,64}"
+    match = re.search(pattern, string.strip())
+    if match:
+        return match.group(0)
+    else:
+        return None
 
 
 def load_file(path):
