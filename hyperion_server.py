@@ -42,6 +42,25 @@ def name():
     return brain.name, 200
 
 
+@app.route('/models', methods=['GET'])
+def list_models():
+    return CHAT_MODELS, 200
+
+
+@app.route('/model', methods=['GET'])
+def get_model():
+    return brain.chat.get_model(), 200
+
+
+@app.route('/model', methods=['POST'])
+def set_model():
+    model = request.form['model']
+    if not brain.chat.set_model(model):
+        return f'{model} prompt not found', 404
+
+    return 'Default model changed', 200
+
+
 @app.route('/prompts', methods=['GET'])
 def list_prompts():
     return PromptManager.list_prompts(), 200

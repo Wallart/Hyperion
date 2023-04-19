@@ -47,6 +47,15 @@ class ChatGPT(Consumer, Producer):
         self._video_ctx = None
         self._video_ctx_timestamp = time()
 
+    def get_model(self):
+        return self._model
+
+    def set_model(self, model):
+        if model not in CHAT_MODELS:
+            return False
+        self._model = model
+        return True
+
     def _tokens_count(self, messages):
         """Returns the number of tokens used by a list of messages."""
         num_tokens = 0
