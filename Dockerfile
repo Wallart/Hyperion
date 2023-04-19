@@ -22,11 +22,11 @@ RUN chmod +x /usr/bin/hyperion_server
 
 RUN rm -rf hyperion_tmp/
 
-RUN mkdir -p /root/.hyperion
-ADD resources/keys /root/.hyperion/keys
-ADD resources/prompts /root/.hyperion/prompts
-ADD resources/speakers_samples /root/.hyperion/speakers_samples
-ADD resources/default_sentences /root/.hyperion/default_sentences
+RUN mkdir -p /root/.hyperion/resources
+ADD resources/keys /root/.hyperion/resources/keys
+ADD resources/prompts /root/.hyperion/resources/prompts
+ADD resources/speakers_samples /root/.hyperion/resources/speakers_samples
+ADD resources/default_sentences /root/.hyperion/resources/default_sentences
 
 ENTRYPOINT ["/usr/bin/hyperion_server"]
 CMD ["--foreground", "restart", "--port", "6450"]
