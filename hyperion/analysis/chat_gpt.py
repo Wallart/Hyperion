@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from hyperion.utils.threading import Consumer, Producer
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.external_resources_parsing import fetch_urls
-from hyperion.analysis import MAX_TOKENS, acquire_mutex, get_model_token_specs, load_file, build_context_line
+from hyperion.analysis import MAX_TOKENS, acquire_mutex, get_model_token_specs, load_file, build_context_line, sanitize_username
 
 import queue
 import random
@@ -105,6 +105,9 @@ class ChatGPT(Consumer, Producer):
             self._video_ctx_timestamp = time()
 
     def answer(self, chat_input, role='user', name=None, preprompt=None, llm=None, stream=True):
+        if name is not None:
+            name = sanitize_username(name)
+
         response = openai.ChatCompletion.create(
             model=self._model if llm is None else llm,
             messages=self._add_to_context(build_context_line(role, chat_input, name=name), preprompt, llm),
