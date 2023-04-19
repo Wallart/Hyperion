@@ -68,19 +68,20 @@ class ChatWindow(customtkinter.CTk):
         self.status_label = customtkinter.CTkLabel(self, text='Status: 🔴', width=100, anchor=tk.W)
         self.status_label.grid(row=0, column=0, padx=(7, 0), pady=(10, 0))
 
+        opts = dict(width=100, dynamic_resizing=False)
         # llm selection
-        self.llm_optionemenu = customtkinter.CTkOptionMenu(self, values=llms, command=self.on_llm_change)
-        self.llm_optionemenu.grid(row=0, column=1, columnspan=5, padx=(7, 0), pady=(10, 0))
+        self.llm_optionemenu = customtkinter.CTkOptionMenu(self, values=llms, command=self.on_llm_change, **opts)
+        self.llm_optionemenu.grid(row=0, column=1, columnspan=1, padx=(7, 0), pady=(10, 0), sticky=tk.E)
         self.llm_optionemenu.set(current_llm)
 
         # preprompt selection
-        self.preprompt_optionemenu = customtkinter.CTkOptionMenu(self, values=prompts, command=self.on_prompt_change)
-        self.preprompt_optionemenu.grid(row=0, column=2, columnspan=5, padx=(0, 7), pady=(10, 0))
+        self.preprompt_optionemenu = customtkinter.CTkOptionMenu(self, values=prompts, command=self.on_prompt_change, **opts)
+        self.preprompt_optionemenu.grid(row=0, column=2, columnspan=3, padx=(7, 7), pady=(10, 0))
         self.preprompt_optionemenu.set(current_prompt)
 
         # create textbox
         self.textbox = customtkinter.CTkTextbox(self, state=tk.DISABLED, border_color='#55595c', border_width=2)
-        self.textbox.grid(row=1, column=0, columnspan=5, padx=(7, 7), pady=(10, 0), sticky='nsew')
+        self.textbox.grid(row=1, column=0, columnspan=5, padx=(7, 7), pady=(10, 0), sticky=tk.NSEW)
 
         # color tags
         self.textbox.tag_config('bot', foreground='#f2cb5a')
@@ -90,20 +91,20 @@ class ChatWindow(customtkinter.CTk):
         self._formatter = CodeFormatter(self.textbox, self.bot_name)
 
         self.name_entry = customtkinter.CTkEntry(self, placeholder_text='Username', width=100)
-        self.name_entry.grid(row=2, column=0, columnspan=1, padx=(7, 0), pady=(10, 10), sticky='nsew')
+        self.name_entry.grid(row=2, column=0, columnspan=1, padx=(7, 0), pady=(10, 10), sticky=tk.NSEW)
         self.name_entry.bind('<FocusOut>', self.on_focus_out)
         if 'username' in self._gui_params:
             self.name_entry.insert(0, self._gui_params['username'])
 
         self.text_entry = customtkinter.CTkEntry(self, placeholder_text='Send a message...')
-        self.text_entry.grid(row=2, column=1, columnspan=2, padx=(4, 4), pady=(10, 10), sticky='nsew')
+        self.text_entry.grid(row=2, column=1, columnspan=2, padx=(4, 4), pady=(10, 10), sticky=tk.NSEW)
         self.text_entry.bind('<Return>', self.on_send)
 
         self.clear_button = customtkinter.CTkButton(self, fg_color='transparent', border_width=0, text='', width=20, image=self.trash_icon, command=self.on_clear, hover_color='#313436')
-        self.clear_button.grid(row=2, column=3, padx=(0, 0), pady=(10, 10), sticky='nsew')
+        self.clear_button.grid(row=2, column=3, padx=(0, 0), pady=(10, 10), sticky=tk.NSEW)
 
         self.gear_button = customtkinter.CTkButton(self, fg_color='transparent', border_width=0, text='', width=20, image=self.gear_icon, command=self.on_gear, hover_color='#313436')
-        self.gear_button.grid(row=2, column=4, padx=(0, 7), pady=(10, 10), sticky='nsew')
+        self.gear_button.grid(row=2, column=4, padx=(0, 7), pady=(10, 10), sticky=tk.NSEW)
 
         self._message_thread = threading.Thread(target=self.message_handler)
         self._message_thread.start()
