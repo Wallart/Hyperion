@@ -138,10 +138,9 @@ class ChatGPT(Consumer, Producer):
         sentence = ''
         sentence_num = 0
         try:
-            request_obj.text_request = fetch_urls(request_obj.text_request)
             ProjectLogger().info('Requesting ChatGPT...')
             ProjectLogger().info(f'{request_obj.user} : {request_obj.text_request}')
-            chunked_response = self.answer(request_obj.text_request, name=request_obj.user, preprompt=request_obj.preprompt, llm=request_obj.llm)
+            chunked_response = self.answer(fetch_urls(request_obj.text_request), name=request_obj.user, preprompt=request_obj.preprompt, llm=request_obj.llm)
             ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
 
             for chunk in chunked_response:
