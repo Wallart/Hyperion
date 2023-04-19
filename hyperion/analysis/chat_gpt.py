@@ -16,7 +16,7 @@ import openai
 import tiktoken
 import numpy as np
 
-CHAT_MODELS = ['gpt-3.5-turbo', 'gpt-4']
+CHAT_MODELS = ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-32k']
 
 
 class ChatGPT(Consumer, Producer):
@@ -29,12 +29,7 @@ class ChatGPT(Consumer, Producer):
         self._mutex = Lock()
         self._model = model
         self._no_memory = no_memory
-        # Seems that we have to reserve some tokens for chat completion...
-        self._max_ctx_tokens = int(MAX_TOKENS - (MAX_TOKENS * .05))
-        # self._max_ctx_tokens = MAX_TOKENS
-
         self._tokenizer = tiktoken.encoding_for_model(self._model)
-        self._tokens_per_message, self._tokens_per_name = get_model_token_specs(self._model)
 
         self.prompt_manager = PromptManager(name, prompt, clear)
 
@@ -47,6 +42,12 @@ class ChatGPT(Consumer, Producer):
         self._video_ctx = None
         self._video_ctx_timestamp = time()
 
+    @staticmethod
+    def max_tokens(model):
+        max_tokens = MAX_TOKENS[model]
+        # Seems that we have to reserve some tokens for chat completion...
+        return int(max_tokens - (max_tokens * .05))
+
     def get_model(self):
         return self._model
 
@@ -56,20 +57,22 @@ class ChatGPT(Consumer, Producer):
         self._model = model
         return True
 
-    def _tokens_count(self, messages):
+    def _tokens_count(self, messages, llm=None):
         """Returns the number of tokens used by a list of messages."""
+        tokens_per_message, tokens_per_name = get_model_token_specs(self._model if llm is None else llm)
+
         num_tokens = 0
         for message in messages:
-            num_tokens += self._tokens_per_message
+            num_tokens += tokens_per_message
             for key, value in message.items():
                 num_tokens += len(self._tokenizer.encode(value))
                 if key == 'name':
-                    num_tokens += self._tokens_per_name
+                    num_tokens += tokens_per_name
         num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
         return num_tokens
 
     @acquire_mutex
-    def _add_to_context(self, new_message, preprompt=None):
+    def _add_to_context(self, new_message, preprompt=None, llm=None):
         cache = [new_message]
         if self._video_ctx is not None and time() - self._video_ctx_timestamp < 20:
             video_ctx = f'[VIDEO STREAM] {self._video_ctx}'
@@ -84,8 +87,8 @@ class ChatGPT(Consumer, Producer):
 
         while True:
             messages = self.prompt_manager.preprompt(preprompt) + cache
-            found_tokens = self._tokens_count(messages)
-            if found_tokens < self._max_ctx_tokens:
+            found_tokens = self._tokens_count(messages, llm)
+            if found_tokens < ChatGPT.max_tokens(self._model if llm is None else llm):
                 ProjectLogger().info(f'Sending a {found_tokens} tokens request.')
                 break
             cache.pop(0)
@@ -104,7 +107,7 @@ class ChatGPT(Consumer, Producer):
     def answer(self, chat_input, role='user', name=None, preprompt=None, llm=None, stream=True):
         response = openai.ChatCompletion.create(
             model=self._model if llm is None else llm,
-            messages=self._add_to_context(build_context_line(role, chat_input, name=name), preprompt),
+            messages=self._add_to_context(build_context_line(role, chat_input, name=name), preprompt, llm),
             stream=stream
         )
         return response
@@ -163,7 +166,7 @@ class ChatGPT(Consumer, Producer):
                         sentence = sentence[sentence_end:]
                         sentence_num += 1
 
-            self._add_to_context(build_context_line('assistant', memory), request_obj.preprompt)
+            self._add_to_context(build_context_line('assistant', memory), request_obj.preprompt, request_obj.llm)
 
         except Exception as e:
             ProjectLogger().error(f'ChatGPT had a stroke. {e}')

@@ -1,7 +1,11 @@
 from hyperion.utils.logger import ProjectLogger
 
 # from openai api
-MAX_TOKENS = 4097
+MAX_TOKENS = {
+    'gpt-3.5-turbo': 4096,
+    'gpt-4': 8192,
+    'gpt-4-32k': 32768
+}
 
 
 def load_file(path):
@@ -30,10 +34,10 @@ def acquire_mutex(fn):
 
 def get_model_token_specs(model):
     if model == 'gpt-3.5-turbo':
-        ProjectLogger().warning('gpt-3.5-turbo may change over time. Returning num tokens assuming gpt-3.5-turbo-0301.')
+        ProjectLogger().debug('gpt-3.5-turbo may change over time. Returning num tokens assuming gpt-3.5-turbo-0301.')
         return get_model_token_specs('gpt-3.5-turbo-0301')
-    elif model == 'gpt-4':
-        ProjectLogger().warning('gpt-4 may change over time. Returning num tokens assuming gpt-4-0314.')
+    elif model == 'gpt-4' or model == 'gpt-4-32k':
+        ProjectLogger().debug('gpt-4 may change over time. Returning num tokens assuming gpt-4-0314.')
         return get_model_token_specs('gpt-4-0314')
     elif model == 'gpt-3.5-turbo-0301':
         tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
