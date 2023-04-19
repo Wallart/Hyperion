@@ -47,17 +47,17 @@ class VoiceRecognizer(Consumer, Producer):
     def load_references(self, sample_dir):
         speakers_references = {}
         for speaker in sample_dir.glob('*'):
-            if not (sample_dir / speaker).is_dir():
+            if not speaker.is_dir():
                 continue
 
-            wav_files = list((sample_dir / speaker).glob('*.wav'))
+            wav_files = list(speaker.glob('*.wav'))
             if len(wav_files) == 0:
                 continue
 
             pcm = [self.load_wavfile(w) for w in wav_files]
             smallest_pcm = min([len(p) for p in pcm])
             pcm = [p[:smallest_pcm] for p in pcm]
-            speakers_references[speaker] = np.stack(pcm, axis=0)
+            speakers_references[speaker.stem] = np.stack(pcm, axis=0)
         return speakers_references
 
     def load_wavfile(self, file_path):
