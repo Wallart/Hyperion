@@ -5,9 +5,11 @@ import cv2
 
 class VideoDevices(metaclass=Singleton):
     def __init__(self):
-        self.video_devices_idx = VideoDevices.list_cameras()
+        self.video_devices_idx = None
 
     def list_devices(self):
+        if self.video_devices_idx is None:
+            self.video_devices_idx = VideoDevices.list_cameras()
         return [f'Camera {c}' for c in self.video_devices_idx]
 
     @staticmethod
@@ -33,7 +35,3 @@ class VideoDevices(metaclass=Singleton):
                 cap.release()
             idx += 1
         return cam_indexes
-
-
-# init singleton
-VideoDevices()
