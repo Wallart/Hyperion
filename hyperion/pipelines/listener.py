@@ -71,6 +71,10 @@ class Listener:
             self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
             self.threads.extend([self._audio_handler, self._text_handler])
 
+            res = requests.get(url=f'{self._target_url}/state')
+            if res.status_code == 200:
+                self._gui.update_status('online')
+
     def start(self, sio):
         self.running = True
         try:
@@ -116,10 +120,14 @@ class Listener:
         try:
             res = requests.post(**opts)
             if res.status_code != 200:
+                if not self._opts.no_gui:
+                    self._gui.update_status('busy')
                 ProjectLogger().warning(f'Response HTTP {res.status_code}')
                 if len(res.content) > 0:
                     ProjectLogger().info(res.content)
                 return
+            elif not self._opts.no_gui:
+                self._gui.update_status('online')
 
             # TODO Ugly should be added in communication protocol
             requester = res.headers['Speaker'] if requester is None else requester

@@ -64,8 +64,8 @@ class ChatWindow(customtkinter.CTk):
         self.trash_icon = customtkinter.CTkImage(Image.open(image_dir / 'trash.png'), size=(20, 20))
         self.gear_icon = customtkinter.CTkImage(Image.open(image_dir /'settings.png'), size=(20, 20))
 
-        # 🟠🔴
-        self.status_label = customtkinter.CTkLabel(self, text='Status: 🟢', width=100, anchor=tk.W)
+        # 🟢🟠🔴
+        self.status_label = customtkinter.CTkLabel(self, text='Status: 🔴', width=100, anchor=tk.W)
         self.status_label.grid(row=0, column=0, padx=(7, 0), pady=(10, 0))
 
         # preprompt selection
@@ -110,6 +110,16 @@ class ChatWindow(customtkinter.CTk):
         self._frame_queue = None
 
         self.params_delegate = None
+
+    def update_status(self, state):
+        if state == 'online':
+            state = '🟢'
+        elif state == 'offline':
+            state = '🔴'
+        elif state == 'busy':
+            state = '🟠'
+
+        self.status_label.configure(text=f'Status: {state}')
 
     def on_close(self):
         self._running = False
