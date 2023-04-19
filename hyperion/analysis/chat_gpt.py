@@ -101,9 +101,9 @@ class ChatGPT(Consumer, Producer):
             self._video_ctx = frame_description
             self._video_ctx_timestamp = time()
 
-    def answer(self, chat_input, role='user', name=None, preprompt=None, stream=True):
+    def answer(self, chat_input, role='user', name=None, preprompt=None, llm=None, stream=True):
         response = openai.ChatCompletion.create(
-            model=self._model,
+            model=self._model if llm is None else llm,
             messages=self._add_to_context(build_context_line(role, chat_input, name=name), preprompt),
             stream=stream
         )
@@ -135,7 +135,7 @@ class ChatGPT(Consumer, Producer):
             request_obj.text_request = fetch_urls(request_obj.text_request)
             ProjectLogger().info('Requesting ChatGPT...')
             ProjectLogger().info(f'{request_obj.user} : {request_obj.text_request}')
-            chunked_response = self.answer(request_obj.text_request, name=request_obj.user, preprompt=request_obj.preprompt)
+            chunked_response = self.answer(request_obj.text_request, name=request_obj.user, preprompt=request_obj.preprompt, llm=request_obj.llm)
             ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
 
             for chunk in chunked_response:

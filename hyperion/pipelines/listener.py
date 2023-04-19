@@ -49,23 +49,21 @@ class Listener:
             self.threads = [self.audio_in, detector, self.audio_out]
 
         self._requests_preprompt = None
+        self._requests_llm = None
         self._camera_handler = None
 
         if not opts.no_gui:
-            res = requests.get(url=f'{self._target_url}/name')
-            bot_name = res.content.decode('utf-8')
-
-            res = requests.get(url=f'{self._target_url}/prompts')
-            prompts = res.json()
-
-            res = requests.get(url=f'{self._target_url}/prompt')
-            current_prompt = res.content.decode('utf-8')
+            bot_name = requests.get(url=f'{self._target_url}/name').content.decode('utf-8')
+            prompts = requests.get(url=f'{self._target_url}/prompts').json()
+            current_prompt = requests.get(url=f'{self._target_url}/prompt').content.decode('utf-8')
+            models = requests.get(url=f'{self._target_url}/models').json()
+            current_model = requests.get(url=f'{self._target_url}/model').content.decode('utf-8')
 
             def params_delegate():
                 cam_device = -1 if self._camera_handler is None else self._camera_handler.device
                 return source.db_threshold, self.audio_in._source.device_name, self.audio_out.device_name, cam_device
 
-            self._gui = ChatWindow(bot_name, prompts, current_prompt, title=bot_name)
+            self._gui = ChatWindow(bot_name, prompts, current_prompt, models, current_model, title=bot_name)
             self._gui.params_delegate = params_delegate
             self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=False)
             self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
@@ -107,6 +105,8 @@ class Listener:
         headers = {'SID': self.sid}
         if self._requests_preprompt is not None:
             headers['preprompt'] = self._requests_preprompt
+        if self._requests_llm is not None:
+            headers['model'] = self._requests_llm
 
         opts = {
             'url': f'{self._target_url}/{api_endpoint}',
@@ -239,6 +239,8 @@ class Listener:
                     self._gui.set_camera_feedback(self._camera_handler.create_sink(maxsize=1), self._camera_handler.width, self._camera_handler.height)
                 elif event[0] == UIAction.CHANGE_PROMPT:
                     self._requests_preprompt = event[1]
+                elif event[0] == UIAction.CHANGE_LLM:
+                    self._requests_llm = event[1]
             except queue.Empty:
                 continue
 

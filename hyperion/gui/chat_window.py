@@ -18,7 +18,7 @@ customtkinter.set_default_color_theme('blue')  # Themes: 'blue' (standard), 'gre
 
 
 class ChatWindow(customtkinter.CTk):
-    def __init__(self, bot_name, prompts, current_prompt, title='Chat window'):
+    def __init__(self, bot_name, prompts, current_prompt, llms, current_llm, title='Chat window'):
         super().__init__()
 
         image_dir = ProjectPaths().resources_dir / 'gui'
@@ -67,6 +67,11 @@ class ChatWindow(customtkinter.CTk):
         # 🟢🟠🔴
         self.status_label = customtkinter.CTkLabel(self, text='Status: 🔴', width=100, anchor=tk.W)
         self.status_label.grid(row=0, column=0, padx=(7, 0), pady=(10, 0))
+
+        # llm selection
+        self.llm_optionemenu = customtkinter.CTkOptionMenu(self, values=llms, command=self.on_llm_change)
+        self.llm_optionemenu.grid(row=0, column=1, columnspan=5, padx=(7, 0), pady=(10, 0))
+        self.llm_optionemenu.set(current_llm)
 
         # preprompt selection
         self.preprompt_optionemenu = customtkinter.CTkOptionMenu(self, values=prompts, command=self.on_prompt_change)
@@ -125,6 +130,9 @@ class ChatWindow(customtkinter.CTk):
         self._running = False
         self._out_message_queue.put((UIAction.QUIT,))
         self.destroy()
+
+    def on_llm_change(self, selection):
+        self._out_message_queue.put((UIAction.CHANGE_LLM, selection))
 
     def on_prompt_change(self, selection):
         self._out_message_queue.put((UIAction.CHANGE_PROMPT, selection))
@@ -282,5 +290,5 @@ class ChatWindow(customtkinter.CTk):
 
 
 if __name__ == '__main__':
-    app = ChatWindow('TOTO', ['base', 'gamemaster'], 'base')
+    app = ChatWindow('TOTO', ['base', 'gamemaster'], 'base', ['gpt-3.5', 'gpt-4'], 'gpt-3.5')
     app.mainloop()
