@@ -13,11 +13,19 @@ import google.cloud.texttospeech as tts
 
 class VoiceSynthesizer(Consumer, Producer):
 
-    def __init__(self, mode='cloud'):
+    def __init__(self):
         super().__init__()
 
+        mode = 'cloud'
+        key_path = ProjectPaths().resources_dir / 'keys' / 'google_api.key'
+        if key_path.exists():
+            with open(key_path) as f:
+                api_key = f.readlines()[0]
+        else:
+            mode = 'translate'
+
         if mode == 'cloud':
-            self._init_google_cloud_synth()
+            self._init_google_cloud_synth(api_key)
             self._infer = self._google_cloud_synthesizer
         elif mode == 'local':
             self._init_local_model()
@@ -28,13 +36,10 @@ class VoiceSynthesizer(Consumer, Producer):
         else:
             raise Exception('Unknown speech synthesizer option')
 
-    def _init_google_cloud_synth(self):
+    def _init_google_cloud_synth(self, api_key):
         self.sample_rate = 24000
         self._language_code = 'fr-FR'
         self._voice_name = 'fr-FR-Neural2-B'
-
-        with open(ProjectPaths().resources_dir / 'keys' / 'google_api.key') as f:
-            api_key = f.readlines()[0]
 
         self._client = tts.TextToSpeechClient(client_options={'api_key': api_key})
 
@@ -63,7 +68,7 @@ class VoiceSynthesizer(Consumer, Producer):
         memory_buff = io.BytesIO()
         mp3.export(memory_buff, format='wav')
         sound = pydub.AudioSegment.from_wav(memory_buff)
-        wav_array = np.array(sound.get_array_of_samples(), dtype=np.float32) / (2 ** 16 / 2)
+        wav_array = np.array(sound.get_array_of_samples(), dtype=np.int16)
         return wav_array
 
     def _init_local_model(self):
