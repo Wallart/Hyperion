@@ -8,7 +8,7 @@ WORKDIR /tmp
 SHELL ["/bin/bash", "-c"]
 
 RUN apt update && \
-    apt install -y libportaudio2 libsndfile1-dev python3-tk
+    apt install -y libportaudio2 libsndfile1-dev python3-tk ffmpeg
 
 RUN mkdir hyperion_tmp
 ADD hyperion/ hyperion_tmp/hyperion
