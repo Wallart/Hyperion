@@ -36,6 +36,7 @@ class ChatGPT(Consumer, Producer):
         sentences_path = ProjectPaths().resources_dir / 'default_sentences'
         self._deaf_sentences = load_file(sentences_path / 'deaf')
         self._error_sentences = load_file(sentences_path / 'dead')
+        self._memory_sentences = load_file(sentences_path / 'memory')
 
         openai.api_key = load_file(ProjectPaths().resources_dir / 'keys' / 'openai_api.key')[0]
 
@@ -85,6 +86,7 @@ class ChatGPT(Consumer, Producer):
             cache = self.prompt_manager.all(preprompt) + cache
             self.prompt_manager.insert(new_message, preprompt)
 
+        dropped_messages = False
         while True:
             messages = self.prompt_manager.preprompt(preprompt) + cache
             found_tokens = self._tokens_count(messages, llm)
@@ -92,8 +94,9 @@ class ChatGPT(Consumer, Producer):
                 ProjectLogger().info(f'Sending a {found_tokens} tokens request.')
                 break
             cache.pop(0)
+            dropped_messages = True
 
-        return messages
+        return messages, dropped_messages
 
     @acquire_mutex
     def clear_context(self, preprompt=None):
@@ -108,12 +111,13 @@ class ChatGPT(Consumer, Producer):
         if name is not None:
             name = sanitize_username(name)
 
+        messages, dropped_messages = self._add_to_context(build_context_line(role, chat_input, name=name), preprompt, llm)
         response = openai.ChatCompletion.create(
             model=self._model if llm is None else llm,
-            messages=self._add_to_context(build_context_line(role, chat_input, name=name), preprompt, llm),
+            messages=messages,
             stream=stream
         )
-        return response
+        return response, dropped_messages
 
     def _dispatch_sentence(self, sentence, sentence_num, t0, request_obj):
         sentence = sentence.strip()
@@ -124,6 +128,20 @@ class ChatGPT(Consumer, Producer):
         new_request_obj.timestamp = t0
         self._dispatch(new_request_obj)
         ProjectLogger().info(f'ChatGPT : {sentence}')
+
+    def _dispatch_memory_warning(self, request_obj, sentence_num=None, randomized=False):
+        # in randomize mode dispatch warning only 1 time out 3
+        if randomized and random.choices(range(3), weights=(1, 1, 1)) != 2:
+            return False
+
+        placeholder = self._memory_sentences[random.randint(0, len(self._memory_sentences) - 1)]
+
+        new_request_obj = deepcopy(request_obj)
+        new_request_obj.text_answer = placeholder
+        if sentence_num is not None:
+            new_request_obj.num_answer = sentence_num
+        self._dispatch(new_request_obj)
+        return True
 
     def _dispatch_error(self, sentence_num, request_obj):
         placeholder = self._error_sentences[random.randint(0, len(self._error_sentences) - 1)]
@@ -140,8 +158,13 @@ class ChatGPT(Consumer, Producer):
         try:
             ProjectLogger().info('Requesting ChatGPT...')
             ProjectLogger().info(f'{request_obj.user} : {request_obj.text_request}')
-            chunked_response = self.answer(fetch_urls(request_obj.text_request), name=request_obj.user, preprompt=request_obj.preprompt, llm=request_obj.llm)
+
+            input_text = fetch_urls(request_obj.text_request)
+            answer_opts = dict(name=request_obj.user, preprompt=request_obj.preprompt, llm=request_obj.llm)
+            chunked_response, dropped_messages = self.answer(input_text, **answer_opts)
             ProjectLogger().info(f'ChatGPT answered in {time() - t0:.3f} sec(s)')
+            if dropped_messages and self._dispatch_memory_warning(request_obj, sentence_num, randomized=True):
+                sentence_num += 1
 
             for chunk in chunked_response:
                 if chunk['choices'][0]['finish_reason'] == 'stop':
@@ -151,7 +174,7 @@ class ChatGPT(Consumer, Producer):
 
                 if chunk['choices'][0]['finish_reason'] == 'length':
                     ProjectLogger().warning('Not enough left tokens to generate a complete answer')
-                    self._dispatch_error(sentence_num, request_obj)
+                    self._dispatch_memory_warning(request_obj, sentence_num)
                     break
 
                 answer = chunk['choices'][0]['delta']
@@ -168,7 +191,7 @@ class ChatGPT(Consumer, Producer):
                         sentence = sentence[sentence_end:]
                         sentence_num += 1
 
-            self._add_to_context(build_context_line('assistant', memory), request_obj.preprompt, request_obj.llm)
+            _ = self._add_to_context(build_context_line('assistant', memory), request_obj.preprompt, request_obj.llm)
 
         except Exception as e:
             ProjectLogger().error(f'ChatGPT had a stroke. {e}')
