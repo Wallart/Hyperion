@@ -27,7 +27,7 @@ class VideoDevices(metaclass=Singleton):
             cap = cv2.VideoCapture(idx)
             try:
                 # windows, macOS support
-                if cap.getBackendName() in ['MSMF', 'AVFOUNDATION']:
+                if cap.getBackendName() in ['DSHOW', 'MSMF', 'AVFOUNDATION']:
                     cam_indexes.append(idx)
             except:
                 break
