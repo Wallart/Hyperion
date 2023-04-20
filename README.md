@@ -18,6 +18,7 @@ The followings features are supported :
 sudo apt install libportaudio2 libsndfile1-dev python3-tk
 #### Server side deps : 
 sudo apt install ffmpeg
+
 pip install -r requirements.txt
 ### Start the server
 python3 hyperion_server.py start
