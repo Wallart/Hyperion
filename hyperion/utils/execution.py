@@ -1,6 +1,5 @@
-from functools import partial
-from daemonocle import Daemon
 from . import ProjectPaths
+from functools import partial
 from .logger import ProjectLogger
 
 import os
@@ -62,15 +61,18 @@ def startup(app_name, parser, fn):
                     ProjectLogger().error('Already running.')
                     exit(1)
 
-            if opts.daemon:
-                daemon = Daemon(worker=partial(fn, app_name, opts), pid_file=pid_file)
-                daemon.do_action('start')
-            else:
-                return fn(app_name, opts)
+            start_app(opts, fn, app_name, pid_file)
     else:
-        # TODO Fix this ugly piece of duplicated code
+        start_app(opts, fn, app_name, pid_file)
+
+
+def start_app(opts, fn, app_name, pid_file):
+    try:
         if opts.daemon:
+            from daemonocle import Daemon
             daemon = Daemon(worker=partial(fn, app_name, opts), pid_file=pid_file)
             daemon.do_action('start')
         else:
             return fn(app_name, opts)
+    except:
+        return fn(app_name, opts)
