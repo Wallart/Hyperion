@@ -38,7 +38,6 @@ class Timer(metaclass=Singleton):
 
     @staticmethod
     def gt(timestamp, ref_time):
-        print(timestamp - ref_time)
         if (timestamp - ref_time) <= -.25:
             return False
         return True
