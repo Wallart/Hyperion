@@ -1,4 +1,4 @@
-from time import time, sleep
+from time import time, sleep, monotonic_ns
 from PIL import Image, ImageTk
 from hyperion.gui import UIAction
 from hyperion.utils import ProjectPaths
@@ -166,7 +166,7 @@ class ChatWindow(customtkinter.CTk):
         self.text_entry.delete(0, tk.END)
         self._out_message_queue.put((UIAction.SEND_MESSAGE, username, typed_message))
         self._interrupt_stamp = time()  # will force flush currently writing messages
-        self.queue_message(time(), None, username, typed_message, None)
+        self.queue_message(None, None, username, typed_message, None)
 
     def on_clear(self):
         self.textbox.configure(state=tk.NORMAL)
@@ -204,7 +204,8 @@ class ChatWindow(customtkinter.CTk):
 
         if with_delay:
             for i, char in enumerate(message):
-                if timestamp <= self._interrupt_stamp and self.bot_name == author:
+                # if timestamp <= self._interrupt_stamp and self.bot_name == author:
+                if timestamp - self._interrupt_stamp <= -1 and self.bot_name == author:
                     self._textbox_write(message[i:])  # flush current message
                     break
                 self._textbox_write(char)
@@ -253,7 +254,8 @@ class ChatWindow(customtkinter.CTk):
                 if idx is None and answer is None:
                     self._insert_message(timestamp, requester, request, pending=True)
                 else:
-                    if timestamp <= self._interrupt_stamp:
+                    # if timestamp <= self._interrupt_stamp:
+                    if timestamp - self._interrupt_stamp <= -1:
                         continue
 
                     if idx == 0:
