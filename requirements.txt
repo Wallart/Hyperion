@@ -44,6 +44,7 @@ tinydb
 plotly
 
 # other
+ntplib
 urlextract
 bs4
 lxml

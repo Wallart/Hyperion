@@ -1,4 +1,4 @@
-from time import time
+from hyperion.utils.timer import Timer
 from hyperion.audio import int16_to_float32
 from hyperion.analysis.chat_gpt import ChatGPT
 from hyperion.utils.logger import ProjectLogger
@@ -159,7 +159,7 @@ class Brain:
             ProjectLogger().warning('Memory wiped.')
         elif detected_cmd == ACTIONS.QUIET.value:
             sink._sink.put(RequestObject(request_id, speaker, termination=True, priority=0))
-            self.sio.emit('interrupt', time(), to=request_sid)
+            self.sio.emit('interrupt', Timer().now(), to=request_sid)
 
     def handle_frame(self, frame, width, height, channels):
         frame = np.frombuffer(frame, dtype=np.uint8)

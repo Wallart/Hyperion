@@ -1,4 +1,4 @@
-from time import time
+from hyperion.utils.timer import Timer
 from hyperion.audio import int16_to_float32
 
 import numpy as np
@@ -12,7 +12,7 @@ class RequestObject:
         self.identifier = identifier
         self.user = user
 
-        self.timestamp = time()
+        self.timestamp = Timer().now()
 
         self.text_request = None
         self.audio_request = None
