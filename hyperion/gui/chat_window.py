@@ -1,4 +1,4 @@
-from time import time, sleep, monotonic_ns
+from time import time, sleep
 from PIL import Image, ImageTk
 from hyperion.gui import UIAction
 from hyperion.utils import ProjectPaths
