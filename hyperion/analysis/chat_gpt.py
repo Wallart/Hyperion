@@ -131,7 +131,7 @@ class ChatGPT(Consumer, Producer):
 
     def _dispatch_memory_warning(self, request_obj, sentence_num=None, randomized=False):
         # in randomize mode dispatch warning only 1 time out 3
-        if randomized and random.choices(range(3), weights=(1, 1, 1)) != 2:
+        if randomized and random.choices(range(10), weights=[1] * 10) != 9:
             return False
 
         placeholder = self._memory_sentences[random.randint(0, len(self._memory_sentences) - 1)]
