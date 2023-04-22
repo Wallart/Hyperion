@@ -3,12 +3,12 @@ from PIL import Image, ImageTk
 from hyperion.gui import UIAction
 from hyperion.utils.timer import Timer
 from hyperion.utils import ProjectPaths
+from hyperion.gui.gui_params import GUIParams
 from hyperion.analysis import sanitize_username
-from hyperion.gui.code_formatter import CodeFormatter
 from hyperion.gui.params_window import ParamsWindow
+from hyperion.gui.code_formatter import CodeFormatter
 from hyperion.gui.feedback_window import FeedbackWindow
 
-import json
 import queue
 import threading
 import customtkinter
@@ -25,12 +25,6 @@ class ChatWindow(customtkinter.CTk):
 
         image_dir = ProjectPaths().resources_dir / 'gui'
 
-        self._gui_params = {}
-        self._savefile = ProjectPaths().cache_dir / 'gui_params.json'
-        if self._savefile.exists():
-            with open(self._savefile) as f:
-                self._gui_params = json.load(f)
-
         self._running = True
         self._startup_time = time()
 
@@ -42,10 +36,10 @@ class ChatWindow(customtkinter.CTk):
         self._interrupt_stamp = 0
         self.bot_name = bot_name
 
-        x = self._gui_params['x'] if 'x' in self._gui_params else 100
-        y = self._gui_params['y'] if 'y' in self._gui_params else 300
-        width = self._gui_params['width'] if 'width' in self._gui_params else 450
-        height = self._gui_params['height'] if 'height' in self._gui_params else 250
+        x = GUIParams()['x'] if 'x' in GUIParams() else 100
+        y = GUIParams()['y'] if 'y' in GUIParams() else 300
+        width = GUIParams()['width'] if 'width' in GUIParams() else 450
+        height = GUIParams()['height'] if 'height' in GUIParams() else 250
 
         # configure window
         self.title(title)
@@ -95,8 +89,8 @@ class ChatWindow(customtkinter.CTk):
         self.name_entry = customtkinter.CTkEntry(self, placeholder_text='Username', width=100)
         self.name_entry.grid(row=2, column=0, columnspan=1, padx=(7, 0), pady=(10, 10), sticky=tk.NSEW)
         self.name_entry.bind('<FocusOut>', self.on_focus_out)
-        if 'username' in self._gui_params:
-            self.name_entry.insert(0, self._gui_params['username'])
+        if 'username' in GUIParams():
+            self.name_entry.insert(0, GUIParams()['username'])
 
         self.text_entry = customtkinter.CTkEntry(self, placeholder_text='Send a message...')
         self.text_entry.grid(row=2, column=1, columnspan=2, padx=(4, 4), pady=(10, 10), sticky=tk.NSEW)
@@ -118,6 +112,9 @@ class ChatWindow(customtkinter.CTk):
         self._frame_queue = None
 
         self.params_delegate = None
+
+        if 'scaling' in GUIParams():
+            ParamsWindow.rescale_gui(GUIParams()['scaling'])
 
     def update_status(self, state):
         if state == 'online':
@@ -142,22 +139,22 @@ class ChatWindow(customtkinter.CTk):
 
     def on_configure(self, event):
         if self._running and time() - self._startup_time >= 1:
-            self._gui_params['x'] = event.x
-            self._gui_params['y'] = event.y
-            self._gui_params['width'] = event.width
-            self._gui_params['height'] = event.height
-            self._save_config()
+            GUIParams()['x'] = event.x
+            GUIParams()['y'] = event.y
+            GUIParams()['width'] = event.width
+            GUIParams()['height'] = event.height
+            GUIParams().save()
 
     def on_focus_out(self, event):
         username = sanitize_username(self.name_entry.get())
         self.name_entry.delete(0, tk.END)
         if username is not None and len(username) > 0:
             self.name_entry.insert(0, username)
-            self._gui_params['username'] = username
+            GUIParams()['username'] = username
         else:
-            del self._gui_params['username']
+            del GUIParams()['username']
 
-        self._save_config()
+        GUIParams().save()
 
     def on_send(self, event):
         username = self.name_entry.get()
@@ -179,14 +176,10 @@ class ChatWindow(customtkinter.CTk):
     def on_gear(self):
         if self._params_window is None or not self._params_window.winfo_exists():
             db, input_dev, out_dev, camera_dev = self.params_delegate()
-            x, y = self._gui_params['x'], self._gui_params['y']
+            x, y = GUIParams()['x'], GUIParams()['y']
             self._params_window = ParamsWindow(x, y, self._out_message_queue, db, input_dev, out_dev, camera_dev)
         else:
             self._params_window.focus()
-
-    def _save_config(self):
-        with open(self._savefile, 'w') as f:
-            f.write(json.dumps(self._gui_params))
 
     def _insert_message(self, timestamp, author, message, with_delay=False, pending=False):
         if message == self._previous_text:
@@ -301,4 +294,5 @@ class ChatWindow(customtkinter.CTk):
 
 if __name__ == '__main__':
     app = ChatWindow('TOTO', ['base', 'gamemaster'], 'base', ['gpt-3.5', 'gpt-4'], 'gpt-3.5')
+    app.params_delegate = lambda: (130, 'input_dev', 'out_dev', 'camera_dev')
     app.mainloop()

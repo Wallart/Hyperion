@@ -1,5 +1,6 @@
 from hyperion.gui import UIAction
 from hyperion.video.io import VideoDevices
+from hyperion.gui.gui_params import GUIParams
 from hyperion.utils.logger import ProjectLogger
 from hyperion.audio.io.sound_device_resource import SoundDeviceResource
 
@@ -21,8 +22,8 @@ class ParamsWindow(customtkinter.CTkToplevel):
         self.input_devices = SoundDeviceResource.list_devices('Input')
         self.output_devices = SoundDeviceResource.list_devices('Output')
 
-        # self.grid_columnconfigure(1, weight=0)
-        # self.grid_rowconfigure((0, 1, 2), weight=0)
+        self.grid_columnconfigure(1, weight=1)
+        # self.grid_rowconfigure(4, weight=1)
         option_menu_width = 200
         label_left_pad = 10
         vertical_pad = 10
@@ -52,12 +53,20 @@ class ParamsWindow(customtkinter.CTkToplevel):
         self.scaling_label.grid(row=3, column=0, padx=(label_left_pad, 5), pady=(5, 0))
         self.scaling_optionemenu = customtkinter.CTkOptionMenu(self, values=scaling, command=self.change_scaling_event, **common_opt_menu)
         self.scaling_optionemenu.grid(row=3, column=1, padx=(0, 10), pady=(5, 0))
+        if 'scaling' in GUIParams():
+            self.scaling_optionemenu.set(GUIParams()['scaling'])
 
         self.db_slider_label = customtkinter.CTkLabel(self, text='dBs threshold:', width=100, anchor=tk.W)
-        self.db_slider_label.grid(row=4, column=0, padx=(label_left_pad, 5), pady=(5, 0))
+        self.db_slider_label.grid(row=4, column=0, padx=(label_left_pad, 5), pady=(5, vertical_pad))
         self.db_slider = customtkinter.CTkSlider(self, from_=0, to=100, number_of_steps=100, command=self.on_threshold_change)
+        self.db_slider.grid(row=4, column=1, padx=(0, 10), pady=(0, vertical_pad))
         self.db_slider.set(db_threshold)
-        self.db_slider.grid(row=4, column=1)
+
+    @staticmethod
+    def rescale_gui(new_scaling: str):
+        new_scaling_float = int(new_scaling.replace('%', '')) / 100
+        customtkinter.set_widget_scaling(new_scaling_float)
+        customtkinter.set_window_scaling(new_scaling_float)
 
     def on_camera_change(self, selection):
         if selection == self.cameras[0]:
@@ -69,8 +78,9 @@ class ParamsWindow(customtkinter.CTkToplevel):
         self.out_queue.put((UIAction.CHANGE_DB, decibel))
 
     def change_scaling_event(self, new_scaling):
-        new_scaling_float = int(new_scaling.replace('%', '')) / 100
-        customtkinter.set_widget_scaling(new_scaling_float)
+        ParamsWindow.rescale_gui(new_scaling)
+        GUIParams()['scaling'] = new_scaling
+        GUIParams().save()
 
     def on_input_selected(self, selection):
         corresponding_idx = list(self.input_devices.keys())[list(self.input_devices.values()).index(selection)]
