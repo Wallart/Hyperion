@@ -59,7 +59,7 @@ class ParamsWindow(customtkinter.CTkToplevel):
         self.db_slider_label = customtkinter.CTkLabel(self, text='dBs threshold:', width=100, anchor=tk.W)
         self.db_slider_label.grid(row=4, column=0, padx=(label_left_pad, 5), pady=(5, vertical_pad))
         self.db_slider = customtkinter.CTkSlider(self, from_=0, to=100, number_of_steps=100, command=self.on_threshold_change)
-        self.db_slider.grid(row=4, column=1, padx=(0, 10), pady=(0, vertical_pad))
+        self.db_slider.grid(row=4, column=1, padx=(0, 10), pady=(5, vertical_pad))
         self.db_slider.set(db_threshold)
 
     @staticmethod
