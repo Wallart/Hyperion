@@ -181,15 +181,17 @@ class ChatWindow(customtkinter.CTk):
         else:
             self._params_window.focus()
 
-    def _insert_message(self, timestamp, author, message, with_delay=False, pending=False):
-        if message == self._previous_text:
-            # found = self.textbox.tag_ranges('pending')
-            lastline_index = self.textbox.index('end-1c linestart')
-            line, col = lastline_index.split('.')
-            line = int(line) - 1
-            self.textbox.tag_remove('pending', f'{line}.{col}', tk.END)
+    def _remove_pending(self, message):
+        if message != self._previous_text:
             return
 
+        # found = self.textbox.tag_ranges('pending')
+        lastline_index = self.textbox.index('end-1c linestart')
+        line, col = lastline_index.split('.')
+        line = int(line) - 1
+        self.textbox.tag_remove('pending', f'{line}.{col}', tk.END)
+
+    def _insert_message(self, timestamp, author, message, with_delay=False, pending=False):
         if author != self._previous_speaker:
             self._textbox_write(f'{author} : ', is_name=True, pending=pending)
 
@@ -253,7 +255,7 @@ class ChatWindow(customtkinter.CTk):
                         continue
 
                     if idx == 0:
-                        self._insert_message(timestamp, requester, request)
+                        self._remove_pending(request)
                     self._insert_message(timestamp, self.bot_name, answer, with_delay=True)
             except queue.Empty:
                 continue
