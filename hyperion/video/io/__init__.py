@@ -1,6 +1,7 @@
 from hyperion.utils import Singleton
 
 import cv2
+import threading
 
 
 class VideoDevices(metaclass=Singleton):
@@ -35,3 +36,6 @@ class VideoDevices(metaclass=Singleton):
                 cap.release()
             idx += 1
         return cam_indexes
+
+thread = threading.Thread(target=VideoDevices().list_devices, daemon=True)
+thread.start()
