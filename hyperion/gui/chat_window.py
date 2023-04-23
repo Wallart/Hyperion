@@ -216,7 +216,10 @@ class ChatWindow(customtkinter.CTk):
         self.textbox.configure(state=tk.NORMAL)
         self.textbox.insert(tk.END, text)
         self.textbox.configure(state=tk.DISABLED)
-        self.textbox.see(tk.END)  # AUTO SCROLL
+        _, end_val = self.textbox._y_scrollbar.get()
+        if end_val == 1.0:
+            # AUTO SCROLL only if scrollbar is at the bottom
+            self.textbox.see(tk.END)
 
         lastline_index = self.textbox.index('end-1c linestart')
         line, col = lastline_index.split('.')
