@@ -4,6 +4,7 @@ import tkinter as tk
 class AudioLevel(tk.Canvas):
     def __init__(self, master=None, width=0, height=0, num_bar=15):
         super().__init__(master, width=width, height=height, bg='#242424', highlightthickness=0)
+        self.num_bar = num_bar
         self.level = 0
         self.bars = []
         self.padding_size = 6
@@ -15,7 +16,7 @@ class AudioLevel(tk.Canvas):
             start_pos = i * padding + i * self.bar_width + margin
             top_left = (start_pos, height)
             bottom_right = (start_pos + self.bar_width, 0)
-            bar = self.create_rectangle(*top_left, *bottom_right, fill='#c2c2c2', outline='')
+            bar = self.create_rectangle(*top_left, *bottom_right, fill='#4b4d50', outline='')
             # bar = self.round_rectangle(*top_left, *bottom_right, r=50, fill='#c2c2c2', outline='')
             self.bars.append(bar)
 
@@ -23,9 +24,9 @@ class AudioLevel(tk.Canvas):
         if level != self.level:
             for i in range(15):
                 if i < level:
-                    self.itemconfigure(self.bars[i], fill='white')
+                    self.itemconfigure(self.bars[i], fill='#abb0b5')
                 else:
-                    self.itemconfigure(self.bars[i], fill='grey')
+                    self.itemconfigure(self.bars[i], fill='#4b4d50')
 
             self.level = level
 

@@ -10,6 +10,7 @@ from hyperion.gui.code_formatter import CodeFormatter
 from hyperion.gui.feedback_window import FeedbackWindow
 
 import queue
+import random
 import threading
 import customtkinter
 import tkinter as tk
@@ -102,19 +103,23 @@ class ChatWindow(customtkinter.CTk):
         self.gear_button = customtkinter.CTkButton(self, fg_color='transparent', border_width=0, text='', width=20, image=self.gear_icon, command=self.on_gear, hover_color='#313436')
         self.gear_button.grid(row=2, column=4, padx=(0, 7), pady=(10, 10), sticky=tk.NSEW)
 
-        self._message_thread = threading.Thread(target=self.message_handler)
-        self._message_thread.start()
-
         self._video_thread = None
-
         self._params_window = None
         self._feedback_window = None
         self._frame_queue = None
 
         self.params_delegate = None
+        self.dbs_delegate = None
 
         if 'scaling' in GUIParams():
             ParamsWindow.rescale_gui(GUIParams()['scaling'])
+
+    def start_threads(self):
+        self._message_thread = threading.Thread(target=self.message_handler)
+        self._message_thread.start()
+
+        self._mic_thread = threading.Thread(target=self.microphone_handler)
+        self._mic_thread.start()
 
     def update_status(self, state):
         if state == 'online':
@@ -280,6 +285,17 @@ class ChatWindow(customtkinter.CTk):
             self._frame_queue = None
             self._feedback_window.destroy()
             self._feedback_window = None
+
+    def microphone_handler(self):
+        max_dbs = 100
+        while self._running:
+            if self._params_window is not None:
+                if self._params_window.winfo_exists():
+                    # dbs = random.randint(0, max_db)
+                    dbs = min(max_dbs, self.dbs_delegate())
+                    self._params_window.levels.set_level(dbs * self._params_window.levels.num_bar // max_dbs)
+
+            sleep(0.05)
 
     def set_camera_feedback(self, sink, width, height):
         if self._video_thread is not None:

@@ -19,6 +19,7 @@ class InDevice(SoundDeviceResource, AudioSource):
     def __init__(self, device_idx, sample_rate, db=60, **kwargs):
         super().__init__(device_idx, False, sample_rate, **kwargs)
         self.db_threshold = db
+        self.prev_dbs = 0
         self._prev_buffer = np.zeros((self.chunk_size,), dtype=np.float32)
         self._current_feedback = None
         self._feedback_queue = Queue()
@@ -70,6 +71,7 @@ class InDevice(SoundDeviceResource, AudioSource):
             # root mean square of signal to detect if there is interesting things to record
             rms = audioop.rms(float32_to_int16(buffer), 2)
             db = rms_to_db(rms)
+            self.prev_dbs = db
             if db >= self.db_threshold:
                 listening = True
             elif db < self.db_threshold and listened_chunks >= 4:  # eq to 2 sec of silence

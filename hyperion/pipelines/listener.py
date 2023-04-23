@@ -59,12 +59,18 @@ class Listener:
             models = requests.get(url=f'{self._target_url}/models').json()
             current_model = requests.get(url=f'{self._target_url}/model').content.decode('utf-8')
 
+            def dbs_delegate():
+                return source.prev_dbs
+
             def params_delegate():
                 cam_device = -1 if self._camera_handler is None else self._camera_handler.device
                 return source.db_threshold, self.audio_in._source.device_name, self.audio_out.device_name, cam_device
 
             self._gui = ChatWindow(bot_name, prompts, current_prompt, models, current_model, title=bot_name)
             self._gui.params_delegate = params_delegate
+            self._gui.dbs_delegate = dbs_delegate
+            self._gui.start_threads()
+
             self._audio_handler = threading.Thread(target=self._audio_request_handler, daemon=False)
             self._text_handler = threading.Thread(target=self._text_request_handler, daemon=False)
             self.threads.extend([self._audio_handler, self._text_handler])
