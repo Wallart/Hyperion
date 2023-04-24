@@ -1,7 +1,8 @@
+from datetime import datetime
 from tinydb import TinyDB, Query
 from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
-from hyperion.analysis import load_file, build_context_line
+from hyperion.analysis import load_file, build_context_line, sanitize_username
 
 
 class PromptManager:
@@ -32,13 +33,14 @@ class PromptManager:
         for line in content:
             sp_line = line.split('::')
             role, name, message = sp_line if len(sp_line) == 3 else (sp_line[0], None, sp_line[1])
-            message = self._customize_preprompt(message)
+            if name is not None:
+                name = sanitize_username(name)
             context.append(build_context_line(role, message, name=name))
 
         self._preprompt[preprompt_name] = context
 
     def _customize_preprompt(self, message):
-        return message.replace('{name}', self._bot_name)
+        return message.replace('{name}', self._bot_name).replace('{date}', datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
 
     def _get_db(self, preprompt_name):
         preprompt_name = self._current_preprompt_name if preprompt_name is None else preprompt_name
@@ -50,7 +52,14 @@ class PromptManager:
         preprompt_name = self._current_preprompt_name if preprompt_name is None else preprompt_name
         if preprompt_name not in self._preprompt:
             self._fetch_preprompt(preprompt_name)
-        return self._preprompt[preprompt_name]
+
+        processed_preprompt = []
+        for line in self._preprompt[preprompt_name]:
+            newline = line.copy()
+            newline['content'] = self._customize_preprompt(newline['content'])
+            processed_preprompt.append(newline)
+
+        return processed_preprompt
 
     @staticmethod
     def list_prompts():
