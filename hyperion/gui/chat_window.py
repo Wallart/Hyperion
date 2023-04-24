@@ -286,12 +286,10 @@ class ChatWindow(customtkinter.CTk):
             self._feedback_window = None
 
     def microphone_handler(self):
-        max_dbs = 100
         while self._running:
             try:
                 if self._params_window is not None and self._params_window.winfo_exists():
-                    dbs = min(max_dbs, self.dbs_delegate())
-                    self._params_window.levels.set_level(dbs * self._params_window.levels.num_bar // max_dbs)
+                    self._params_window.levels.set_level(self.dbs_delegate())
             except:
                 pass
             sleep(0.1)

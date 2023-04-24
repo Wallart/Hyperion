@@ -53,4 +53,5 @@ daemonocle
 
 # gui
 customtkinter
+tkinter-tooltip
 pygments

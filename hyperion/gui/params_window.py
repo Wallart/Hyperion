@@ -1,3 +1,4 @@
+from tktooltip import ToolTip
 from hyperion.gui import UIAction
 from hyperion.video.io import VideoDevices
 from hyperion.gui.gui_params import GUIParams
@@ -19,12 +20,12 @@ class ParamsWindow(customtkinter.CTkToplevel):
         self.title('Parameters')
         self.geometry(f'{win_width}x{win_height}+{x}+{y}')
         self.resizable(False, False)
-        self.wm_attributes('-topmost', True)
 
         self.out_queue = out_queue
         self.cameras = ['Disabled'] + VideoDevices().list_devices()
         self.input_devices = SoundDeviceResource.list_devices('Input')
         self.output_devices = SoundDeviceResource.list_devices('Output')
+        self.db_threshold = db_threshold
 
         self.grid_columnconfigure(1, weight=1)
         # self.grid_rowconfigure(4, weight=1)
@@ -75,7 +76,8 @@ class ParamsWindow(customtkinter.CTkToplevel):
         self.db_slider_label.grid(row=4, column=0, padx=col_0_padx, pady=row_x_pady)
         self.db_slider = customtkinter.CTkSlider(self, from_=0, to=100, number_of_steps=100, width=option_width, command=self.on_threshold_change)
         self.db_slider.grid(row=4, column=1, padx=col_1_padx, pady=row_x_pady)
-        self.db_slider.set(db_threshold)
+        self.db_slider.set(self.db_threshold)
+        self.db_slider_tooltip = ToolTip(self.db_slider, msg=self.slider_tooltip_msg, delay=1.0)
 
         # levels_width = win_width - label_width - 2 * outer_horizontal_pad - 5
         self.levels_label = customtkinter.CTkLabel(self, text='Input level:', width=label_width, anchor=tk.W)
@@ -96,6 +98,7 @@ class ParamsWindow(customtkinter.CTkToplevel):
             self.out_queue.put((UIAction.CHANGE_CAMERA_DEVICE, selection))
 
     def on_threshold_change(self, decibel):
+        self.db_threshold = decibel
         self.out_queue.put((UIAction.CHANGE_DB, decibel))
 
     def change_scaling_event(self, new_scaling):
@@ -112,3 +115,6 @@ class ParamsWindow(customtkinter.CTkToplevel):
         corresponding_idx = list(self.output_devices.keys())[list(self.output_devices.values()).index(selection)]
         self.out_queue.put((UIAction.CHANGE_OUTPUT_DEVICE, corresponding_idx))
         ProjectLogger().info(f'{self.output_devices} in {selection}')
+
+    def slider_tooltip_msg(self):
+        return f'{self.db_threshold} dBs'
