@@ -33,16 +33,17 @@ class SoundDeviceResource(ABC):
         self.device_default_sr = sd.query_devices(self.device_idx)['default_samplerate']
         opts = {
             'device': self.device_idx,
-            'channels': self.channels,
-            # 'samplerate': sample_rate
+            'channels': self.channels
         }
-        if self.output:
-            self._stream = sd.OutputStream(**opts, samplerate=self.device_default_sr)
-        else:
-            self._stream = sd.InputStream(**opts, blocksize=self.chunk_size, samplerate=self.sample_rate)
 
-    # def get_callback(self):
-    #     return None
+        try:
+            if self.output:
+                self._stream = sd.OutputStream(**opts, samplerate=self.device_default_sr)
+            else:
+                self._stream = sd.InputStream(**opts, blocksize=self.chunk_size, samplerate=self.sample_rate)
+        except sd.PortAudioError as e:
+            ProjectLogger().warning(f'Stream init failed : {e}. Retrying...')
+            self._init_stream()
 
     def set_device(self, device_idx):
         device = sd.query_devices(device_idx, kind=self.device_type.lower())
@@ -61,6 +62,17 @@ class SoundDeviceResource(ABC):
             self._stream.stop()
         self._stream.close()
         ProjectLogger().info(f'{self.device_type} device {self.device_name} closed.')
+
+    @staticmethod
+    def rearm():
+        sd._terminate()
+        sd._initialize()
+
+    @staticmethod
+    def refresh_portaudio_device_list():
+        # requires fork of portaudio
+        # https://github.com/jitsi/portaudio
+        sd._check(sd._lib.Pa_UpdateAvailableDeviceList())
 
     @staticmethod
     def list_devices(device_type):
