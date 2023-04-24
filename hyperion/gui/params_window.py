@@ -109,12 +109,12 @@ class ParamsWindow(customtkinter.CTkToplevel):
     def on_input_selected(self, selection):
         corresponding_idx = list(self.input_devices.keys())[list(self.input_devices.values()).index(selection)]
         self.out_queue.put((UIAction.CHANGE_INPUT_DEVICE, corresponding_idx))
-        ProjectLogger().info(f'{self.input_devices} in {selection}')
+        ProjectLogger().info(f'{selection} in {self.input_devices}')
 
     def on_output_selected(self, selection):
         corresponding_idx = list(self.output_devices.keys())[list(self.output_devices.values()).index(selection)]
         self.out_queue.put((UIAction.CHANGE_OUTPUT_DEVICE, corresponding_idx))
-        ProjectLogger().info(f'{self.output_devices} in {selection}')
+        ProjectLogger().info(f'{selection} in {self.output_devices}')
 
     def slider_tooltip_msg(self):
         return f'{self.db_threshold} dBs'
