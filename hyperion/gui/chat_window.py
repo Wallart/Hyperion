@@ -1,6 +1,7 @@
 from time import time, sleep
 from PIL import Image, ImageTk
 from hyperion.gui import UIAction
+from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.timer import Timer
 from hyperion.utils import ProjectPaths
 from hyperion.gui.gui_params import GUIParams
@@ -187,13 +188,14 @@ class ChatWindow(customtkinter.CTk):
 
     def _remove_pending(self, message):
         if message != self._previous_text:
-            return
+            return False
 
         # found = self.textbox.tag_ranges('pending')
         lastline_index = self.textbox.index('end-1c linestart')
         line, col = lastline_index.split('.')
         line = int(line) - 1
         self.textbox.tag_remove('pending', f'{line}.{col}', tk.END)
+        return True
 
     def _insert_message(self, timestamp, author, message, with_delay=False, pending=False):
         if author != self._previous_speaker:
@@ -261,8 +263,8 @@ class ChatWindow(customtkinter.CTk):
                     if not Timer().gt(timestamp, self._interrupt_stamp):
                         continue
 
-                    if idx == 0:
-                        self._remove_pending(request)
+                    if idx == 0 and not self._remove_pending(request):
+                        self._insert_message(timestamp, requester, request)
                     self._insert_message(timestamp, self.bot_name, answer, with_delay=True)
             except queue.Empty:
                 continue
@@ -290,8 +292,8 @@ class ChatWindow(customtkinter.CTk):
             try:
                 if self._params_window is not None and self._params_window.winfo_exists():
                     self._params_window.levels.set_level(self.dbs_delegate())
-            except:
-                pass
+            except Exception as e:
+                ProjectLogger().warning(e)
             sleep(0.1)
 
     def set_camera_feedback(self, sink, width, height):
