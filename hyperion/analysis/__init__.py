@@ -1,3 +1,4 @@
+from unidecode import unidecode
 from hyperion.utils.logger import ProjectLogger
 
 import re
@@ -16,6 +17,7 @@ def sanitize_username(string):
     :param string:
     :return:
     """
+    string = unidecode(string)
     pattern = r"[a-zA-Z0-9_-]{1,64}"
     match = re.search(pattern, string.strip())
     if match:
