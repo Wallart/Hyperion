@@ -10,7 +10,6 @@ from hyperion.gui.code_formatter import CodeFormatter
 from hyperion.gui.feedback_window import FeedbackWindow
 
 import queue
-import random
 import threading
 import customtkinter
 import tkinter as tk
@@ -289,13 +288,13 @@ class ChatWindow(customtkinter.CTk):
     def microphone_handler(self):
         max_dbs = 100
         while self._running:
-            if self._params_window is not None:
-                if self._params_window.winfo_exists():
-                    # dbs = random.randint(0, max_db)
+            try:
+                if self._params_window is not None and self._params_window.winfo_exists():
                     dbs = min(max_dbs, self.dbs_delegate())
                     self._params_window.levels.set_level(dbs * self._params_window.levels.num_bar // max_dbs)
-
-            sleep(0.05)
+            except:
+                pass
+            sleep(0.1)
 
     def set_camera_feedback(self, sink, width, height):
         if self._video_thread is not None:
