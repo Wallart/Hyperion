@@ -223,7 +223,7 @@ class ChatWindow(customtkinter.CTk):
         self.textbox.insert(tk.END, text)
         self.textbox.configure(state=tk.DISABLED)
         _, end_val = self.textbox._y_scrollbar.get()
-        if end_val == 1.0:
+        if end_val > 0.9:
             # AUTO SCROLL only if scrollbar is at the bottom
             self.textbox.see(tk.END)
 
