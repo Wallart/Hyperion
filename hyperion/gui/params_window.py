@@ -20,6 +20,10 @@ class ParamsWindow(customtkinter.CTkToplevel):
         self.title('Parameters')
         self.geometry(f'{win_width}x{win_height}+{x}+{y}')
         self.resizable(False, False)
+        # Fixes broken window.focus() on creation
+        self.wm_attributes('-topmost', True)
+        self.update()
+        self.wm_attributes('-topmost', False)
 
         self.out_queue = out_queue
         self.cameras = ['Disabled'] + VideoDevices().list_devices()
