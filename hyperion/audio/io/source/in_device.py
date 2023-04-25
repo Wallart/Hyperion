@@ -65,6 +65,7 @@ class InDevice(SoundDeviceResource, AudioSource):
             buffer, overflowed = self._stream.read(self.chunk_size)
             buffer = buffer.squeeze()
             if buffer.sum() == 0:
+                self.prev_dbs = 0
                 continue
             buffer = nr.reduce_noise(buffer, self.sample_rate)
 
