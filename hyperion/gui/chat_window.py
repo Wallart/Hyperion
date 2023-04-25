@@ -62,7 +62,7 @@ class ChatWindow(customtkinter.CTk):
         self.gear_icon = customtkinter.CTkImage(Image.open(image_dir /'settings.png'), size=(20, 20))
 
         # 🟢🟠🔴
-        self.status_label = customtkinter.CTkLabel(self, text='Status: 🔴', width=100, anchor=tk.W)
+        self.status_label = customtkinter.CTkLabel(self, text='Status: offline', width=100, anchor=tk.W)
         self.status_label.grid(row=0, column=0, padx=(7, 0), pady=(10, 0))
 
         opts = dict(width=100, dynamic_resizing=False)
@@ -122,12 +122,12 @@ class ChatWindow(customtkinter.CTk):
         self._mic_thread.start()
 
     def update_status(self, state):
-        if state == 'online':
-            state = '🟢'
-        elif state == 'offline':
-            state = '🔴'
-        elif state == 'busy':
-            state = '🟠'
+        # if state == 'online':
+        #     state = '🟢'
+        # elif state == 'offline':
+        #     state = '🔴'
+        # elif state == 'busy':
+        #     state = '🟠'
 
         self.status_label.configure(text=f'Status: {state}')
 

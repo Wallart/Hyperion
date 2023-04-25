@@ -30,6 +30,8 @@ class ParamsWindow(customtkinter.CTkToplevel):
         self.input_devices = SoundDeviceResource.list_devices('Input')
         self.output_devices = SoundDeviceResource.list_devices('Output')
         self.db_threshold = db_threshold
+        if 'db' in GUIParams():
+            self.db_threshold = GUIParams()['db']
 
         self.grid_columnconfigure(1, weight=1)
         # self.grid_rowconfigure(4, weight=1)
@@ -104,6 +106,8 @@ class ParamsWindow(customtkinter.CTkToplevel):
     def on_threshold_change(self, decibel):
         self.db_threshold = decibel
         self.out_queue.put((UIAction.CHANGE_DB, decibel))
+        GUIParams()['db'] = decibel
+        GUIParams().save()
 
     def change_scaling_event(self, new_scaling):
         ParamsWindow.rescale_gui(new_scaling)
