@@ -78,6 +78,8 @@ class Listener:
             res = requests.get(url=f'{self._target_url}/state')
             if res.status_code == 200:
                 self._gui.update_status('online')
+            else:
+                self._gui.update_status('offline')
 
     def start(self, sio):
         self.running = True
@@ -127,11 +129,17 @@ class Listener:
             res = requests.post(**opts)
             if res.status_code != 200:
                 if not self._opts.no_gui:
-                    self._gui.update_status('busy')
+                    if res.status_code == 418:
+                        self._gui.update_status('sleeping')
+                    elif res.status_code == 204:
+                        self._gui.update_status('no speech detected')
+                    else:
+                        self._gui.update_status('error')
+
                 ProjectLogger().warning(f'Response HTTP {res.status_code}')
                 if len(res.content) > 0:
                     ProjectLogger().info(res.content)
-                return
+                    return
             elif not self._opts.no_gui:
                 self._gui.update_status('online')
 
