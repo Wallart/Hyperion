@@ -78,6 +78,12 @@ class Listener:
             res = requests.get(url=f'{self._target_url}/state')
             if res.status_code == 200:
                 self._gui.update_status('online')
+            elif res.status_code == 218:
+                self._gui.update_status('sleeping')
+            elif res.status_code == 204:
+                self._gui.update_status('No speech detected')
+            else:
+                self._gui.update_status('offline')
 
     def start(self, sio):
         self.running = True
