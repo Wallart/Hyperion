@@ -79,7 +79,7 @@ class SoundDeviceResource(ABC):
         prop = 'max_output_channels' if device_type == 'Output' else 'max_input_channels'
         valid_devices = {}
         for device in sd.query_devices():
-            if device[prop] > 0:
+            if device[prop] > 0 and device['hostapi'] == 0:
                 valid_devices[device['index']] = device['name']
 
         return valid_devices
