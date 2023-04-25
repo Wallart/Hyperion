@@ -129,10 +129,12 @@ class Listener:
             res = requests.post(**opts)
             if res.status_code != 200:
                 if not self._opts.no_gui:
-                    if res.status_code == 218:
+                    if res.status_code == 418:
                         self._gui.update_status('sleeping')
                     elif res.status_code == 204:
                         self._gui.update_status('no speech detected')
+                    else:
+                        self._gui.update_status('error')
 
                 ProjectLogger().warning(f'Response HTTP {res.status_code}')
                 if len(res.content) > 0:
