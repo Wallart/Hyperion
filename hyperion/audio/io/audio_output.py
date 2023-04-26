@@ -31,14 +31,14 @@ class AudioOutput(SoundDeviceResource, Consumer):
 
     def mute(self, timestamp):
         ProjectLogger().info('Silence required !')
-        self._stream.abort(ignore_errors=True)
+        # TODO not thread safe ?
+        self._interrupted = True
+        self._interrupt_stamp = timestamp
 
         with self._in_queue.mutex:
             self._in_queue.queue.clear()
 
-        # TODO not thread safe ?
-        self._interrupted = True
-        self._interrupt_stamp = timestamp
+        self._stream.abort(ignore_errors=True)
 
     def run(self) -> None:
         while self.running:
