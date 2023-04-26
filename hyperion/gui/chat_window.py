@@ -23,6 +23,8 @@ customtkinter.set_default_color_theme('blue')  # Themes: 'blue' (standard), 'gre
 class ChatWindow(customtkinter.CTk):
     def __init__(self, bot_name, prompts, current_prompt, llms, current_llm, title='Chat window'):
         super().__init__()
+        # hide window until it's not fully constructed to avoid ugly effects
+        self.withdraw()
 
         image_dir = ProjectPaths().resources_dir / 'gui'
 
@@ -102,6 +104,9 @@ class ChatWindow(customtkinter.CTk):
 
         self.gear_button = customtkinter.CTkButton(self, fg_color='transparent', border_width=0, text='', width=20, image=self.gear_icon, command=self.on_gear, hover_color='#313436')
         self.gear_button.grid(row=2, column=4, padx=(0, 7), pady=(10, 10), sticky=tk.NSEW)
+
+        # layout is now built we can show the window
+        self.after(0, self.deiconify)
 
         self._video_thread = None
         self._params_window = None
