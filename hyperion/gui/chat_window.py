@@ -113,6 +113,8 @@ class ChatWindow(customtkinter.CTk):
 
         if 'scaling' in GUIParams():
             ParamsWindow.rescale_gui(GUIParams()['scaling'])
+        if 'db' in GUIParams():
+            self._out_message_queue.put((UIAction.CHANGE_DB, GUIParams()['db']))
 
     def start_threads(self):
         self._message_thread = threading.Thread(target=self.message_handler)
