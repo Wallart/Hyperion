@@ -185,6 +185,7 @@ class ChatWindow(customtkinter.CTk):
             db, input_dev, out_dev, camera_dev = self.params_delegate()
             x, y = GUIParams()['x'], GUIParams()['y']
             self._params_window = ParamsWindow(x, y, self._out_message_queue, db, input_dev, out_dev, camera_dev)
+            self._params_window.after(50, lambda: self._params_window.focus())
         else:
             self._params_window.focus()
 
