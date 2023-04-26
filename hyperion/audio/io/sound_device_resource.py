@@ -51,8 +51,13 @@ class SoundDeviceResource(ABC):
         self.device_name = device['name']
 
     def open(self):
-        self._stream.start()
-        ProjectLogger().info(f'{self.device_type} device {self.device_name} opened.')
+        try:
+            self._stream.start()
+            ProjectLogger().info(f'{self.device_type} device {self.device_name} opened.')
+        except sd.PortAudioError as e:
+            ProjectLogger().error(f'Operation not permitted on Windows : {e}')
+            self.close()
+            self._init_stream()
 
     def close(self):
         self.is_closing = True
