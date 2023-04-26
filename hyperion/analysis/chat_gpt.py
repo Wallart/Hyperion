@@ -209,6 +209,10 @@ class ChatGPT(Consumer, Producer):
                         continue
 
                     if request_obj.text_request == '':
+                        # 1 in 10 chance of receiving a notification that the message wasn't heard.
+                        if random.choices(range(10), weights=[1] * 10) != 9:
+                            continue
+
                         placeholder = self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)]
                         request_obj.text_answer = placeholder
                         self._dispatch(request_obj)
