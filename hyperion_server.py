@@ -192,9 +192,9 @@ def sio_chat(data):
 
 @app.route('/video', methods=['POST'])
 def video_stream():
-    width = int(request.headers['frame_width'])
-    height = int(request.headers['frame_height'])
-    channels = int(request.headers['frame_channels'])
+    width = int(request.headers['framewidth'])
+    height = int(request.headers['frameheight'])
+    channels = int(request.headers['framechannels'])
     frame = request.files['frame'].read()
 
     brain.handle_frame(frame, width, height, channels)

@@ -1,3 +1,4 @@
+from PIL import Image
 from hyperion.utils.timer import Timer
 from hyperion.audio import int16_to_float32
 from hyperion.analysis.chat_gpt import ChatGPT
@@ -11,6 +12,7 @@ from hyperion.voice_processing.voice_synthesizer import VoiceSynthesizer
 from hyperion.voice_processing.voice_transcriber import VoiceTranscriber
 from hyperion.video.visual_question_answering import VisualQuestionAnswering
 
+import io
 import queue
 import numpy as np
 
@@ -162,6 +164,8 @@ class Brain:
             self.sio.emit('interrupt', Timer().now(), to=request_sid)
 
     def handle_frame(self, frame, width, height, channels):
-        frame = np.frombuffer(frame, dtype=np.uint8)
-        reshaped_frame = frame.reshape((height, width, channels))
-        self.video_intake.put(reshaped_frame)
+        jpg_image = Image.open(io.BytesIO(frame))
+        frame = np.asarray(jpg_image)
+        # frame = np.frombuffer(frame, dtype=np.uint8)
+        # reshaped_frame = frame.reshape((height, width, channels))
+        self.video_intake.put(frame)
