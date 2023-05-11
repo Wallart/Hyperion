@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from time import time
+from flask_cors import CORS
 from hyperion.utils.utils import get_ctx
 from hyperion.pipelines.brain import Brain
 from hyperion.utils.logger import ProjectLogger
@@ -18,8 +19,9 @@ import argparse
 
 APP_NAME = os.path.basename(__file__).split('.')[0]
 app = Flask(__name__)
+CORS(app)
 RequestID(app)
-sio = SocketIO(app, async_mode='threading')
+sio = SocketIO(app, async_mode='threading', cors_allowed_origins='*')
 
 
 @sio.on('connect')
