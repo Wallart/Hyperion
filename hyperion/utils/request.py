@@ -35,10 +35,12 @@ class RequestObject:
         self.text_request = text
 
     def set_preprompt(self, preprompt):
-        self.preprompt = preprompt
+        if preprompt != '':
+            self.preprompt = preprompt
 
     def set_llm(self, model):
-        self.llm = model
+        if model != '':
+            self.llm = model
 
     def __eq__(self, other):
         return self.priority == other.priority
