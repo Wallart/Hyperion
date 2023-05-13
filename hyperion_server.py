@@ -10,6 +10,8 @@ from hyperion.analysis.chat_gpt import CHAT_MODELS
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
+
+from hyperion.voice_processing.voice_synthesizer import VALID_ENGINES
 from hyperion.voice_processing.voice_transcriber import TRANSCRIPT_MODELS
 from flask import Flask, Response, request, g, stream_with_context
 
@@ -42,6 +44,52 @@ def state():
 @app.route('/name', methods=['GET'])
 def name():
     return brain.name, 200
+
+
+@app.route('/tts-engines', methods=['GET'])
+def get_tts_engines():
+    return VALID_ENGINES, 200
+
+
+@app.route('/tts-preferred-engines', methods=['GET'])
+def get_preferred_engines():
+    return brain.synthesizer.get_preferred_engines(), 200
+
+
+@app.route('/tts-preferred-engines', methods=['POST'])
+def set_preferred_engines():
+    res = brain.synthesizer.set_preferred_engines(request.json)
+    if not res:
+        return 'Invalid ordering', 400
+    return 'TTS engines order changed', 200
+
+
+@app.route('/voices', methods=['GET'])
+def get_voices():
+    engine = request.form['engine']
+    res = brain.synthesizer.get_engine_valid_voices(engine)
+    if not res:
+        return 'Invalid engine', 400
+    return res, 200
+
+
+@app.route('/voice', methods=['GET'])
+def get_voice():
+    engine = request.form['engine']
+    res = brain.synthesizer.get_engine_default_voice(engine)
+    if not res:
+        return 'Invalid engine', 400
+    return res, 200
+
+
+@app.route('/voice', methods=['POST'])
+def set_voice():
+    voice = request.form['voice']
+    engine = request.form['engine']
+    res = brain.synthesizer.set_engine_default_voice(engine, voice)
+    if not res:
+        return 'Invalid engine and/or voice', 400
+    return f'{voice} set for engine {engine}', 200
 
 
 @app.route('/models', methods=['GET'])

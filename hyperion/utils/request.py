@@ -20,6 +20,9 @@ class RequestObject:
         self.preprompt = None
         self.llm = None
 
+        self.voice = None
+        self.speech_engine = None
+
         self.num_answer = 0
         self.text_answer = None
         self.audio_answer = None
