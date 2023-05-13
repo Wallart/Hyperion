@@ -34,6 +34,12 @@ class RequestObject:
         else:
             self.audio_request = int16_to_float32(np.frombuffer(audio_buffer, dtype=np.int16))
 
+    def set_speech_engine(self, engine):
+        self.speech_engine = engine
+
+    def set_voice(self, voice):
+        self.voice = voice
+
     def set_text_request(self, text):
         self.text_request = text
 

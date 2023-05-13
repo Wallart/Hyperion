@@ -91,11 +91,13 @@ class Brain:
 
             yield frame_encode(request_obj.timestamp, request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
-    def handle_speech(self, request_id, request_sid, speaker, speech, preprompt=None, llm=None):
+    def handle_speech(self, request_id, request_sid, speaker, speech, preprompt=None, llm=None, speech_engine=None, voice=None):
         request_obj = RequestObject(request_id, speaker)
         request_obj.set_audio_request(speech)
         request_obj.set_preprompt(preprompt)
         request_obj.set_llm(llm)
+        request_obj.set_speech_engine(speech_engine)
+        request_obj.set_voice(voice)
 
         sink = self.synthesizer.create_identified_sink(request_id)
         self.speech_intake.put(request_obj)
@@ -105,11 +107,13 @@ class Brain:
         stream = self.sink_streamer(sink)
         return stream
 
-    def handle_chat(self, request_id, request_sid, user, message, preprompt=None, llm=None):
+    def handle_chat(self, request_id, request_sid, user, message, preprompt=None, llm=None, speech_engine=None, voice=None):
         request_obj = RequestObject(request_id, user)
         request_obj.set_text_request(message)
         request_obj.set_preprompt(preprompt)
         request_obj.set_llm(llm)
+        request_obj.set_speech_engine(speech_engine)
+        request_obj.set_voice(voice)
 
         sink = self.synthesizer.create_identified_sink(request_id)
 
