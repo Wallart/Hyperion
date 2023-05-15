@@ -158,8 +158,8 @@ class VoiceSynthesizer(Consumer, Producer):
             for e in self._preferred_engines:
                 try:
                     return self._infer_with_engine(text, e, voice)
-                except e:
-                    pass
+                except Exception as e:
+                    ProjectLogger().error(e)
         else:
             return self._infer_with_engine(text, engine, voice)
 
