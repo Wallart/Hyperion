@@ -2,7 +2,7 @@ from time import time
 from gtts import gTTS
 from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
-from elevenlabs import set_api_key, voices, generate
+from elevenlabs import set_api_key, voices, generate, RateLimitError
 from hyperion.utils.threading import Consumer, Producer
 
 import io
@@ -158,7 +158,7 @@ class VoiceSynthesizer(Consumer, Producer):
             for e in self._preferred_engines:
                 try:
                     return self._infer_with_engine(text, e, voice)
-                except Exception as e:
+                except RateLimitError as e:
                     ProjectLogger().error(e)
         else:
             return self._infer_with_engine(text, engine, voice)
