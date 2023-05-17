@@ -183,7 +183,7 @@ class ChatGPT(Consumer, Producer):
                     sentence += content
                     memory += content
 
-                    sentence_ends = [sentence.find(e) for e in ['. ', '! ', '? ', '.\n', '!\n', '?\n']]
+                    sentence_ends = [sentence.find(e) for e in ['. ', '! ', '? ', '; ']]
                     sentence_end = sentence_ends[np.argmax(sentence_ends)] + 1
                     # if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
                     if sentence_end > 0:
