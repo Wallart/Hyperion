@@ -19,6 +19,7 @@ from hyperion.voice_processing.voice_transcriber import TRANSCRIPT_MODELS
 from flask import Flask, Response, request, g, stream_with_context
 
 import os
+import json
 import argparse
 
 
@@ -27,6 +28,16 @@ app = Flask(__name__)
 CORS(app)
 RequestID(app)
 sio = SocketIO(app, async_mode='threading', cors_allowed_origins='*')
+
+
+def get_headers_params():
+    request_sid = request.headers['SID']
+    preprompt = request.headers['preprompt'] if 'preprompt' in request.headers else None
+    llm = request.headers['model'] if 'model' in request.headers else None
+    speech_engine = request.headers['speech_engine'] if 'speech_engine' in request.headers else None
+    voice = request.headers['voice'] if 'voice' in request.headers else None
+    silent = json.loads(request.headers['silent'].lower()) if 'silent' in request.headers else False
+    return request_sid, preprompt, llm, speech_engine, voice, silent
 
 
 @sio.on('connect')
@@ -136,16 +147,12 @@ def set_prompt():
 @app.route('/speech', methods=['POST'])
 def http_speech_stream():
     request_id = current_request_id()
-    request_sid = request.headers['SID']
-    preprompt = request.headers['preprompt'] if 'preprompt' in request.headers else None
-    llm = request.headers['model'] if 'model' in request.headers else None
-    speech_engine = request.headers['speech_engine'] if 'speech_engine' in request.headers else None
-    voice = request.headers['voice'] if 'voice' in request.headers else None
+    request_sid, preprompt, llm, speech_engine, voice, silent = get_headers_params()
 
     speech = request.files['speech'].read()
     speaker = request.files['speaker'].read().decode('utf-8')
 
-    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice)
+    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent)
 
     if brain.frozen:
         return 'I\'m a teapot', 418
@@ -156,11 +163,7 @@ def http_speech_stream():
 @app.route('/audio', methods=['POST'])
 def http_audio_stream():
     request_id = current_request_id()
-    request_sid = request.headers['SID']
-    preprompt = request.headers['preprompt'] if 'preprompt' in request.headers else None
-    llm = request.headers['model'] if 'model' in request.headers else None
-    speech_engine = request.headers['speech_engine'] if 'speech_engine' in request.headers else None
-    voice = request.headers['voice'] if 'voice' in request.headers else None
+    request_sid, preprompt, llm, speech_engine, voice, silent = get_headers_params()
 
     audio = request.files['audio'].read() if 'audio' in request.files else request.data
 
@@ -168,7 +171,7 @@ def http_audio_stream():
     if speaker is None and speech is None:
         return 'No speech detected', 204
 
-    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice)
+    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent)
 
     if brain.frozen:
         return 'I\'m a teapot', 418
@@ -208,11 +211,7 @@ def sio_audio_stream(audio):
 @app.route('/chat', methods=['POST'])
 def http_chat():
     request_id = current_request_id()
-    request_sid = request.headers['SID']
-    preprompt = request.headers['preprompt'] if 'preprompt' in request.headers else None
-    llm = request.headers['model'] if 'model' in request.headers else None
-    speech_engine = request.headers['speech_engine'] if 'speech_engine' in request.headers else None
-    voice = request.headers['voice'] if 'voice' in request.headers else None
+    request_sid, preprompt, llm, speech_engine, voice, silent = get_headers_params()
 
     user = request.form['user']
     message = request.form['message']
@@ -229,7 +228,7 @@ def http_chat():
         brain.chat.frozen = False
         return 'Unfreezed', 202
 
-    stream = brain.handle_chat(request_id, request_sid, user, message, preprompt, llm, speech_engine, voice)
+    stream = brain.handle_chat(request_id, request_sid, user, message, preprompt, llm, speech_engine, voice, silent)
     return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 

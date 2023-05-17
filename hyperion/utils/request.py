@@ -22,6 +22,7 @@ class RequestObject:
 
         self.voice = None
         self.speech_engine = None
+        self.silent = False
 
         self.num_answer = 0
         self.text_answer = None
@@ -36,6 +37,9 @@ class RequestObject:
 
     def set_speech_engine(self, engine):
         self.speech_engine = engine
+
+    def set_silent(self, is_silent):
+        self.silent = True if is_silent else False
 
     def set_voice(self, voice):
         self.voice = voice

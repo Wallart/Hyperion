@@ -179,14 +179,16 @@ class VoiceSynthesizer(Consumer, Producer):
                     self._put(request_obj, request_obj.identifier)
                     continue
 
-                ProjectLogger().info(f'Synthesizing speech...')
                 t0 = time()
-
-                try:
-                    wav = self._infer(request_obj.text_answer, engine=request_obj.speech_engine, voice=request_obj.voice)
-                    request_obj.audio_answer = wav
-                except Exception as e:
-                    ProjectLogger().error(f'Synthesizer muted : {e}')
+                if not request_obj.silent:
+                    ProjectLogger().info(f'Synthesizing speech...')
+                    try:
+                        wav = self._infer(request_obj.text_answer, engine=request_obj.speech_engine, voice=request_obj.voice)
+                        request_obj.audio_answer = wav
+                    except Exception as e:
+                        ProjectLogger().error(f'Synthesizer muted : {e}')
+                else:
+                    ProjectLogger().info(f'Silent answer requested.')
 
                 self._put(request_obj, request_obj.identifier)
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
