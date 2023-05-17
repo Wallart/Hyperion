@@ -1,11 +1,14 @@
 #!/usr/bin/env python
-
 from time import time
+from uuid import uuid4
+from pathlib import Path
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 from hyperion.utils.utils import get_ctx
 from hyperion.pipelines.brain import Brain
-from hyperion.utils.logger import ProjectLogger
 from flask_socketio import SocketIO, emit
+from hyperion.utils.logger import ProjectLogger
+from multiprocessing.managers import BaseManager
 from hyperion.analysis.chat_gpt import CHAT_MODELS
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.execution import startup, handle_errors
@@ -257,6 +260,46 @@ def video_stream():
     return 'Frame processed', 200
 
 
+@app.route('/query', methods=['GET'])
+def query_knowledge_base():
+    index_name = request.args.get('index', None)
+    query_value = request.args.get('value', None)
+    if query_value is None or index_name is None:
+        return 'Missing index or query param', 400
+
+    response = memoryManager.query_index(index_name, query_value)
+    return str(response._getvalue()), 200
+
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    index_name = request.form['index_name']
+    if len(request.files) == 0:
+        return 'No file(s) found.', 400
+
+    upload_dir = Path('/') / 'tmp' / 'uploads'
+    os.makedirs(upload_dir, exist_ok=True)
+
+    for fileindex, uploaded_file in request.files.items():
+        filepath = None
+        try:
+            # filename = secure_filename(uploaded_file.filename)
+            filepath = upload_dir / str(uuid4())
+            uploaded_file.save(filepath)
+
+            # if request.form.get('filename_as_doc_id', None) is not None:
+            #     manager.insert_into_index(filepath, doc_id=filename)
+            # else:
+            memoryManager.insert_into_index(index_name, str(filepath))
+        except Exception as e:
+            return f'File upload failed. {str(e)}', 500
+        finally:
+            if filepath is not None and filepath.exists():
+                os.remove(filepath)
+
+    return 'File(s) indexed.', 200
+
+
 @app.before_request
 def before_request():
     g.start = time()
@@ -272,6 +315,13 @@ def after_request(response):
 @handle_errors
 def main(args):
     global brain
+    global memoryManager
+
+    # memoryManager = BaseManager(('', 5602), b'password')
+    # memoryManager.register('query_index')
+    # memoryManager.register('insert_into_index')
+    # memoryManager.connect()
+
     ctx = get_ctx(args)
     brain = Brain(ctx, args)
     brain.start(sio, app)
