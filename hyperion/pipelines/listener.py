@@ -143,9 +143,6 @@ class Listener:
             elif not self._opts.no_gui:
                 self._gui.update_status('online')
 
-            # TODO Ugly should be added in communication protocol
-            requester = res.headers['Speaker'] if requester is None else requester
-
             buffer = bytearray()
             for bytes_chunk in res.iter_content(chunk_size=4096):
                 buffer.extend(bytes_chunk)
@@ -154,9 +151,9 @@ class Listener:
                     continue
 
                 decoded_frame, buffer = output
-                self._distribute(requester, decoded_frame)
+                self._distribute(decoded_frame)
 
-            ProjectLogger().info(f'{requester}\'s request processed in {time() - t0:.3f} sec(s).')
+            ProjectLogger().info(f'Request processed in {time() - t0:.3f} sec(s).')
         except Exception as e:
             ProjectLogger().warning(f'Request canceled : {e}')
 
@@ -183,17 +180,18 @@ class Listener:
         }
         self._process_request('chat', payload, requester=author)
 
-    def _distribute(self, recognized_speaker, decoded_frame):
+    def _distribute(self, decoded_frame):
         idx = decoded_frame['IDX']
         timestamp = decoded_frame['TIM']
+        speaker = decoded_frame['SPK']
         request = decoded_frame['REQ']
         answer = decoded_frame['ANS']
         audio = decoded_frame['PCM']
 
         if not self._opts.no_gui:
-            self._gui.queue_message(timestamp, idx, recognized_speaker, request, answer)
+            self._gui.queue_message(timestamp, idx, speaker, request, answer)
 
-        ProjectLogger().info(f'{recognized_speaker} : {request}')
+        ProjectLogger().info(f'{speaker} : {request}')
         ProjectLogger().info(f'ChatGPT : {answer}')
         spoken_chunk = np.frombuffer(audio, dtype=np.int16)
         if len(spoken_chunk) > 0:

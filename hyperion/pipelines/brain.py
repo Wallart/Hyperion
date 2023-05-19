@@ -89,7 +89,7 @@ class Brain:
                 ProjectLogger().warning('Speech synthesis failed.')
                 request_obj.audio_answer = np.zeros((0,))
 
-            yield frame_encode(request_obj.timestamp, request_obj.num_answer, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
+            yield frame_encode(request_obj.timestamp, request_obj.num_answer, request_obj.user, request_obj.text_request, request_obj.text_answer, request_obj.audio_answer)
 
     def _customize_request(self, request_obj, preprompt, llm, speech_engine, voice, silent):
         request_obj.set_preprompt(preprompt)
