@@ -1,5 +1,6 @@
 from PIL import Image
 from hyperion.utils.timer import Timer
+from hyperion.utils import ProjectPaths
 from hyperion.audio import int16_to_float32
 from hyperion.analysis.chat_gpt import ChatGPT
 from hyperion.utils.logger import ProjectLogger
@@ -62,7 +63,15 @@ class Brain:
             _ = [t.start() for t in self.threads]
             # flask_app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
             self.sio = sio
-            self.sio.run(flask_app, host=self.host, debug=self.debug, port=self.port, allow_unsafe_werkzeug=True)
+            ssl_context = (ProjectPaths().resources_dir / 'cert.pem', ProjectPaths().resources_dir / 'key.pem')
+            opts = dict(
+                host=self.host,
+                debug=self.debug,
+                port=self.port,
+                allow_unsafe_werkzeug=True,
+                ssl_context=ssl_context
+            )
+            self.sio.run(flask_app, **opts)
         except KeyboardInterrupt as interrupt:
             _ = [t.stop() for t in self.threads]
 
