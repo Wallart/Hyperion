@@ -63,7 +63,8 @@ class Brain:
             _ = [t.start() for t in self.threads]
             # flask_app.run(host=self.host, debug=self.debug, threaded=True, port=self.port)
             self.sio = sio
-            ssl_context = (ProjectPaths().resources_dir / 'cert.pem', ProjectPaths().resources_dir / 'key.pem')
+            ssl_path = ProjectPaths().resources_dir / 'ssl'
+            ssl_context = (ssl_path / 'cert.pem', ssl_path / 'key.pem')
             opts = dict(
                 host=self.host,
                 debug=self.debug,
