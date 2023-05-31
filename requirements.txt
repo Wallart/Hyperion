@@ -5,6 +5,7 @@ openai-whisper
 tiktoken
 salesforce-lavis
 llama_index
+accelerate
 
 # TTS
 gTTS

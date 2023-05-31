@@ -154,7 +154,7 @@ def http_speech_stream():
 
     stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent)
 
-    if brain.frozen:
+    if brain.commands.frozen:
         return 'I\'m a teapot', 418
 
     return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
@@ -173,7 +173,7 @@ def http_audio_stream():
 
     stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent)
 
-    if brain.frozen:
+    if brain.commands.frozen:
         return 'I\'m a teapot', 418
 
     res = Response(response=stream_with_context(stream), mimetype='application/octet-stream')
@@ -219,13 +219,12 @@ def http_chat():
     if user is None or message is None:
         return 'Invalid chat request', 500
 
+    # TODO Legacy to be removed
     if '!FREEZE' in message:
-        brain.frozen = True
-        brain.chat.frozen = True
+        brain.commands.frozen = True
         return 'Freezed', 202
     elif '!UNFREEZE' in message:
-        brain.frozen = False
-        brain.chat.frozen = False
+        brain.commands.frozen = False
         return 'Unfreezed', 202
 
     stream = brain.handle_chat(request_id, request_sid, user, message, preprompt, llm, speech_engine, voice, silent)
@@ -250,12 +249,12 @@ def sio_chat(data):
 
 @app.route('/video', methods=['POST'])
 def video_stream():
-    width = int(request.headers['framewidth'])
-    height = int(request.headers['frameheight'])
-    channels = int(request.headers['framechannels'])
+    # width = int(request.headers['framewidth'])
+    # height = int(request.headers['frameheight'])
+    # channels = int(request.headers['framechannels'])
     frame = request.files['frame'].read()
 
-    brain.handle_frame(frame, width, height, channels)
+    brain.handle_frame(frame)
     return 'Frame processed', 200
 
 

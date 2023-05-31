@@ -14,6 +14,7 @@ class RequestObject:
 
         self.timestamp = Timer().now()
 
+        self.socket_id = None
         self.text_request = None
         self.audio_request = None
         self.request_lang = None
@@ -27,6 +28,8 @@ class RequestObject:
         self.num_answer = 0
         self.text_answer = None
         self.audio_answer = None
+        self.image_answer = None
+        self.command_args = dict()
 
     def set_audio_request(self, audio_buffer):
         if type(audio_buffer) == np.ndarray:

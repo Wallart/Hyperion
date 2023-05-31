@@ -23,7 +23,6 @@ class ChatGPT(Consumer, Producer):
 
     def __init__(self, name, model, no_memory, clear, prompt='base'):
         super().__init__()
-        self.frozen = False
         ProjectLogger().info(f'{name} using {model} as chat backend. No memory -> {no_memory}')
 
         self._mutex = Lock()
@@ -101,6 +100,7 @@ class ChatGPT(Consumer, Producer):
     @acquire_mutex
     def clear_context(self, preprompt=None):
         self.prompt_manager.truncate(preprompt)
+        ProjectLogger().warning(f'Memory wiped for {preprompt}.')
 
     def add_video_context(self, frame_description):
         if self._video_ctx is None or frame_description != self._video_ctx:
@@ -205,9 +205,6 @@ class ChatGPT(Consumer, Producer):
             while self.running:
                 try:
                     request_obj = self._consume()
-                    if self.frozen:
-                        continue
-
                     if request_obj.text_request == '':
                         # 1 in 10 chance of receiving a notification that the message wasn't heard.
                         if random.choices(range(10), weights=[1] * 10) != 9:

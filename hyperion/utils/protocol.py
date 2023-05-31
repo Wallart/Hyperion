@@ -28,7 +28,7 @@ def frame_decode(frame):
                 return decoded, frame_copy
 
 
-def frame_encode(timestamp, idx, speaker, request, answer, pcm):
+def frame_encode(timestamp, idx, speaker, request, answer, pcm, img):
     # beware of accents, they are using 2 bytes. Byte string might be longer than str
     answer = int.to_bytes(idx, 1, 'big') + bytes(answer, 'utf-8')
     request = bytes(request, 'utf-8')
@@ -38,6 +38,7 @@ def frame_encode(timestamp, idx, speaker, request, answer, pcm):
     req_len = len(request)
     ans_len = len(answer)
     pcm_len = len(pcm) * 2  # because each value is coded on 2 bytes (16 bits)
+    img_len = len(img) if img is not None else 0
 
     frame = bytes('TIM', 'utf-8')
     frame += struct.pack('d', timestamp)  # we need space magic to convert float to bytes
@@ -57,5 +58,10 @@ def frame_encode(timestamp, idx, speaker, request, answer, pcm):
     frame += bytes('PCM', 'utf-8')
     frame += pcm_len.to_bytes(4, 'big')
     frame += pcm.tobytes()
+
+    if img_len > 0:
+        frame += bytes('IMG', 'utf-8')
+        frame += img_len.to_bytes(4, 'big')
+        frame += img
 
     return frame

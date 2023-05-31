@@ -1,13 +1,18 @@
 from enum import Enum
 from time import time
+from copy import deepcopy
+from hyperion.utils.timer import Timer
 from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from concurrent.futures import ThreadPoolExecutor
+from hyperion.utils.request import RequestObject
 from hyperion.utils.threading import Consumer, Producer
 from openai.embeddings_utils import cosine_similarity, get_embedding, get_embeddings
 
 import json
+import shlex
 import queue
+import argparse
 import numpy as np
 
 
@@ -16,11 +21,16 @@ class ACTIONS(Enum):
     WAKE = 1
     WIPE = 2
     QUIET = 3
+    DRAW = 4
 
 
 class CommandDetector(Consumer, Producer):
-    def __init__(self, threshold=.8):
+    def __init__(self, clear_ctx_delegate, sio_delegate, img_intake_delegate, threshold=.8):
         super().__init__()
+        self.frozen = False
+        self.sio = sio_delegate
+        self.img_intake = img_intake_delegate
+        self.clear_context = clear_ctx_delegate
 
         self._commands_file = ProjectPaths().resources_dir / 'default_sentences' / 'commands.json'
 
@@ -56,15 +66,74 @@ class CommandDetector(Consumer, Producer):
                     if action is not None:
                         break
 
-                if action is not None:
+                if action is None and not self.frozen:
+                    self._dispatch(request_obj)
+                else:
                     ProjectLogger().info(f'Command found in "{analyzed_text}"')
-                self._dispatch(action)
+                    termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
+
+                    if action == ACTIONS.WAKE.value:
+                        self.frozen = False
+                        self._put(termination_request, request_obj.identifier)
+                    elif not self.frozen:
+                        if action == ACTIONS.SLEEP.value:
+                            self._on_sleep(request_obj, termination_request)
+                        elif action == ACTIONS.WIPE.value:
+                            self._on_memory_wipe(request_obj, termination_request)
+                        elif action == ACTIONS.QUIET.value:
+                            self._on_quiet(request_obj, termination_request)
+                        elif action == ACTIONS.DRAW.value:
+                            self._on_draw(request_obj)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} COMMAND exec. time')
             except queue.Empty:
                 continue
 
         ProjectLogger().info('Command Detector stopped.')
+
+    def _on_draw(self, request_obj):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--batch', type=int)
+        parser.add_argument('--width', type=int)
+        parser.add_argument('--height', type=int)
+        parser.add_argument('--mosaic', action='store_true')
+        parser.add_argument('sentence', type=str)
+
+        try:
+            command_line = request_obj.text_request.lower().split(self._commands['DRAW'][0])[-1].strip()
+            args = parser.parse_args(shlex.split(command_line))
+            for k, v in vars(args).items():
+                request_obj.command_args[k] = v
+
+            self.img_intake.put(request_obj)
+        except SystemExit as e:
+            err_request = deepcopy(request_obj)
+            err_request.text_answer = 'Invalid arguments'
+            self._put(err_request, request_obj.identifier)
+            self._put(RequestObject(request_obj.identifier, request_obj.user, termination=True), request_obj.identifier)
+
+    def _on_quiet(self, request_obj, termination_request):
+        termination_request.priority = 0
+        self._put(termination_request, request_obj.identifier)
+        self.sio().emit('interrupt', Timer().now(), to=request_obj.socket_id)
+
+    def _on_sleep(self, request_obj, termination_request):
+        self.frozen = True
+
+        ack = deepcopy(request_obj)
+        ack.text_answer = 'Sleeping...'
+
+        self._put(ack, request_obj.identifier)
+        self._put(termination_request, request_obj.identifier)
+
+    def _on_memory_wipe(self, request_obj, termination_request):
+        self.clear_context(request_obj.preprompt)
+
+        ack = deepcopy(request_obj)
+        ack.text_answer = 'Memory wiped.'
+
+        self._put(ack, request_obj.identifier)
+        self._put(termination_request, request_obj.identifier)
 
     # def _zero_shot_classify(self, text):
     #     t0 = time()

@@ -2,5 +2,6 @@
   "SLEEP": ["Met toi pause", "Va te coucher", "Endors toi", "Met toi veille", "Met toi sommeil"],
   "WAKE": ["Réveille toi", "Debout feignasse"],
   "WIPE": ["Oublie conversation", "Oublie contexte", "Efface contexte", "Efface conversation"],
-  "QUIET": ["Ta gueule", "Ça suffit", "Merci c'est bon", "tais toi", "Ça ira merci"]
+  "QUIET": ["Ta gueule", "Ça suffit", "Merci c'est bon", "tais toi", "Ça ira merci"],
+  "DRAW": ["/draw"]
 }
