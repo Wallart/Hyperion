@@ -17,6 +17,7 @@ datasets
 phonemizer
 speechbrain
 transformers
+diffusers
 
 # Visualization
 matplotlib
