@@ -49,9 +49,11 @@ class ImageGenerator(Consumer, Producer):
                 t0 = time()
 
                 ack = deepcopy(request_obj)
-                ack.text_answer = 'Processing...\n'
+                ack.text_answer = '<ACK>'
+                ack.silent = True
+                self._put(ack, ack.identifier)
+
                 request_obj.priority = request_obj.num_answer
-                self._put(ack, request_obj.identifier)
                 request_obj.num_answer += 1
 
                 cmd_args = request_obj.command_args
@@ -69,9 +71,9 @@ class ImageGenerator(Consumer, Producer):
                         grid = ImageGenerator.image_grid(images, rows, cols)
                         self.flush_img(grid, request_obj)
                     else:
-                        # TODO Shared sink is a bad idea
                         for i, image in enumerate(images):
-                            self.flush_img(image, request_obj, f'Image #{i + 1}')
+                            text = f'Image #{i + 1}' if len(images) > 1 else ''
+                            self.flush_img(image, request_obj, text)
                             request_obj.num_answer += 1
 
                 except RuntimeError as e:

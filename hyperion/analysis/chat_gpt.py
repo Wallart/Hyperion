@@ -205,6 +205,12 @@ class ChatGPT(Consumer, Producer):
             while self.running:
                 try:
                     request_obj = self._consume()
+
+                    ack = deepcopy(request_obj)
+                    ack.text_answer = '<ACK>'
+                    ack.silent = True
+                    self._dispatch(ack)
+
                     if request_obj.text_request == '':
                         # 1 in 10 chance of receiving a notification that the message wasn't heard.
                         if random.choices(range(10), weights=[1] * 10) != 9:

@@ -68,13 +68,12 @@ class CommandDetector(Consumer, Producer):
 
                 if action is None and not self.frozen:
                     self._dispatch(request_obj)
-                else:
+                elif action is not None:
                     ProjectLogger().info(f'Command found in "{analyzed_text}"')
                     termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
 
                     if action == ACTIONS.WAKE.value:
-                        self.frozen = False
-                        self._put(termination_request, request_obj.identifier)
+                        self._on_wake_up(request_obj, termination_request)
                     elif not self.frozen:
                         if action == ACTIONS.SLEEP.value:
                             self._on_sleep(request_obj, termination_request)
@@ -123,7 +122,18 @@ class CommandDetector(Consumer, Producer):
         self.frozen = True
 
         ack = deepcopy(request_obj)
-        ack.text_answer = 'Sleeping...'
+        ack.text_answer = '<SLEEPING>'
+        ack.silent = True
+
+        self._put(ack, request_obj.identifier)
+        self._put(termination_request, request_obj.identifier)
+
+    def _on_wake_up(self, request_obj, termination_request):
+        self.frozen = False
+
+        ack = deepcopy(request_obj)
+        ack.text_answer = '<WAKE>'
+        ack.silent = True
 
         self._put(ack, request_obj.identifier)
         self._put(termination_request, request_obj.identifier)
@@ -132,7 +142,8 @@ class CommandDetector(Consumer, Producer):
         self.clear_context(request_obj.preprompt)
 
         ack = deepcopy(request_obj)
-        ack.text_answer = 'Memory wiped.'
+        ack.text_answer = '<MEMWIPE>'
+        ack.silent = True
 
         self._put(ack, request_obj.identifier)
         self._put(termination_request, request_obj.identifier)
