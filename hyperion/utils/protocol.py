@@ -1,4 +1,5 @@
 import struct
+import numpy as np
 
 
 def frame_decode(frame):
@@ -29,6 +30,11 @@ def frame_decode(frame):
 
 
 def frame_encode(timestamp, idx, speaker, request, answer, pcm, img):
+    if pcm is None:
+        pcm = np.zeros((0,))
+    if img is None:
+        img = np.zeros((0,)).tobytes()
+
     # beware of accents, they are using 2 bytes. Byte string might be longer than str
     answer = int.to_bytes(idx, 1, 'big') + bytes(answer, 'utf-8')
     request = bytes(request, 'utf-8')
@@ -59,9 +65,8 @@ def frame_encode(timestamp, idx, speaker, request, answer, pcm, img):
     frame += pcm_len.to_bytes(4, 'big')
     frame += pcm.tobytes()
 
-    if img_len > 0:
-        frame += bytes('IMG', 'utf-8')
-        frame += img_len.to_bytes(4, 'big')
-        frame += img
+    frame += bytes('IMG', 'utf-8')
+    frame += img_len.to_bytes(4, 'big')
+    frame += img
 
     return frame

@@ -93,14 +93,16 @@ class CommandDetector(Consumer, Producer):
 
     def _on_draw(self, request_obj):
         parser = argparse.ArgumentParser()
-        parser.add_argument('--batch', type=int)
-        parser.add_argument('--width', type=int)
-        parser.add_argument('--height', type=int)
-        parser.add_argument('--mosaic', action='store_true')
+        parser.add_argument('-b', '--batch', type=int)
+        parser.add_argument('-W', '--width', type=int)
+        parser.add_argument('-H', '--height', type=int)
+        parser.add_argument('-s', '--steps', dest='num_inference_steps', type=int)
+        parser.add_argument('-g', '--guidance-scale', type=float)
+        parser.add_argument('-m', '--mosaic', action='store_true')
         parser.add_argument('sentence', type=str)
 
         try:
-            command_line = request_obj.text_request.lower().split(self._commands['DRAW'][0])[-1].strip()
+            command_line = request_obj.text_request.split(self._commands['DRAW'][0])[-1].strip()
             args = parser.parse_args(shlex.split(command_line))
             for k, v in vars(args).items():
                 request_obj.command_args[k] = v

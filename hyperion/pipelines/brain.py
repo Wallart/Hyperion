@@ -2,7 +2,6 @@ from PIL import Image
 from hyperion.utils import ProjectPaths
 from hyperion.audio import int16_to_float32
 from hyperion.analysis.chat_gpt import ChatGPT
-from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.protocol import frame_encode
 from hyperion.utils.request import RequestObject
 from hyperion.video.image_generator import ImageGenerator
@@ -101,14 +100,9 @@ class Brain:
             except queue.Empty:
                 continue
 
-            if request_obj.text_answer is None and request_obj.audio_answer is None and request_obj.termination:
+            if request_obj.termination:
                 self.delete_identified_sink(request_obj.identifier)
                 return
-
-            if request_obj.audio_answer is None:
-                # if text answer not empty but audio is, means speech synthesis api call failed
-                ProjectLogger().warning('Speech synthesis failed.')
-                request_obj.audio_answer = np.zeros((0,))
 
             args = [
                 request_obj.timestamp,
@@ -129,7 +123,7 @@ class Brain:
         request_obj.set_silent(silent)
 
     def handle_speech(self, request_id, request_sid, speaker, speech, preprompt=None, llm=None, speech_engine=None, voice=None, silent=False):
-        request_obj = RequestObject(request_id, request_sid, speaker)
+        request_obj = RequestObject(request_id, speaker)
         request_obj.socket_id = request_sid
         request_obj.set_audio_request(speech)
         self._customize_request(request_obj, preprompt, llm, speech_engine, voice, silent)
@@ -141,7 +135,7 @@ class Brain:
         return stream
 
     def handle_chat(self, request_id, request_sid, user, message, preprompt=None, llm=None, speech_engine=None, voice=None, silent=False):
-        request_obj = RequestObject(request_id, request_sid, user)
+        request_obj = RequestObject(request_id, user)
         request_obj.socket_id = request_sid
         request_obj.set_text_request(message)
         self._customize_request(request_obj, preprompt, llm, speech_engine, voice, silent)
