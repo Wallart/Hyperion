@@ -6,6 +6,8 @@ tiktoken
 salesforce-lavis
 llama_index
 accelerate
+# To avoid compatibility issues with accelerate
+protobuf==3.20.3
 
 # TTS
 gTTS

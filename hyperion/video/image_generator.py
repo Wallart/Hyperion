@@ -49,7 +49,7 @@ class ImageGenerator(Consumer, Producer):
                 t0 = time()
 
                 ack = deepcopy(request_obj)
-                ack.text_answer = 'Processing...'
+                ack.text_answer = 'Processing...\n'
                 request_obj.priority = request_obj.num_answer
                 self._put(ack, request_obj.identifier)
                 request_obj.num_answer += 1
