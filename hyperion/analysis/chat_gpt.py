@@ -212,12 +212,17 @@ class ChatGPT(Consumer, Producer):
                     self._dispatch(ack)
 
                     if request_obj.text_request == '':
-                        # 1 in 10 chance of receiving a notification that the message wasn't heard.
-                        if random.choices(range(10), weights=[1] * 10) != 9:
-                            continue
+                        ack = deepcopy(request_obj)
+                        ack.text_answer = '<CONFUSED>'
+                        ack.silent = True
+                        self._dispatch(ack)
 
-                        placeholder = self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)]
-                        request_obj.text_answer = placeholder
+                        # 1 in 10 chance of receiving a notification that the message wasn't heard.
+                        request_obj.text_answer = ''
+                        if random.choices(range(10), weights=[1] * 10) != 9:
+                            placeholder = self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)]
+                            request_obj.text_answer = placeholder
+
                         self._dispatch(request_obj)
                         # To close streaming response
                         self._dispatch(RequestObject(request_obj.identifier, request_obj.user, termination=True))
