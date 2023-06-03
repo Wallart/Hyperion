@@ -1,6 +1,5 @@
 from time import time
 from PIL import Image
-from copy import deepcopy
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
 from hyperion.utils.threading import Producer, Consumer
@@ -36,7 +35,7 @@ class ImageGenerator(Consumer, Producer):
     def flush_img(self, image, request_obj, text=''):
         bytes_arr = io.BytesIO()
         image.save(bytes_arr, format='jpeg')
-        new_request_obj = deepcopy(request_obj)
+        new_request_obj = RequestObject.copy(request_obj)
         new_request_obj.image_answer = bytes_arr.getvalue()
         new_request_obj.text_answer = text
         new_request_obj.priority = request_obj.num_answer
@@ -48,7 +47,7 @@ class ImageGenerator(Consumer, Producer):
                 request_obj = self._consume()
                 t0 = time()
 
-                ack = deepcopy(request_obj)
+                ack = RequestObject.copy(request_obj)
                 ack.text_answer = '<ACK>'
                 ack.silent = True
                 self._put(ack, ack.identifier)
@@ -78,9 +77,17 @@ class ImageGenerator(Consumer, Producer):
 
                 except RuntimeError as e:
                     ProjectLogger().error(e)
-                    err_response = deepcopy(request_obj)
+
+                    err = RequestObject.copy(request_obj)
+                    err.text_answer = '<ERR>'
+                    err.silent = True
+                    err.priority = 0
+                    self._put(err, err.identifier)
+
+                    err_response = RequestObject.copy(request_obj)
                     err_response.text_answer = str(e)
-                    self._put(err_response, request_obj.identifier)
+                    err_response.silent = True
+                    self._put(err_response, err_response.identifier)
 
                 termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True, priority=999)
                 self._put(termination_request, request_obj.identifier)
