@@ -1,5 +1,4 @@
 from time import time
-from copy import deepcopy
 from threading import Lock
 from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
@@ -122,7 +121,7 @@ class ChatGPT(Consumer, Producer):
     def _dispatch_sentence(self, sentence, sentence_num, t0, request_obj):
         sentence = sentence.strip()
 
-        new_request_obj = deepcopy(request_obj)
+        new_request_obj = RequestObject.copy(request_obj)
         new_request_obj.text_answer = sentence
         new_request_obj.num_answer = sentence_num
         new_request_obj.timestamp = t0
@@ -136,7 +135,7 @@ class ChatGPT(Consumer, Producer):
 
         placeholder = self._memory_sentences[random.randint(0, len(self._memory_sentences) - 1)]
 
-        new_request_obj = deepcopy(request_obj)
+        new_request_obj = RequestObject.copy(request_obj)
         new_request_obj.text_answer = placeholder
         if sentence_num is not None:
             new_request_obj.num_answer = sentence_num
@@ -206,15 +205,16 @@ class ChatGPT(Consumer, Producer):
                 try:
                     request_obj = self._consume()
 
-                    ack = deepcopy(request_obj)
+                    ack = RequestObject.copy(request_obj)
                     ack.text_answer = '<ACK>'
                     ack.silent = True
                     self._dispatch(ack)
 
                     if request_obj.text_request == '':
-                        ack = deepcopy(request_obj)
+                        ack = RequestObject.copy(request_obj)
                         ack.text_answer = '<CONFUSED>'
                         ack.silent = True
+                        ack.priority = 0
                         self._dispatch(ack)
 
                         # 1 in 10 chance of receiving a notification that the message wasn't heard.
@@ -222,6 +222,7 @@ class ChatGPT(Consumer, Producer):
                         if random.choices(range(10), weights=[1] * 10) != 9:
                             placeholder = self._deaf_sentences[random.randint(0, len(self._deaf_sentences) - 1)]
                             request_obj.text_answer = placeholder
+                            request_obj.num_answer += 1
 
                         self._dispatch(request_obj)
                         # To close streaming response

@@ -1,3 +1,4 @@
+from copy import deepcopy
 from hyperion.utils.timer import Timer
 from hyperion.audio import int16_to_float32
 
@@ -30,6 +31,10 @@ class RequestObject:
         self.audio_answer = None
         self.image_answer = None
         self.command_args = dict()
+
+    @staticmethod
+    def copy(request):
+        return deepcopy(request)
 
     def set_audio_request(self, audio_buffer):
         if type(audio_buffer) == np.ndarray:
