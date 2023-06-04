@@ -15,10 +15,16 @@ class ImageGenerator(Consumer, Producer):
         super().__init__()
         self._ctx = ctx
 
+        self.synthesizer_intake = None
+        self.keep_alive = set()
+
         # Use the DPMSolverMultistepScheduler (DPM-Solver++) scheduler here instead
         self._pipe = StableDiffusionPipeline.from_pretrained(model_name, torch_dtype=torch.float16)
         self._pipe.scheduler = DPMSolverMultistepScheduler.from_config(self._pipe.scheduler.config)
         self._pipe = self._pipe.to(ctx[-1])
+
+    def set_synthesizer_intake(self, synthesizer_intake_delegate):
+        self.synthesizer_intake = synthesizer_intake_delegate
 
     @staticmethod
     def image_grid(imgs, rows, cols):
@@ -32,14 +38,22 @@ class ImageGenerator(Consumer, Producer):
             grid.paste(img, box=(i % cols * w, i // cols * h))
         return grid
 
-    def flush_img(self, image, request_obj, text=''):
+    def flush_img(self, image, request_obj, is_terminal, text=None):
         bytes_arr = io.BytesIO()
         image.save(bytes_arr, format='jpeg')
         new_request_obj = RequestObject.copy(request_obj)
         new_request_obj.image_answer = bytes_arr.getvalue()
-        new_request_obj.text_answer = text
         new_request_obj.priority = request_obj.num_answer
-        self._put(new_request_obj, new_request_obj.identifier)
+        if new_request_obj.text_answer is None and text is not None:
+            new_request_obj.text_answer = text
+
+        self._forward(new_request_obj, is_terminal)
+
+    def _forward(self, request, terminal_node):
+        if terminal_node:
+            self._put(request, request.identifier)
+        else:
+            self.synthesizer_intake.put(request)
 
     def run(self) -> None:
         while self.running:
@@ -47,10 +61,13 @@ class ImageGenerator(Consumer, Producer):
                 request_obj = self._consume()
                 t0 = time()
 
+                self.keep_alive.add(request_obj.identifier)
+                is_terminal = True if request_obj.text_answer is None else False
+
                 ack = RequestObject.copy(request_obj)
                 ack.text_answer = '<ACK>'
                 ack.silent = True
-                self._put(ack, ack.identifier)
+                self._forward(ack, is_terminal)
 
                 request_obj.priority = request_obj.num_answer
                 request_obj.num_answer += 1
@@ -68,11 +85,11 @@ class ImageGenerator(Consumer, Producer):
                     images = self._pipe(images_prompts, **args).images
                     if mosaic and batch > 1:
                         grid = ImageGenerator.image_grid(images, rows, cols)
-                        self.flush_img(grid, request_obj)
+                        self.flush_img(grid, request_obj, is_terminal)
                     else:
                         for i, image in enumerate(images):
                             text = f'Image #{i + 1}' if len(images) > 1 else ''
-                            self.flush_img(image, request_obj, text)
+                            self.flush_img(image, request_obj, is_terminal, text)
                             request_obj.num_answer += 1
 
                 except RuntimeError as e:
@@ -82,15 +99,16 @@ class ImageGenerator(Consumer, Producer):
                     err.text_answer = '<ERR>'
                     err.silent = True
                     err.priority = 0
-                    self._put(err, err.identifier)
+                    self._forward(err, is_terminal)
 
                     err_response = RequestObject.copy(request_obj)
                     err_response.text_answer = str(e)
                     err_response.silent = True
-                    self._put(err_response, err_response.identifier)
+                    self._forward(err_response, is_terminal)
 
-                termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True, priority=999)
-                self._put(termination_request, request_obj.identifier)
+                self.keep_alive.remove(request_obj.identifier)
+                termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
+                self._forward(termination_request, is_terminal)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:

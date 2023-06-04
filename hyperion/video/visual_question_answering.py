@@ -9,7 +9,7 @@ import queue
 
 class VisualQuestionAnswering(Consumer):
 
-    def __init__(self, ctx, gpt_delegate):
+    def __init__(self, ctx):
         super().__init__()
         self._ctx = ctx
         opts = {
@@ -19,7 +19,10 @@ class VisualQuestionAnswering(Consumer):
             'device': ctx[-1]
         }
         self.model, self.vis_processors, _ = load_model_and_preprocess(**opts)
-        self._gpt_delegate = gpt_delegate
+        self.chat_delegate = None
+
+    def set_chat_delegate(self, chat_delegate):
+        self.chat_delegate = chat_delegate
 
     def run(self) -> None:
         while self.running:
@@ -30,7 +33,7 @@ class VisualQuestionAnswering(Consumer):
                 image = Image.fromarray(frame)
                 processed_image = self.vis_processors['eval'](image).unsqueeze(0).to(self._ctx[-1])
                 caption = self.model.generate({'image': processed_image})[0]
-                self._gpt_delegate.add_video_context(caption)
+                self.chat_delegate.add_video_context(caption)
                 ProjectLogger().info(caption)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')

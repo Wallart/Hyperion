@@ -1,19 +1,15 @@
 from enum import Enum
 from time import time
-from copy import deepcopy
 from hyperion.utils.timer import Timer
 from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
-from concurrent.futures import ThreadPoolExecutor
 from hyperion.utils.request import RequestObject
 from hyperion.utils.threading import Consumer, Producer
-from openai.embeddings_utils import cosine_similarity, get_embedding, get_embeddings
 
 import json
 import shlex
 import queue
 import argparse
-import numpy as np
 
 
 class ACTIONS(Enum):
@@ -24,29 +20,21 @@ class ACTIONS(Enum):
     DRAW = 4
 
 
-class CommandDetector(Consumer, Producer):
-    def __init__(self, clear_ctx_delegate, sio_delegate, img_intake_delegate, threshold=.8):
+class UserCommandDetector(Consumer, Producer):
+    def __init__(self, clear_ctx_delegate, sio_delegate):
         super().__init__()
         self.frozen = False
         self.sio = sio_delegate
-        self.img_intake = img_intake_delegate
+        self.img_intake = None
         self.clear_context = clear_ctx_delegate
 
-        self._commands_file = ProjectPaths().resources_dir / 'default_sentences' / 'commands.json'
+        self._commands_file = ProjectPaths().resources_dir / 'default_sentences' / 'user_commands.json'
 
         with open(self._commands_file) as f:
             self._commands = json.load(f)
 
-        # self._classif_threshold = threshold
-        # self._model = 'text-embedding-ada-002'
-        # self._labels = [
-        #     'Stopper',
-        #     'Veille',
-        #     'Réveil',
-        #     'Effacer',
-        #     'Autre'
-        # ]
-        # self._labels_embeddings = get_embeddings(self._labels, engine=self._model)
+    def set_img_intake(self, img_intake_delegate):
+        self.img_intake = img_intake_delegate
 
     def run(self):
         while self.running:
@@ -107,11 +95,21 @@ class CommandDetector(Consumer, Producer):
                 request_obj.command_args[k] = v
 
             self.img_intake.put(request_obj)
-        except SystemExit as e:
-            err_request = deepcopy(request_obj)
+        except (SystemExit, ValueError) as e:
+            err = RequestObject.copy(request_obj)
+            err.text_answer = '<ERR>'
+            err.silent = True
+            err.priority = 0
+            self._put(err, request_obj.identifier)
+
+            err_request = RequestObject.copy(request_obj)
             err_request.text_answer = 'Invalid arguments'
+            err_request.silent = True
             self._put(err_request, request_obj.identifier)
-            self._put(RequestObject(request_obj.identifier, request_obj.user, termination=True), request_obj.identifier)
+
+            termination = RequestObject(request_obj.identifier, request_obj.user, termination=True)
+            termination.priority = 2
+            self._put(termination, request_obj.identifier)
 
     def _on_quiet(self, request_obj, termination_request):
         termination_request.priority = 0
@@ -121,7 +119,7 @@ class CommandDetector(Consumer, Producer):
     def _on_sleep(self, request_obj, termination_request):
         self.frozen = True
 
-        ack = deepcopy(request_obj)
+        ack = RequestObject.copy(request_obj)
         ack.text_answer = '<SLEEPING>'
         ack.silent = True
 
@@ -131,7 +129,7 @@ class CommandDetector(Consumer, Producer):
     def _on_wake_up(self, request_obj, termination_request):
         self.frozen = False
 
-        ack = deepcopy(request_obj)
+        ack = RequestObject.copy(request_obj)
         ack.text_answer = '<WAKE>'
         ack.silent = True
 
@@ -141,34 +139,9 @@ class CommandDetector(Consumer, Producer):
     def _on_memory_wipe(self, request_obj, termination_request):
         self.clear_context(request_obj.preprompt)
 
-        ack = deepcopy(request_obj)
+        ack = RequestObject.copy(request_obj)
         ack.text_answer = '<MEMWIPE>'
         ack.silent = True
 
         self._put(ack, request_obj.identifier)
         self._put(termination_request, request_obj.identifier)
-
-    # def _zero_shot_classify(self, text):
-    #     t0 = time()
-    #     text_embed = get_embedding(text, engine=self._model)
-    #     scores = [cosine_similarity(text_embed, label_embed) for label_embed in self._labels_embeddings]
-    #     best_label_idx = np.argmax(scores)
-    #     ProjectLogger().info(f'{text} --> {self._labels[best_label_idx]} : {scores[best_label_idx]:.3f}')
-    #
-    #     if best_label_idx != len(self._labels) - 1 and best_label_idx >= self._classif_threshold:
-    #         self._dispatch(best_label_idx)
-    #     else:
-    #         self._dispatch(None)
-    #
-    #     ProjectLogger().debug(f'{self.__class__.__name__} {time() - t0:.3f} COMMAND exec. time')
-
-    # def run(self):
-    #     with ThreadPoolExecutor(max_workers=4) as executor:
-    #         while self.running:
-    #             try:
-    #                 request_obj = self._consume()
-    #                 future = executor.submit(self._zero_shot_classify, request_obj.text_request)
-    #             except queue.Empty:
-    #                 continue
-    #
-    #     ProjectLogger().info('Command Detector stopped.')

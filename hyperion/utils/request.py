@@ -8,7 +8,7 @@ import numpy as np
 class RequestObject:
 
     def __init__(self, identifier, user, termination=False, priority=1):
-        self.priority = priority
+        self.priority = priority if not termination else 999
         self.termination = termination
         self.identifier = identifier
         self.user = user

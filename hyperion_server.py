@@ -81,7 +81,7 @@ def set_preferred_engines():
 @app.route('/voices', methods=['GET'])
 def get_voices():
     engine = request.form['engine']
-    res = brain.synthesizer.get_engine_valid_voices(engine)
+    res = brain.voice_synthesizer.get_engine_valid_voices(engine)
     if not res:
         return 'Invalid engine', 400
     return res, 200
@@ -90,7 +90,7 @@ def get_voices():
 @app.route('/voice', methods=['GET'])
 def get_voice():
     engine = request.form['engine']
-    res = brain.synthesizer.get_engine_default_voice(engine)
+    res = brain.voice_synthesizer.get_engine_default_voice(engine)
     if not res:
         return 'Invalid engine', 400
     return res, 200
@@ -100,7 +100,7 @@ def get_voice():
 def set_voice():
     voice = request.form['voice']
     engine = request.form['engine']
-    res = brain.synthesizer.set_engine_default_voice(engine, voice)
+    res = brain.voice_synthesizer.set_engine_default_voice(engine, voice)
     if not res:
         return 'Invalid engine and/or voice', 400
     return f'{voice} set for engine {engine}', 200
@@ -113,13 +113,13 @@ def list_models():
 
 @app.route('/model', methods=['GET'])
 def get_model():
-    return brain.chat.get_model(), 200
+    return brain.chat_gpt.get_model(), 200
 
 
 @app.route('/model', methods=['POST'])
 def set_model():
     model = request.form['model']
-    if not brain.chat.set_model(model):
+    if not brain.chat_gpt.set_model(model):
         return f'{model} prompt not found', 404
 
     return 'Default model changed', 200
@@ -132,13 +132,13 @@ def list_prompts():
 
 @app.route('/prompt', methods=['GET'])
 def get_prompt():
-    return brain.chat.prompt_manager.get_prompt(), 200
+    return brain.chat_gpt.prompt_manager.get_prompt(), 200
 
 
 @app.route('/prompt', methods=['POST'])
 def set_prompt():
     prompt = request.form['prompt']
-    if not brain.chat.prompt_manager.set_prompt(prompt):
+    if not brain.chat_gpt.prompt_manager.set_prompt(prompt):
         return f'{prompt} prompt not found', 404
 
     return 'Default prompt changed', 200
@@ -154,7 +154,7 @@ def http_speech_stream():
 
     stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent)
 
-    if brain.commands.frozen:
+    if brain.user_commands.frozen:
         return 'I\'m a teapot', 418
 
     return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
@@ -173,7 +173,7 @@ def http_audio_stream():
 
     stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent)
 
-    if brain.commands.frozen:
+    if brain.user_commands.frozen:
         return 'I\'m a teapot', 418
 
     res = Response(response=stream_with_context(stream), mimetype='application/octet-stream')
@@ -221,10 +221,10 @@ def http_chat():
 
     # TODO Legacy to be removed
     if '!FREEZE' in message:
-        brain.commands.frozen = True
+        brain.user_commands.frozen = True
         return 'Freezed', 202
     elif '!UNFREEZE' in message:
-        brain.commands.frozen = False
+        brain.user_commands.frozen = False
         return 'Unfreezed', 202
 
     stream = brain.handle_chat(request_id, request_sid, user, message, preprompt, llm, speech_engine, voice, silent)

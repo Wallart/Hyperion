@@ -5,12 +5,13 @@ from hyperion.analysis.chat_gpt import ChatGPT
 from hyperion.utils.protocol import frame_encode
 from hyperion.utils.request import RequestObject
 from hyperion.video.image_generator import ImageGenerator
-from hyperion.analysis.command_detector import CommandDetector
 from hyperion.voice_processing.voice_detector import VoiceDetector
 from hyperion.voice_processing.voice_recognizer import VoiceRecognizer
+from hyperion.analysis.user_command_detector import UserCommandDetector
 from hyperion.voice_processing.voice_synthesizer import VoiceSynthesizer
 from hyperion.voice_processing.voice_transcriber import VoiceTranscriber
 from hyperion.video.visual_question_answering import VisualQuestionAnswering
+from hyperion.analysis.interpreted_command_detector import InterpretedCommandDetector
 
 import io
 import queue
@@ -23,39 +24,57 @@ class Brain:
         self.name = opts.name
         self.port = opts.port
         self.debug = opts.debug
-        self.frozen = False
         self.sio = None
 
         # Raw audio analysis pipeline
-        self.detector = VoiceDetector(ctx[-1:], 16000, activation_threshold=.9)
-        self.recognizer = VoiceRecognizer(ctx[-1:])
-        self.detector.pipe(self.recognizer)
+        self.voice_detector = VoiceDetector(ctx[-1:], 16000, activation_threshold=.9)
+        self.voice_recognizer = VoiceRecognizer(ctx[-1:])
 
         # logical thinking and speech synthesis block
-        self.transcriber = VoiceTranscriber(ctx, opts.whisper)
-        self.chat = ChatGPT(opts.name, opts.gpt, opts.no_memory, opts.clear, opts.prompt)
-        self.synthesizer = VoiceSynthesizer()
+        self.voice_transcriber = VoiceTranscriber(ctx, opts.whisper)
+        self.chat_gpt = ChatGPT(opts.name, opts.gpt, opts.no_memory, opts.clear, opts.prompt)
+        self.voice_synthesizer = VoiceSynthesizer()
 
         # video/image processing
-        self.vqa = VisualQuestionAnswering(ctx, self.chat)
-        self.images = ImageGenerator(ctx)
-
-        # intakes
-        self.audio_intake = self.detector.create_intake()
-        self.video_intake = self.vqa.create_intake(maxsize=1)
-        self.img_intake = self.images.create_intake()
-        self.speech_intake = self.transcriber.create_intake()
+        self.visual_answering = VisualQuestionAnswering(ctx)
+        self.images_gen = ImageGenerator(ctx)
 
         # commands handling block
-        self.commands = CommandDetector(self.chat.clear_context, lambda: self.sio, self.img_intake)
+        self.user_commands = UserCommandDetector(self.chat_gpt.clear_context, lambda: self.sio)
+        self.interp_commands = InterpretedCommandDetector()
 
-        self.transcriber.pipe(self.commands).pipe(self.chat).pipe(self.synthesizer)
-        self.cmd_intake = self.commands.get_intake()
+        # pipelines
+        self.voice_detector.pipe(self.voice_recognizer)
+        self.voice_transcriber.pipe(self.user_commands).pipe(self.chat_gpt).pipe(self.interp_commands).pipe(self.voice_synthesizer)
+
+        # intakes
+        self.voice_det_intake = self.voice_detector.create_intake()
+        self.vqa_intake = self.visual_answering.create_intake(maxsize=1)
+        self.images_gen_intake = self.images_gen.create_intake()
+        self.voice_transcriber_intake = self.voice_transcriber.create_intake()
+        self.user_cmd_intake = self.user_commands.get_intake()
+        self.synthesizer_intake = self.voice_synthesizer.get_intake()
 
         # sinks
-        self.audio_sink = self.recognizer.create_sink()
+        self.voice_recognizer_sink = self.voice_recognizer.create_sink()
 
-        self.threads = [self.transcriber, self.commands, self.chat, self.synthesizer, self.recognizer, self.detector, self.vqa, self.images]
+        # delegates
+        self.visual_answering.set_chat_delegate(self.chat_gpt)
+        self.user_commands.set_img_intake(self.images_gen_intake)
+        self.interp_commands.set_img_delegate(self.images_gen)
+        self.images_gen.set_synthesizer_intake(self.synthesizer_intake)
+
+        self.threads = [
+            self.voice_detector,
+            self.voice_recognizer,
+            self.voice_transcriber,
+            self.voice_synthesizer,
+            self.user_commands,
+            self.interp_commands,
+            self.chat_gpt,
+            self.visual_answering,
+            self.images_gen
+        ]
 
     def start(self, sio, flask_app):
         try:
@@ -72,26 +91,26 @@ class Brain:
                 ssl_context=ssl_context
             )
             self.sio.run(flask_app, **opts)
-        except KeyboardInterrupt as interrupt:
+        except KeyboardInterrupt:
             _ = [t.stop() for t in self.threads]
 
         _ = [t.join() for t in self.threads]
         self.sio.stop()
 
     def create_identified_sink(self, request_id):
-        sink = self.synthesizer.create_identified_sink(request_id)
-        self.commands.set_identified_sink(request_id, sink)
-        self.images.set_identified_sink(request_id, sink)
+        sink = self.voice_synthesizer.create_identified_sink(request_id)
+        self.user_commands.set_identified_sink(request_id, sink)
+        self.images_gen.set_identified_sink(request_id, sink)
         return sink
 
     def delete_identified_sink(self, request_id):
-        self.synthesizer.delete_identified_sink(request_id)
-        self.commands.delete_identified_sink(request_id)
-        self.images.delete_identified_sink(request_id)
+        self.voice_synthesizer.delete_identified_sink(request_id)
+        self.user_commands.delete_identified_sink(request_id)
+        self.images_gen.delete_identified_sink(request_id)
 
     def sink_streamer(self, sink):
         while True:
-            if self.frozen:
+            if self.user_commands.frozen:
                 return
 
             # TODO Ship into drain ?
@@ -115,7 +134,8 @@ class Brain:
             ]
             yield frame_encode(*args)
 
-    def _customize_request(self, request_obj, preprompt, llm, speech_engine, voice, silent):
+    @staticmethod
+    def _customize_request(request_obj, preprompt, llm, speech_engine, voice, silent):
         request_obj.set_preprompt(preprompt)
         request_obj.set_llm(llm)
         request_obj.set_speech_engine(speech_engine)
@@ -126,10 +146,10 @@ class Brain:
         request_obj = RequestObject(request_id, speaker)
         request_obj.socket_id = request_sid
         request_obj.set_audio_request(speech)
-        self._customize_request(request_obj, preprompt, llm, speech_engine, voice, silent)
+        Brain._customize_request(request_obj, preprompt, llm, speech_engine, voice, silent)
 
         sink = self.create_identified_sink(request_id)
-        self.speech_intake.put(request_obj)
+        self.voice_transcriber_intake.put(request_obj)
 
         stream = self.sink_streamer(sink)
         return stream
@@ -138,10 +158,10 @@ class Brain:
         request_obj = RequestObject(request_id, user)
         request_obj.socket_id = request_sid
         request_obj.set_text_request(message)
-        self._customize_request(request_obj, preprompt, llm, speech_engine, voice, silent)
+        Brain._customize_request(request_obj, preprompt, llm, speech_engine, voice, silent)
 
         sink = self.create_identified_sink(request_id)
-        self.cmd_intake.put(request_obj)
+        self.user_cmd_intake.put(request_obj)
 
         stream = self.sink_streamer(sink)
         return stream
@@ -150,14 +170,14 @@ class Brain:
         buffer = np.frombuffer(audio, dtype=np.int16)
         buffer = int16_to_float32(buffer)
 
-        self.audio_intake.put(buffer)
-        self.audio_intake.put(None)  # end of speech
+        self.voice_det_intake.put(buffer)
+        self.voice_det_intake.put(None)  # end of speech
 
         # TODO Ship into drain ?
         speech, speaker = None, None
         while True:
             try:
-                speech, speaker = self.audio_sink.drain()
+                speech, speaker = self.voice_recognizer_sink.drain()
                 break
             except queue.Empty:
                 continue
@@ -168,4 +188,4 @@ class Brain:
     def handle_frame(self, frame):
         jpg_image = Image.open(io.BytesIO(frame))
         frame = np.asarray(jpg_image)
-        self.video_intake.put(frame)
+        self.vqa_intake.put(frame)
