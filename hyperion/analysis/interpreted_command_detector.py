@@ -46,12 +46,12 @@ class InterpretedCommandDetector(Consumer, Producer):
 
                 action = None
                 found_cmd = None
+                found_pattern = None
                 for i, regex_pattern in enumerate(self._commands.values()):
-                    pattern = fr'{regex_pattern}'
-                    res = re.search(pattern, request_obj.text_answer)
+                    found_pattern = fr'{regex_pattern}'
+                    res = re.search(found_pattern, request_obj.text_answer)
                     if res is not None:
                         found_cmd = res.group()
-                        request_obj.text_answer = re.sub(pattern, '', request_obj.text_answer)
                         action = i
                         break
 
@@ -60,8 +60,14 @@ class InterpretedCommandDetector(Consumer, Producer):
                 else:
                     ProjectLogger().info(f'Command found in "{found_cmd}"')
 
+                    ack = RequestObject.copy(request_obj)
+                    ack.text_answer = '<CMD>'
+                    ack.silent = True
+                    ack.priority = 0
+                    self._dispatch(ack)
+
                     if action == ACTIONS.DRAW.value:
-                        self._on_draw(found_cmd, request_obj)
+                        self._on_draw(found_cmd, found_pattern, request_obj)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} COMMAND exec. time')
             except queue.Empty:
@@ -69,7 +75,7 @@ class InterpretedCommandDetector(Consumer, Producer):
 
         ProjectLogger().info('Interpreted Command Detector stopped.')
 
-    def _on_draw(self, command_line, request_obj):
+    def _on_draw(self, command_line, regex_pattern, request_obj):
         parser = argparse.ArgumentParser()
         parser.add_argument('-b', '--batch', type=int)
         parser.add_argument('-W', '--width', type=int)
@@ -85,6 +91,7 @@ class InterpretedCommandDetector(Consumer, Producer):
             for k, v in vars(args).items():
                 request_obj.command_args[k] = v
 
+            request_obj.text_answer = re.sub(regex_pattern, f'"{args.sentence}"', request_obj.text_answer)
             self.img_intake.put(request_obj)
         except (SystemExit, ValueError) as e:
             err = RequestObject.copy(request_obj)
