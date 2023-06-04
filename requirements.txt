@@ -8,6 +8,8 @@ llama_index
 accelerate
 # To avoid compatibility issues with accelerate
 protobuf==3.20.3
+# To avoid whisper using deprecated functions
+numba==0.56.4
 
 # TTS
 gTTS
