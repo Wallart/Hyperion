@@ -29,9 +29,17 @@ class PromptManager:
     def _fetch_preprompt(self, preprompt_name):
         content = load_file(ProjectPaths().resources_dir / 'prompts' / preprompt_name)
 
-        context = []
+        prompt_lines = []
+        start_tokens = ['system::', 'user::', 'assistant::']
         for line in content:
-            sp_line = line.split('::')
+            if True in [line.startswith(t) for t in start_tokens]:
+                prompt_lines.append(line)
+            elif len(line.strip()) > 0:
+                prompt_lines[-1] = prompt_lines[-1].strip() + ' ' + line
+
+        context = []
+        for prompt_line in prompt_lines:
+            sp_line = prompt_line.split('::')
             role, name, message = sp_line if len(sp_line) == 3 else (sp_line[0], None, sp_line[1])
             if name is not None:
                 name = sanitize_username(name)
