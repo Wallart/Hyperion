@@ -1,7 +1,7 @@
 from enum import Enum
 from time import time
 from hyperion.utils.timer import Timer
-from hyperion.utils import ProjectPaths
+from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
 from hyperion.utils.threading import Consumer, Producer

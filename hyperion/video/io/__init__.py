@@ -1,4 +1,4 @@
-from hyperion.utils import Singleton
+from hyperion.utils.singleton import Singleton
 
 import cv2
 import threading

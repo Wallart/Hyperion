@@ -1,6 +1,7 @@
 from time import time
 from gtts import gTTS
-from hyperion.utils import ProjectPaths, load_file
+from hyperion.utils import load_file
+from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from elevenlabs import set_api_key, voices, generate, RateLimitError
 from hyperion.utils.threading import Consumer, Producer

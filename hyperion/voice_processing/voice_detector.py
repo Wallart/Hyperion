@@ -1,6 +1,6 @@
 from time import time
 from speechbrain.pretrained import VAD
-from hyperion.utils import ProjectPaths
+from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.threading import Consumer, Producer
 

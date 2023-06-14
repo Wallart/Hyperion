@@ -1,4 +1,5 @@
-from hyperion.utils import Singleton, ProjectPaths
+from hyperion.utils.paths import ProjectPaths
+from hyperion.utils.singleton import Singleton
 
 
 import json

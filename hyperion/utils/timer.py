@@ -1,5 +1,5 @@
 from time import time
-from hyperion.utils import Singleton
+from hyperion.utils.singleton import Singleton
 from hyperion.utils.logger import ProjectLogger
 
 import ntplib

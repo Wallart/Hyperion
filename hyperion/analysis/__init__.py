@@ -1,5 +1,5 @@
 from unidecode import unidecode
-from hyperion.utils import ProjectPaths
+from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 
 import re

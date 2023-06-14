@@ -1,7 +1,8 @@
 from datetime import datetime
 from tinydb import TinyDB, Query
+from hyperion.utils import load_file
 from hyperion.utils.logger import ProjectLogger
-from hyperion.utils import ProjectPaths, load_file
+from hyperion.utils.paths import ProjectPaths
 from hyperion.analysis import build_context_line, sanitize_username
 
 

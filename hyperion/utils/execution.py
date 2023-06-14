@@ -1,4 +1,4 @@
-from . import ProjectPaths
+from .paths import ProjectPaths
 from functools import partial
 from .logger import ProjectLogger
 

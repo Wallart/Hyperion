@@ -3,7 +3,7 @@ from PIL import Image, ImageTk
 from hyperion.gui import UIAction
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.timer import Timer
-from hyperion.utils import ProjectPaths
+from hyperion.utils.paths import ProjectPaths
 from hyperion.gui.gui_params import GUIParams
 from hyperion.analysis import sanitize_username
 from hyperion.gui.params_window import ParamsWindow

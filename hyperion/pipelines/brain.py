@@ -1,5 +1,5 @@
 from PIL import Image
-from hyperion.utils import ProjectPaths
+from hyperion.utils.paths import ProjectPaths
 from hyperion.audio import int16_to_float32
 from hyperion.analysis.chat_gpt import ChatGPT
 from hyperion.utils.protocol import frame_encode

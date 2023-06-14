@@ -1,9 +1,10 @@
 from time import time
 from threading import Lock
+from hyperion.utils import load_file
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
 from concurrent.futures import ThreadPoolExecutor
-from hyperion.utils import ProjectPaths, load_file
+from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.threading import Consumer, Producer
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.external_resources_parsing import fetch_urls
