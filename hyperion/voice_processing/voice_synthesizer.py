@@ -35,8 +35,11 @@ class VoiceSynthesizer(Consumer, Producer):
         if google_key_path.exists():
             with open(google_key_path) as f:
                 google_api_key = f.readlines()[0]
-            self._init_google_cloud_synth(google_api_key)
-            self._preferred_engines.append('google_cloud')
+            try:
+                self._init_google_cloud_synth(google_api_key)
+                self._preferred_engines.append('google_cloud')
+            except Exception as e:
+                ProjectLogger().warning(e.message)
 
         self._preferred_engines.append('google_translate')
 
