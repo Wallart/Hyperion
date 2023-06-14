@@ -1,14 +1,15 @@
 from time import time
 from threading import Lock
-from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
 from concurrent.futures import ThreadPoolExecutor
+from hyperion.utils import ProjectPaths, load_file
 from hyperion.utils.threading import Consumer, Producer
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.external_resources_parsing import fetch_urls
-from hyperion.analysis import CHAT_MODELS, acquire_mutex, get_model_token_specs, load_file, build_context_line, sanitize_username
+from hyperion.analysis import CHAT_MODELS, acquire_mutex, get_model_token_specs, build_context_line, sanitize_username
 
+import os
 import queue
 import random
 import openai
@@ -34,7 +35,8 @@ class ChatGPT(Consumer, Producer):
         self._error_sentences = load_file(sentences_path / 'dead')
         self._memory_sentences = load_file(sentences_path / 'memory')
 
-        openai.api_key = load_file(ProjectPaths().resources_dir / 'keys' / 'openai_api.key')[0]
+        openai_api = ProjectPaths().resources_dir / 'keys' / 'openai_api.key'
+        openai.api_key = os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(openai_api)[0]
 
         self._video_ctx = None
         self._video_ctx_timestamp = time()

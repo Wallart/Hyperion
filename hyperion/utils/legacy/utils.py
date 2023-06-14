@@ -9,22 +9,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def get_ctx(args):
-    devices_id = [int(i) for i in args.gpus.split(',') if i.strip()]
-    if torch.cuda.is_available():
-        if len(devices_id) == 0:
-            devices_id = list(range(torch.cuda.device_count()))
-
-        ctx = [torch.device(f'cuda:{i}') for i in devices_id if i >= 0]
-        ctx = ctx if len(ctx) > 0 else [torch.device('cpu')]
-    else:
-        ProjectLogger().warning('Cannot access GPU.')
-        ctx = [torch.device('cpu')]
-
-    ProjectLogger().info('Used context: {}'.format(', '.join([str(x) for x in ctx])))
-    return ctx
-
-
 def save_to_file(path, data, sample_width, sampling_rate=16000):
     """Records from the microphone and outputs the resulting data to 'path'."""
     # sample_width, data = record()

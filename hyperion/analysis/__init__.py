@@ -24,12 +24,6 @@ def sanitize_username(string):
         return None
 
 
-def load_file(path):
-    with open(path) as f:
-        content = f.readlines()
-    return [l.strip() for l in content]
-
-
 def build_context_line(role, content, name=None):
     if name is None:
         return {'role': role, 'content': content}

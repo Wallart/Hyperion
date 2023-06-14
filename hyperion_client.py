@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from hyperion.utils.utils import get_ctx
+from hyperion.utils import get_ctx
 from hyperion.utils.logger import ProjectLogger
 from hyperion.pipelines.listener import Listener
 from hyperion.utils.execution import startup, handle_errors

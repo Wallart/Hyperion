@@ -1,8 +1,8 @@
 from datetime import datetime
 from tinydb import TinyDB, Query
-from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
-from hyperion.analysis import load_file, build_context_line, sanitize_username
+from hyperion.utils import ProjectPaths, load_file
+from hyperion.analysis import build_context_line, sanitize_username
 
 
 class PromptManager:

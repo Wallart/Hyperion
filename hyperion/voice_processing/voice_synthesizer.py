@@ -1,10 +1,11 @@
 from time import time
 from gtts import gTTS
-from hyperion.utils import ProjectPaths
+from hyperion.utils import ProjectPaths, load_file
 from hyperion.utils.logger import ProjectLogger
 from elevenlabs import set_api_key, voices, generate, RateLimitError
 from hyperion.utils.threading import Consumer, Producer
 
+import os
 import io
 import queue
 import torch
@@ -26,15 +27,13 @@ class VoiceSynthesizer(Consumer, Producer):
         eleven_key_path = ProjectPaths().resources_dir / 'keys' / 'elevenlabs_api.key'
         google_key_path = ProjectPaths().resources_dir / 'keys' / 'google_api.key'
 
-        if eleven_key_path.exists():
-            with open(eleven_key_path) as f:
-                eleven_api_key = f.readlines()[0]
+        if eleven_key_path.exists() or 'ELEVENLABS_API' in os.environ:
+            eleven_api_key = load_file(eleven_key_path)[0] if eleven_key_path.exists() else os.environ['ELEVENLABS_API']
             self._init_elevenlabs(eleven_api_key)
             self._preferred_engines.append('eleven')
 
-        if google_key_path.exists():
-            with open(google_key_path) as f:
-                google_api_key = f.readlines()[0]
+        if google_key_path.exists() or 'GOOGLE_API' in os.environ:
+            google_api_key = load_file(google_key_path)[0] if google_key_path.exists() else os.environ['GOOGLE_API']
             try:
                 self._init_google_cloud_synth(google_api_key)
                 self._preferred_engines.append('google_cloud')

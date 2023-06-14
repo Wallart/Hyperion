@@ -23,8 +23,9 @@ RUN chmod +x /usr/bin/hyperion_server
 RUN rm -rf hyperion_tmp/
 
 RUN mkdir -p /root/.hyperion/resources
+RUN mkdir /root/.hyperion/resources/keys
 ADD resources/ssl /root/.hyperion/resources/ssl
-ADD resources/keys /root/.hyperion/resources/keys
+#ADD resources/keys /root/.hyperion/resources/keys
 ADD resources/prompts /root/.hyperion/resources/prompts
 ADD resources/gpt_models.json /root/.hyperion/resources/gpt_models.json
 ADD resources/speakers_samples /root/.hyperion/resources/speakers_samples

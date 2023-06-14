@@ -4,7 +4,7 @@ from uuid import uuid4
 from pathlib import Path
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from hyperion.utils.utils import get_ctx
+from hyperion.utils import get_ctx
 from hyperion.pipelines.brain import Brain
 from flask_socketio import SocketIO, emit
 from hyperion.utils.logger import ProjectLogger

@@ -1,6 +1,5 @@
 from multiprocessing import Lock
-from hyperion.analysis import load_file
-from hyperion.utils import ProjectPaths
+from hyperion.utils import ProjectPaths, load_file
 from llama_index import StorageContext, load_index_from_storage, SimpleDirectoryReader, GPTVectorStoreIndex
 
 import os
