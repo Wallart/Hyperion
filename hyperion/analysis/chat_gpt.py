@@ -7,15 +7,13 @@ from concurrent.futures import ThreadPoolExecutor
 from hyperion.utils.threading import Consumer, Producer
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.external_resources_parsing import fetch_urls
-from hyperion.analysis import MAX_TOKENS, acquire_mutex, get_model_token_specs, load_file, build_context_line, sanitize_username
+from hyperion.analysis import CHAT_MODELS, acquire_mutex, get_model_token_specs, load_file, build_context_line, sanitize_username
 
 import queue
 import random
 import openai
 import tiktoken
 import numpy as np
-
-CHAT_MODELS = ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-32k']
 
 
 class ChatGPT(Consumer, Producer):
@@ -43,7 +41,7 @@ class ChatGPT(Consumer, Producer):
 
     @staticmethod
     def max_tokens(model):
-        max_tokens = MAX_TOKENS[model]
+        max_tokens = CHAT_MODELS[model]
         # Seems that we have to reserve some tokens for chat completion...
         return int(max_tokens - (max_tokens * .05))
 
@@ -51,7 +49,7 @@ class ChatGPT(Consumer, Producer):
         return self._model
 
     def set_model(self, model):
-        if model not in CHAT_MODELS:
+        if model not in CHAT_MODELS.keys():
             return False
         self._model = model
         return True

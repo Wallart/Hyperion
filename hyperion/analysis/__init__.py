@@ -1,14 +1,12 @@
 from unidecode import unidecode
+from hyperion.utils import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 
 import re
+import json
 
-# from openai api
-MAX_TOKENS = {
-    'gpt-3.5-turbo': 4096,
-    'gpt-4': 8192,
-    'gpt-4-32k': 32768
-}
+with open(ProjectPaths().resources_dir / 'gpt_models.json') as f:
+    CHAT_MODELS = json.load(f)
 
 
 def sanitize_username(string):
@@ -51,10 +49,10 @@ def acquire_mutex(fn):
 
 
 def get_model_token_specs(model):
-    if model == 'gpt-3.5-turbo':
+    if model.startswith('gpt-3.5-turbo') and model != 'gpt-3.5-turbo-0301':
         ProjectLogger().debug('gpt-3.5-turbo may change over time. Returning num tokens assuming gpt-3.5-turbo-0301.')
         return get_model_token_specs('gpt-3.5-turbo-0301')
-    elif model == 'gpt-4' or model == 'gpt-4-32k':
+    elif model.startswith('gpt-4') and model != 'gpt-4-0314':
         ProjectLogger().debug('gpt-4 may change over time. Returning num tokens assuming gpt-4-0314.')
         return get_model_token_specs('gpt-4-0314')
     elif model == 'gpt-3.5-turbo-0301':

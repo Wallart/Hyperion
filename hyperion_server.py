@@ -9,7 +9,7 @@ from hyperion.pipelines.brain import Brain
 from flask_socketio import SocketIO, emit
 from hyperion.utils.logger import ProjectLogger
 from multiprocessing.managers import BaseManager
-from hyperion.analysis.chat_gpt import CHAT_MODELS
+from hyperion.analysis import CHAT_MODELS
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
@@ -108,7 +108,7 @@ def set_voice():
 
 @app.route('/models', methods=['GET'])
 def list_models():
-    return CHAT_MODELS, 200
+    return list(CHAT_MODELS.keys()), 200
 
 
 @app.route('/model', methods=['GET'])
@@ -331,7 +331,7 @@ if __name__ == '__main__':
         sub_parser.add_argument('--clear', action='store_true', help='Clean persistent memory at startup')
         sub_parser.add_argument('--no-memory', action='store_true', help='Start bot without persistent memory.')
         sub_parser.add_argument('--name', type=str, default='Hypérion', help='Set bot name.')
-        sub_parser.add_argument('--gpt', type=str, default=CHAT_MODELS[0], choices=CHAT_MODELS, help='GPT version to use.')
+        sub_parser.add_argument('--gpt', type=str, default=list(CHAT_MODELS.keys())[0], choices=CHAT_MODELS.keys(), help='GPT version to use.')
         sub_parser.add_argument('--whisper', type=str, default=TRANSCRIPT_MODELS[3], choices=TRANSCRIPT_MODELS, help='Whisper version to use.')
         sub_parser.add_argument('--prompt', type=str, default='base', help='Prompt file to use.')
 
