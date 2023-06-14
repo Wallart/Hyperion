@@ -26,6 +26,7 @@ RUN mkdir -p /root/.hyperion/resources
 ADD resources/ssl /root/.hyperion/resources/ssl
 ADD resources/keys /root/.hyperion/resources/keys
 ADD resources/prompts /root/.hyperion/resources/prompts
+ADD resources/gpt_models.json /root/.hyperion/resources/gpt_models.json
 ADD resources/speakers_samples /root/.hyperion/resources/speakers_samples
 ADD resources/default_sentences /root/.hyperion/resources/default_sentences
 
