@@ -22,6 +22,7 @@ class InterpretedCommandDetector(Consumer, Producer):
         self.img_delegate = None
         self.img_intake = None
         self._commands_file = ProjectPaths().resources_dir / 'default_sentences' / 'interpreted_commands.json'
+        self._cmd_buffer = ''
 
         with open(self._commands_file) as f:
             self._commands = json.load(f)
@@ -44,20 +45,31 @@ class InterpretedCommandDetector(Consumer, Producer):
                         self._dispatch(request_obj)
                     continue
 
+                text_answer = self._cmd_buffer + request_obj.text_answer
+
                 action = None
                 found_cmd = None
                 found_pattern = None
                 for i, regex_pattern in enumerate(self._commands.values()):
                     found_pattern = fr'{regex_pattern}'
-                    res = re.search(found_pattern, request_obj.text_answer)
+                    res = re.search(found_pattern, text_answer)
                     if res is not None:
                         found_cmd = res.group()
                         action = i
+                        request_obj.text_answer = text_answer
+                        self._cmd_buffer = ''
                         break
 
-                if action is None:
+                    partial_pattern = regex_pattern.split(' ')[0]
+                    res = re.search(fr'{partial_pattern}', text_answer)
+                    comma_count = text_answer.count('"')
+                    if res is not None and comma_count < 2:
+                        self._cmd_buffer = text_answer
+                        break
+
+                if action is None and self._cmd_buffer == '':
                     self._dispatch(request_obj)
-                else:
+                elif action is not None:
                     ProjectLogger().info(f'Command found in "{found_cmd}"')
 
                     ack = RequestObject.copy(request_obj)
