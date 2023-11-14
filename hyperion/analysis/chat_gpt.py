@@ -1,4 +1,5 @@
 from time import time
+from openai import OpenAI
 from threading import Lock
 from hyperion.utils import load_file
 from hyperion.utils.logger import ProjectLogger
@@ -13,7 +14,6 @@ from hyperion.analysis import CHAT_MODELS, acquire_mutex, get_model_token_specs,
 import os
 import queue
 import random
-import openai
 import tiktoken
 import numpy as np
 
@@ -37,7 +37,7 @@ class ChatGPT(Consumer, Producer):
         self._memory_sentences = load_file(sentences_path / 'memory')
 
         openai_api = ProjectPaths().resources_dir / 'keys' / 'openai_api.key'
-        openai.api_key = os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(openai_api)[0]
+        self._client = OpenAI(api_key=os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(openai_api)[0])
 
         self._video_ctx = None
         self._video_ctx_timestamp = time()
@@ -112,11 +112,7 @@ class ChatGPT(Consumer, Producer):
             name = sanitize_username(name)
 
         messages, dropped_messages = self._add_to_context(build_context_line(role, chat_input, name=name), preprompt, llm)
-        response = openai.ChatCompletion.create(
-            model=self._model if llm is None else llm,
-            messages=messages,
-            stream=stream
-        )
+        response = self._client.chat.completions.create(model=self._model if llm is None else llm, messages=messages, stream=stream)
         return response, dropped_messages
 
     def _dispatch_sentence(self, sentence, sentence_num, t0, request_obj):
@@ -167,19 +163,19 @@ class ChatGPT(Consumer, Producer):
                 sentence_num += 1
 
             for chunk in chunked_response:
-                if chunk['choices'][0]['finish_reason'] == 'stop':
+                if chunk.choices[0].finish_reason == 'stop':
                     if sentence != '':
                         self._dispatch_sentence(sentence, sentence_num, t0, request_obj)
                     break
 
-                if chunk['choices'][0]['finish_reason'] == 'length':
+                if chunk.choices[0].finish_reason == 'length':
                     ProjectLogger().warning('Not enough left tokens to generate a complete answer')
                     self._dispatch_memory_warning(request_obj, sentence_num)
                     break
 
-                answer = chunk['choices'][0]['delta']
-                if 'content' in answer:
-                    content = answer['content']
+                answer = chunk.choices[0].delta
+                if hasattr(answer, 'content'):
+                    content = answer.content
                     sentence += content
                     memory += content
 

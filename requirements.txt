@@ -1,6 +1,7 @@
 numpy
-openai
-torch==1.13.1
+openai==1.2.4
+torch==2.0.1
+opencv-python==4.8.0.74
 openai-whisper
 tiktoken
 salesforce-lavis
