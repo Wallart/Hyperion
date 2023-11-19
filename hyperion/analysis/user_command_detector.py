@@ -6,6 +6,7 @@ from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
 from hyperion.utils.threading import Consumer, Producer
 
+import re
 import json
 import shlex
 import queue
@@ -42,35 +43,40 @@ class UserCommandDetector(Consumer, Producer):
                 request_obj = self._consume()
                 t0 = time()
 
-                analyzed_text = request_obj.text_request.lower()
-                action = None
-                for i, sentences in enumerate(self._commands.values()):
-                    for sentence in sentences:
-                        tokens = sentence.lower().split(' ')
-                        found_tokens = sum([1 for t in tokens if t in analyzed_text])
-                        if found_tokens == len(tokens):
-                            action = i
+                # pattern = r'^data:image\/[a-zA-Z]+;base64,'
+                pattern = r'^(data:.*;base64,)'
+                if not re.match(pattern, request_obj.text_request):
+                    analyzed_text = request_obj.text_request.lower()
+                    action = None
+                    for i, sentences in enumerate(self._commands.values()):
+                        for sentence in sentences:
+                            tokens = sentence.lower().split(' ')
+                            found_tokens = sum([1 for t in tokens if t in analyzed_text])
+                            if found_tokens == len(tokens):
+                                action = i
+                                break
+                        if action is not None:
                             break
-                    if action is not None:
-                        break
 
-                if action is None and not self.frozen:
+                    if action is None and not self.frozen:
+                        self._dispatch(request_obj)
+                    elif action is not None:
+                        ProjectLogger().info(f'Command found in "{analyzed_text}"')
+                        termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
+
+                        if action == ACTIONS.WAKE.value:
+                            self._on_wake_up(request_obj, termination_request)
+                        elif not self.frozen:
+                            if action == ACTIONS.SLEEP.value:
+                                self._on_sleep(request_obj, termination_request)
+                            elif action == ACTIONS.WIPE.value:
+                                self._on_memory_wipe(request_obj, termination_request)
+                            elif action == ACTIONS.QUIET.value:
+                                self._on_quiet(request_obj, termination_request)
+                            elif action == ACTIONS.DRAW.value:
+                                self._on_draw(request_obj)
+                elif not self.frozen:
                     self._dispatch(request_obj)
-                elif action is not None:
-                    ProjectLogger().info(f'Command found in "{analyzed_text}"')
-                    termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
-
-                    if action == ACTIONS.WAKE.value:
-                        self._on_wake_up(request_obj, termination_request)
-                    elif not self.frozen:
-                        if action == ACTIONS.SLEEP.value:
-                            self._on_sleep(request_obj, termination_request)
-                        elif action == ACTIONS.WIPE.value:
-                            self._on_memory_wipe(request_obj, termination_request)
-                        elif action == ACTIONS.QUIET.value:
-                            self._on_quiet(request_obj, termination_request)
-                        elif action == ACTIONS.DRAW.value:
-                            self._on_draw(request_obj)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} COMMAND exec. time')
             except queue.Empty:
