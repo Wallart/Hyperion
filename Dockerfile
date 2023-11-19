@@ -16,7 +16,7 @@ ADD hyperion_server.py hyperion_tmp/.
 ADD requirements.txt hyperion_tmp/.
 ADD setup.py hyperion_tmp/.
 
-RUN cd hyperion_tmp; pip install -r requirements.txt; python setup.py install
+RUN cd hyperion_tmp; pip install .
 RUN mv hyperion_tmp/hyperion_server.py /usr/bin/hyperion_server
 RUN chmod +x /usr/bin/hyperion_server
 
