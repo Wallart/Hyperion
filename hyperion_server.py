@@ -67,12 +67,12 @@ def get_tts_engines():
 
 @app.route('/tts-preferred-engines', methods=['GET'])
 def get_preferred_engines():
-    return brain.synthesizer.get_preferred_engines(), 200
+    return brain.voice_synthesizer.get_preferred_engines(), 200
 
 
 @app.route('/tts-preferred-engines', methods=['POST'])
 def set_preferred_engines():
-    res = brain.synthesizer.set_preferred_engines(request.json)
+    res = brain.voice_synthesizer.set_preferred_engines(request.json)
     if not res:
         return 'Invalid ordering', 400
     return 'TTS engines order changed', 200
