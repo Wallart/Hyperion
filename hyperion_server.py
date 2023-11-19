@@ -80,19 +80,19 @@ def set_preferred_engines():
 
 @app.route('/voices', methods=['GET'])
 def get_voices():
-    engine = request.form['engine']
+    engine = request.args.get('engine')
     res = brain.voice_synthesizer.get_engine_valid_voices(engine)
     if not res:
-        return 'Invalid engine', 400
+        return [], 200
     return res, 200
 
 
 @app.route('/voice', methods=['GET'])
 def get_voice():
-    engine = request.form['engine']
+    engine = request.args.get('engine')
     res = brain.voice_synthesizer.get_engine_default_voice(engine)
     if not res:
-        return 'Invalid engine', 400
+        return '', 200
     return res, 200
 
 
