@@ -49,7 +49,12 @@ class PromptManager:
         self._preprompt[preprompt_name] = context
 
     def _customize_preprompt(self, message):
-        return message.replace('{name}', self._bot_name).replace('{date}', datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
+        if type(message) == str:
+            # TODO Will be deprecated when gpt4-vision will be the main model
+            message = message.replace('{name}', self._bot_name).replace('{date}', datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
+        else:
+            message[0]['text'] = message[0]['text'].replace('{name}', self._bot_name).replace('{date}', datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
+        return message
 
     def _get_db(self, preprompt_name):
         preprompt_name = self._current_preprompt_name if preprompt_name is None else preprompt_name

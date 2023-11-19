@@ -1,6 +1,7 @@
 from time import time
 from openai import OpenAI
 from threading import Lock
+from openai._types import NOT_GIVEN
 from hyperion.utils import load_file
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
@@ -58,14 +59,25 @@ class ChatGPT(Consumer, Producer):
         return True
 
     def _tokens_count(self, messages, llm=None):
-        """Returns the number of tokens used by a list of messages."""
+        """
+        Returns the number of tokens used by a list of messages.
+        See https://platform.openai.com/docs/guides/vision for images token count.
+        """
         tokens_per_message, tokens_per_name = get_model_token_specs(self._model if llm is None else llm)
 
         num_tokens = 0
         for message in messages:
             num_tokens += tokens_per_message
             for key, value in message.items():
-                num_tokens += len(self._tokenizer.encode(value))
+                if type(value) == str:
+                    num_tokens += len(self._tokenizer.encode(value))
+                elif value[0]['type'] == 'text':
+                    num_tokens += len(self._tokenizer.encode(value[0]['text']))
+                elif value[0]['image_url']['detail'] == 'low':
+                    num_tokens += 85
+                elif value[0]['image_url']['detail'] == 'high':
+                    raise NotImplementedError('Depend of image size and may vary.')
+
                 if key == 'name':
                     num_tokens += tokens_per_name
         num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
@@ -112,7 +124,9 @@ class ChatGPT(Consumer, Producer):
             name = sanitize_username(name)
 
         messages, dropped_messages = self._add_to_context(build_context_line(role, chat_input, name=name), preprompt, llm)
-        response = self._client.chat.completions.create(model=self._model if llm is None else llm, messages=messages, stream=stream)
+        # TODO vision-preview workaround for cutted sentences
+        max_tokens = 4096 if 'vision-preview' in llm else NOT_GIVEN
+        response = self._client.chat.completions.create(model=self._model if llm is None else llm, messages=messages, stream=stream, max_tokens=max_tokens)
         return response, dropped_messages
 
     def _dispatch_sentence(self, sentence, sentence_num, t0, request_obj):
@@ -173,8 +187,15 @@ class ChatGPT(Consumer, Producer):
                     self._dispatch_memory_warning(request_obj, sentence_num)
                     break
 
+                # TODO vision-preview workaround
+                if chunk.choices[0].model_extra['finish_details'] == 'length':
+                    ProjectLogger().warning('vision-preview issue')
+                    self._dispatch_sentence(sentence, sentence_num, t0, request_obj)
+                    self._dispatch_memory_warning(request_obj, sentence_num)
+                    break
+
                 answer = chunk.choices[0].delta
-                if hasattr(answer, 'content'):
+                if hasattr(answer, 'content') and answer.content is not None:
                     content = answer.content
                     sentence += content
                     memory += content
