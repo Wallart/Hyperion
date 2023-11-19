@@ -188,7 +188,7 @@ class ChatGPT(Consumer, Producer):
                     break
 
                 # TODO vision-preview workaround
-                if chunk.choices[0].model_extra['finish_details'] == 'length':
+                if 'finish_details' in chunk.choices[0].model_extra and chunk.choices[0].model_extra['finish_details'] == 'length':
                     ProjectLogger().warning('vision-preview issue')
                     self._dispatch_sentence(sentence, sentence_num, t0, request_obj)
                     self._dispatch_memory_warning(request_obj, sentence_num)
