@@ -50,9 +50,9 @@ class PromptManager:
 
     def _customize_preprompt(self, message):
         if type(message) == str:
-            # TODO Will be deprecated when gpt4-vision will be the main model
             message = message.replace('{name}', self._bot_name).replace('{date}', datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
         else:
+            # TODO Handle multi-messages
             message[0]['text'] = message[0]['text'].replace('{name}', self._bot_name).replace('{date}', datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
         return message
 

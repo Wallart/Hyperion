@@ -25,6 +25,10 @@ def sanitize_username(string):
 
 
 def build_context_line(role, content, name=None):
+    splitted = content.split(';')
+    if len(splitted) > 1 and splitted[1].startswith('base64'):
+        content = [{'type': 'image_url', 'image_url': {'url': content, 'detail': 'low'}}]
+
     if name is None:
         return {'role': role, 'content': content}
     return {'role': role, 'content': content, 'name': name}
