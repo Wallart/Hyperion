@@ -177,22 +177,22 @@ class ChatGPT(Consumer, Producer):
                 sentence_num += 1
 
             for chunk in chunked_response:
-                if chunk.choices[0].finish_reason == 'stop':
+                finish_reason = chunk.choices[0].finish_reason
+                # TODO vision-preview support
+                if 'finish_details' in chunk.choices[0].model_extra and chunk.choices[0].model_extra['finish_details'] is not None:
+                    finish_reason = chunk.choices[0].model_extra['finish_details']['type']
+
+                if finish_reason == 'stop':
                     if sentence != '':
                         self._dispatch_sentence(sentence, sentence_num, t0, request_obj)
                     break
-
-                if chunk.choices[0].finish_reason == 'length':
+                elif finish_reason == 'length':
                     ProjectLogger().warning('Not enough left tokens to generate a complete answer')
                     self._dispatch_memory_warning(request_obj, sentence_num)
                     break
-
-                # TODO vision-preview workaround
-                if 'finish_details' in chunk.choices[0].model_extra and chunk.choices[0].model_extra['finish_details'] == 'length':
-                    ProjectLogger().warning('vision-preview issue')
-                    self._dispatch_sentence(sentence, sentence_num, t0, request_obj)
-                    self._dispatch_memory_warning(request_obj, sentence_num)
-                    break
+                elif finish_reason is not None:
+                    ProjectLogger().warning('Unsupported finish reason')
+                    self._dispatch_error(sentence_num, request_obj)
 
                 answer = chunk.choices[0].delta
                 if hasattr(answer, 'content') and answer.content is not None:
