@@ -119,6 +119,12 @@ class ChatGPT(Consumer, Producer):
             self._video_ctx = frame_description
             self._video_ctx_timestamp = time()
 
+    @acquire_mutex
+    def add_document_context(self, pages, preprompt):
+        for page in pages:
+            messages = [build_context_line('system', s.strip()) for s in page.split('.')]
+            _ = [self.prompt_manager.insert(message, preprompt) for message in messages]
+
     def answer(self, chat_input, role='user', name=None, preprompt=None, llm=None, stream=True):
         if name is not None:
             name = sanitize_username(name)

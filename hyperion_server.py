@@ -19,6 +19,7 @@ from hyperion.voice_processing.voice_transcriber import TRANSCRIPT_MODELS
 from flask import Flask, Response, request, g, stream_with_context
 
 import os
+import io
 import json
 import argparse
 
@@ -269,8 +270,8 @@ def query_knowledge_base():
     return str(response._getvalue()), 200
 
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
+@app.route('/upload-to-knowledge-base', methods=['POST'])
+def upload_file_to_knowledge_base():
     index_name = request.form['index_name']
     if len(request.files) == 0:
         return 'No file(s) found.', 400
@@ -296,6 +297,28 @@ def upload_file():
                 os.remove(filepath)
 
     return 'File(s) indexed.', 200
+
+
+@app.route('/upload-to-context', methods=['POST'])
+def upload_file_to_context():
+    if len(request.files) == 0:
+        return 'No file(s) found.', 400
+
+    request_sid, preprompt, _, _, _, _ = get_headers_params()
+
+    files_added = 0
+    for k, v in request.files.items():
+        if v.mimetype != 'application/pdf':
+            ProjectLogger().error(f'{v.mimetype} not supported.')
+            continue
+
+        brain.handle_document(io.BytesIO(v.read()), preprompt)
+        files_added += 1
+
+    if files_added > 0:
+        return 'File(s) added to context.', 200
+    else:
+        return 'No file added. Invalid format', 500
 
 
 @app.before_request

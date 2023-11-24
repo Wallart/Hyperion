@@ -1,4 +1,5 @@
 from PIL import Image
+from pypdf import PdfReader
 from hyperion.utils.paths import ProjectPaths
 from hyperion.audio import int16_to_float32
 from hyperion.analysis.chat_gpt import ChatGPT
@@ -189,3 +190,8 @@ class Brain:
         jpg_image = Image.open(io.BytesIO(frame))
         frame = np.asarray(jpg_image)
         self.vqa_intake.put(frame)
+
+    def handle_document(self, binary_stream, preprompt=None):
+        reader = PdfReader(binary_stream)
+        pages = [page.extract_text() for page in reader.pages]
+        self.chat_gpt.add_document_context(pages, preprompt)
