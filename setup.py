@@ -24,7 +24,7 @@ opts = {
     'author': 'Julien WALLART',
     'author_email': 'julien.wallart@outlook.com',
     'name': 'hyperion',
-    'version': '1.3',
+    'version': '1.3.1',
     'packages': found_packages,
     'install_requires': pip_list,
     'dependency_links': download_list,

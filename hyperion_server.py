@@ -145,6 +145,15 @@ def set_prompt():
     return 'Default prompt changed', 200
 
 
+@app.route('/read-prompt/<string:prompt_name>', methods=['GET'])
+def read_prompt(prompt_name):
+    try:
+        prompt_content = PromptManager.read_prompt(prompt_name)
+        return prompt_content, 200
+    except Exception:
+        return f'Unable to read prompt {prompt_name}', 500
+
+
 @app.route('/upload-prompts', methods=['POST'])
 def upload_prompts():
     if len(request.files) == 0:

@@ -78,6 +78,11 @@ class PromptManager:
         return processed_preprompt
 
     @staticmethod
+    def read_prompt(prompt_name):
+        content = load_file(ProjectPaths().resources_dir / 'prompts' / prompt_name)
+        return content
+
+    @staticmethod
     def list_prompts():
         prompts = [p.stem for p in (ProjectPaths().resources_dir / 'prompts').glob('*')]
         return prompts
