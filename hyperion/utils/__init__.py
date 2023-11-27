@@ -19,7 +19,10 @@ def get_ctx(args):
     return ctx
 
 
-def load_file(path):
+def load_file(path, strip=True):
     with open(path) as f:
         content = f.readlines()
-    return [l.strip() for l in content]
+    if strip:
+        return [l.strip() for l in content]
+
+    return content

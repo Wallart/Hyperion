@@ -149,7 +149,7 @@ def set_prompt():
 def read_prompt(prompt_name):
     try:
         prompt_content = PromptManager.read_prompt(prompt_name)
-        return prompt_content, 200
+        return ''.join(prompt_content), 200
     except Exception:
         return f'Unable to read prompt {prompt_name}', 500
 

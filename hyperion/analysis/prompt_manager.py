@@ -79,7 +79,7 @@ class PromptManager:
 
     @staticmethod
     def read_prompt(prompt_name):
-        content = load_file(ProjectPaths().resources_dir / 'prompts' / prompt_name)
+        content = load_file(ProjectPaths().resources_dir / 'prompts' / prompt_name, strip=False)
         return content
 
     @staticmethod
