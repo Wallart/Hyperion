@@ -145,6 +145,23 @@ def set_prompt():
     return 'Default prompt changed', 200
 
 
+@app.route('/upload-prompts', methods=['POST'])
+def upload_prompts():
+    if len(request.files) == 0:
+        return 'No file(s) found.', 400
+
+    save_count = PromptManager.save_prompts(request.files.to_dict())
+    return f'{save_count} prompt(s) saved', 200
+
+
+@app.route('/delete-prompt/<string:prompt_name>', methods=['DELETE'])
+def delete_prompt(prompt_name):
+    deleted = PromptManager.delete_prompt(prompt_name)
+    if deleted:
+        return f'{prompt_name} has been deleted', 200
+    return f'{prompt_name} not found', 400
+
+
 @app.route('/speech', methods=['POST'])
 def http_speech_stream():
     request_id = current_request_id()

@@ -5,6 +5,8 @@ from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.paths import ProjectPaths
 from hyperion.analysis import build_context_line, sanitize_username
 
+import os
+
 
 class PromptManager:
 
@@ -79,6 +81,32 @@ class PromptManager:
     def list_prompts():
         prompts = [p.stem for p in (ProjectPaths().resources_dir / 'prompts').glob('*')]
         return prompts
+
+    @staticmethod
+    def delete_prompt(prompt_name):
+        prompts = [p.stem for p in (ProjectPaths().resources_dir / 'prompts').glob(prompt_name)]
+        if len(prompts) > 0:
+            prompt_path = ProjectPaths().resources_dir / 'prompts' / prompts[0]
+            prompt_path.unlink()
+            return True
+        return False
+
+    @staticmethod
+    def save_prompts(prompts_dict):
+        count = 0
+        upload_dir = ProjectPaths().resources_dir / 'prompts'
+        for filename, uploaded_file in prompts_dict.items():
+            filename = os.path.splitext(filename)[0]
+            mimetype = uploaded_file.content_type
+            if mimetype == 'text/plain':
+                try:
+                    filepath = upload_dir / filename
+                    uploaded_file.save(filepath)
+                    count += 1
+                except Exception:
+                    ProjectLogger().warning(f'Unable to save prompt {filename}')
+
+        return count
 
     def get_prompt(self):
         return self._current_preprompt_name
