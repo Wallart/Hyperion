@@ -1,6 +1,7 @@
 from datetime import datetime
 from tinydb import TinyDB, Query
 from hyperion.utils import load_file
+from werkzeug.utils import secure_filename
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.paths import ProjectPaths
 from hyperion.analysis import build_context_line, sanitize_username
@@ -101,7 +102,7 @@ class PromptManager:
         count = 0
         upload_dir = ProjectPaths().resources_dir / 'prompts'
         for filename, uploaded_file in prompts_dict.items():
-            filename = os.path.splitext(filename)[0]
+            filename = secure_filename(os.path.splitext(filename)[0])
             mimetype = uploaded_file.content_type
             if mimetype == 'text/plain':
                 try:
