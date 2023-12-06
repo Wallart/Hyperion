@@ -58,8 +58,7 @@ class Memory:
             try:
                 self._load_index(index_name)
                 if index_name in self._index:
-                    doc_infos = self._index[index_name].ref_doc_info.values()
-                    docs = [Path(e.metadata['file_path']).name for e in doc_infos]
+                    docs = self._index[index_name].ref_doc_info.keys()
             except Exception:
                 pass
 
@@ -67,10 +66,15 @@ class Memory:
 
     def insert_into_index(self, index_name, doc_id, document_path):
         ProjectLogger().info(f'Inserting {doc_id} to index {index_name}')
-        document = SimpleDirectoryReader(input_files=[document_path]).load_data()[0]
-        document.doc_id = doc_id
-
-        self._initialize_index(index_name, document)
+        documents = SimpleDirectoryReader(input_files=[document_path]).load_data()
+        for i, document in enumerate(documents, start=1):
+            if len(documents) > 1:
+                new_doc_id = list(os.path.splitext(doc_id))
+                new_doc_id.insert(0, f'page_{i}-')
+                document.doc_id = ''.join(new_doc_id)
+            else:
+                document.doc_id = doc_id
+            self._initialize_index(index_name, document)
 
     def delete_from_index(self, index_name, doc_id):
         ProjectLogger().info(f'Deleting {doc_id} from index {index_name}')
