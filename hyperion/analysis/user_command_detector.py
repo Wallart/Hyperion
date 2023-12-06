@@ -125,9 +125,10 @@ class UserCommandDetector(Consumer, Producer):
         self._decompose_args(request_obj, parser, 'QUERY')
         if len(request_obj.indexes) > 0:
             try:
+                request_obj.text_answer = ''
                 for index in request_obj.indexes:
                     response = self._memoryManager.query_index(index, request_obj.command_args['query'])
-                    request_obj.text_answer = str(response._getvalue())
+                    request_obj.text_answer += str(response._getvalue())
                     request_obj.text_answer += '\n'
 
                 self._put(request_obj, request_obj.identifier)
