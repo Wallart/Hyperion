@@ -31,6 +31,7 @@ class RequestObject:
         self.audio_answer = None
         self.image_answer = None
         self.command_args = dict()
+        self.indexes = []
 
     @staticmethod
     def copy(request):
@@ -42,6 +43,9 @@ class RequestObject:
             self.audio_request = audio_buffer
         else:
             self.audio_request = int16_to_float32(np.frombuffer(audio_buffer, dtype=np.int16))
+
+    def set_indexes(self, indexes):
+        self.indexes = indexes
 
     def set_speech_engine(self, engine):
         self.speech_engine = engine

@@ -10,10 +10,10 @@ from flask_socketio import SocketIO, emit
 from hyperion.utils.logger import ProjectLogger
 from multiprocessing.managers import BaseManager
 from hyperion.analysis import CHAT_MODELS
+from hyperion.utils.manager_utils import MANAGER_TOKEN
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
-
 from hyperion.voice_processing.voice_synthesizer import VALID_ENGINES
 from hyperion.voice_processing.voice_transcriber import TRANSCRIPT_MODELS
 from flask import Flask, Response, request, g, stream_with_context
@@ -38,7 +38,8 @@ def get_headers_params():
     speech_engine = request.headers['speech_engine'] if 'speech_engine' in request.headers else None
     voice = request.headers['voice'] if 'voice' in request.headers else None
     silent = json.loads(request.headers['silent'].lower()) if 'silent' in request.headers else False
-    return request_sid, preprompt, llm, speech_engine, voice, silent
+    indexes = request.headers['indexes'].split(',') if 'indexes' in request.headers else []
+    return request_sid, preprompt, llm, speech_engine, voice, silent, indexes
 
 
 @sio.on('connect')
@@ -174,12 +175,12 @@ def delete_prompt(prompt_name):
 @app.route('/speech', methods=['POST'])
 def http_speech_stream():
     request_id = current_request_id()
-    request_sid, preprompt, llm, speech_engine, voice, silent = get_headers_params()
+    request_sid, preprompt, llm, speech_engine, voice, silent, indexes = get_headers_params()
 
     speech = request.files['speech'].read()
     speaker = request.files['speaker'].read().decode('utf-8')
 
-    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent)
+    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent, indexes)
 
     if brain.user_commands.frozen:
         return 'I\'m a teapot', 418
@@ -190,7 +191,7 @@ def http_speech_stream():
 @app.route('/audio', methods=['POST'])
 def http_audio_stream():
     request_id = current_request_id()
-    request_sid, preprompt, llm, speech_engine, voice, silent = get_headers_params()
+    request_sid, preprompt, llm, speech_engine, voice, silent, indexes = get_headers_params()
 
     audio = request.files['audio'].read() if 'audio' in request.files else request.data
 
@@ -198,7 +199,7 @@ def http_audio_stream():
     if speaker is None and speech is None:
         return 'No speech detected', 204
 
-    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent)
+    stream = brain.handle_speech(request_id, request_sid, speaker, speech, preprompt, llm, speech_engine, voice, silent, indexes)
 
     if brain.user_commands.frozen:
         return 'I\'m a teapot', 418
@@ -238,7 +239,7 @@ def sio_audio_stream(audio):
 @app.route('/chat', methods=['POST'])
 def http_chat():
     request_id = current_request_id()
-    request_sid, preprompt, llm, speech_engine, voice, silent = get_headers_params()
+    request_sid, preprompt, llm, speech_engine, voice, silent, indexes = get_headers_params()
 
     user = request.form['user']
     message = request.form['message']
@@ -254,7 +255,7 @@ def http_chat():
         brain.user_commands.frozen = False
         return 'Unfreezed', 202
 
-    stream = brain.handle_chat(request_id, request_sid, user, message, preprompt, llm, speech_engine, voice, silent)
+    stream = brain.handle_chat(request_id, request_sid, user, message, preprompt, llm, speech_engine, voice, silent, indexes)
     return Response(response=stream_with_context(stream), mimetype='application/octet-stream')
 
 
@@ -285,20 +286,48 @@ def video_stream():
     return 'Frame processed', 200
 
 
-@app.route('/query', methods=['GET'])
-def query_knowledge_base():
-    index_name = request.args.get('index', None)
-    query_value = request.args.get('value', None)
-    if query_value is None or index_name is None:
-        return 'Missing index or query param', 400
+@app.route('/index', methods=['GET'])
+def list_indexes():
+    response = memoryManager.list_indexes()
+    return response._getvalue(), 200
 
-    response = memoryManager.query_index(index_name, query_value)
+
+@app.route('/index/<string:index>', methods=['POST'])
+def create_index(index):
+    _ = memoryManager.create_empty_index(index)
+    return f'Index {index} created', 200
+
+
+@app.route('/index/<string:index>', methods=['DELETE'])
+def delete_index(index):
+    _ = memoryManager.delete_index(index)
+    return f'Index {index} deleted', 200
+
+
+@app.route('/index/<string:index>/documents', methods=['GET'])
+def list_documents(index):
+    response = memoryManager.list_documents(index)
+    return response._getvalue(), 200
+
+
+@app.route('/index/<string:index>/documents/<string:doc_id>', methods=['DELETE'])
+def delete_from_index(index, doc_id):
+    _ = memoryManager.delete_from_index(index, doc_id)
+    return f'{doc_id} deleted from index {index}', 200
+
+
+@app.route('/index/<string:index>/query', methods=['GET'])
+def query_index(index):
+    query_value = request.args.get('value', None)
+    if query_value is None:
+        return 'Missing query param', 400
+
+    response = memoryManager.query_index(index, query_value)
     return str(response._getvalue()), 200
 
 
-@app.route('/upload-to-knowledge-base', methods=['POST'])
-def upload_file_to_knowledge_base():
-    index_name = request.form['index_name']
+@app.route('/index/<string:index>/upload', methods=['POST'])
+def upload_file_to_index(index):
     if len(request.files) == 0:
         return 'No file(s) found.', 400
 
@@ -308,14 +337,11 @@ def upload_file_to_knowledge_base():
     for fileindex, uploaded_file in request.files.items():
         filepath = None
         try:
-            # filename = secure_filename(uploaded_file.filename)
-            filepath = upload_dir / str(uuid4())
+            filename = secure_filename(uploaded_file.filename)
+            filepath = upload_dir / filename
             uploaded_file.save(filepath)
 
-            # if request.form.get('filename_as_doc_id', None) is not None:
-            #     manager.insert_into_index(filepath, doc_id=filename)
-            # else:
-            memoryManager.insert_into_index(index_name, str(filepath))
+            memoryManager.insert_into_index(index, filename, str(filepath))
         except Exception as e:
             return f'File upload failed. {str(e)}', 500
         finally:
@@ -330,7 +356,7 @@ def upload_file_to_context():
     if len(request.files) == 0:
         return 'No file(s) found.', 400
 
-    request_sid, preprompt, _, _, _, _ = get_headers_params()
+    request_sid, preprompt, _, _, _, _, _ = get_headers_params()
 
     files_added = 0
     for k, v in request.files.items():
@@ -364,10 +390,15 @@ def main(args):
     global brain
     global memoryManager
 
-    # memoryManager = BaseManager(('', 5602), b'password')
-    # memoryManager.register('query_index')
-    # memoryManager.register('insert_into_index')
-    # memoryManager.connect()
+    memoryManager = BaseManager(('', 5602), bytes(MANAGER_TOKEN, encoding='utf8'))
+    memoryManager.register('list_indexes')
+    memoryManager.register('create_empty_index')
+    memoryManager.register('query_index')
+    memoryManager.register('delete_index')
+    memoryManager.register('insert_into_index')
+    memoryManager.register('delete_from_index')
+    memoryManager.register('list_documents')
+    memoryManager.connect()
 
     ctx = get_ctx(args)
     brain = Brain(ctx, args)

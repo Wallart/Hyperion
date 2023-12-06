@@ -3,5 +3,6 @@
   "WAKE": ["Réveille toi", "Debout feignasse"],
   "WIPE": ["Oublie conversation", "Oublie contexte", "Efface contexte", "Efface conversation"],
   "QUIET": ["Ta gueule", "Ça suffit", "Merci c'est bon", "tais toi", "Ça ira merci"],
-  "DRAW": ["/draw"]
+  "DRAW": ["/draw"],
+  "QUERY": ["/query"]
 }

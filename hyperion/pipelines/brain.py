@@ -143,10 +143,11 @@ class Brain:
         request_obj.set_voice(voice)
         request_obj.set_silent(silent)
 
-    def handle_speech(self, request_id, request_sid, speaker, speech, preprompt=None, llm=None, speech_engine=None, voice=None, silent=False):
+    def handle_speech(self, request_id, request_sid, speaker, speech, preprompt=None, llm=None, speech_engine=None, voice=None, silent=False, indexes=[]):
         request_obj = RequestObject(request_id, speaker)
         request_obj.socket_id = request_sid
         request_obj.set_audio_request(speech)
+        request_obj.set_indexes(indexes)
         Brain._customize_request(request_obj, preprompt, llm, speech_engine, voice, silent)
 
         sink = self.create_identified_sink(request_id)
@@ -155,10 +156,11 @@ class Brain:
         stream = self.sink_streamer(sink)
         return stream
 
-    def handle_chat(self, request_id, request_sid, user, message, preprompt=None, llm=None, speech_engine=None, voice=None, silent=False):
+    def handle_chat(self, request_id, request_sid, user, message, preprompt=None, llm=None, speech_engine=None, voice=None, silent=False, indexes=[]):
         request_obj = RequestObject(request_id, user)
         request_obj.socket_id = request_sid
         request_obj.set_text_request(message)
+        request_obj.set_indexes(indexes)
         Brain._customize_request(request_obj, preprompt, llm, speech_engine, voice, silent)
 
         sink = self.create_identified_sink(request_id)
