@@ -45,11 +45,11 @@ RUN mkdir -p /etc/service/hyperion_server/
 RUN <<EOF cat > /etc/service/hyperion_server/run
 #!/bin/bash
 name_opt=""
-if [[ -n $NAME ]]
+if [[ -n \$NAME ]]
 then
-    name_opt="--name $NAME"
+    name_opt="--name \$NAME"
 fi
-/usr/bin/hyperion_server --foreground restart --port 6450 $name_opt
+/usr/bin/hyperion_server --foreground restart --port 6450 \$name_opt
 EOF
 RUN chmod 755 /etc/service/hyperion_server/run
 
