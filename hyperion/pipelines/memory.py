@@ -14,7 +14,7 @@ class Memory:
         self._index = {}
         self._lock = Lock()
         self._indexes_dir = ProjectPaths().resources_dir / 'indexes'
-        os.environ['OPENAI_API_KEY'] = load_file(ProjectPaths().resources_dir / 'keys' / 'openai_api.key')[0]
+        os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(ProjectPaths().resources_dir / 'keys' / 'openai_api.key')[0]
 
     def _load_all_indexes(self):
         indexes = self.list_indexes()

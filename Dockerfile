@@ -44,7 +44,12 @@ RUN chmod 755 /etc/service/memory_server/run
 RUN mkdir -p /etc/service/hyperion_server/
 RUN <<EOF cat > /etc/service/hyperion_server/run
 #!/bin/bash
-/usr/bin/hyperion_server --foreground restart --port 6450
+name_opt=""
+if [[ -n $NAME ]]
+then
+    name_opt="--name $NAME"
+fi
+/usr/bin/hyperion_server --foreground restart --port 6450 $name_opt
 EOF
 RUN chmod 755 /etc/service/hyperion_server/run
 
