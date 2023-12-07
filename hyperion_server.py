@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-from time import time
-from uuid import uuid4
 from pathlib import Path
 from flask_cors import CORS
+from time import time, sleep
 from hyperion.utils import get_ctx
 from werkzeug.utils import secure_filename
 from hyperion.pipelines.brain import Brain
@@ -398,7 +397,14 @@ def main(args):
     memoryManager.register('insert_into_index')
     memoryManager.register('delete_from_index')
     memoryManager.register('list_documents')
-    memoryManager.connect()
+    while True:
+        try:
+            memoryManager.connect()
+            break
+        except Exception:
+            timeout = 10
+            ProjectLogger().info(f'Memory server not yet started. Waiting {timeout} sec(s)...')
+            sleep(timeout)
 
     ctx = get_ctx(args)
     brain = Brain(ctx, args)

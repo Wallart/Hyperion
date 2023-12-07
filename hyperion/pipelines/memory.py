@@ -1,5 +1,4 @@
 from typing import List
-from pathlib import Path
 from multiprocessing import Lock
 from hyperion.utils import load_file, ProjectLogger
 from hyperion.utils.paths import ProjectPaths
@@ -71,7 +70,7 @@ class Memory:
         for i, document in enumerate(documents, start=1):
             if len(documents) > 1:
                 new_doc_id = list(os.path.splitext(doc_id))
-                new_doc_id.insert(0, f'page_{i}-')
+                new_doc_id.append(f' [page {i}]')
                 document.doc_id = ''.join(new_doc_id)
             else:
                 document.doc_id = doc_id
