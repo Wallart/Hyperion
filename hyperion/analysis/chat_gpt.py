@@ -119,6 +119,9 @@ class ChatGPT(Consumer, Producer):
             self._video_ctx = frame_description
             self._video_ctx_timestamp = time()
 
+    def add_indexes_context(self, query_res, preprompt, llm):
+        _ = self._add_to_context(build_context_line('assistant', query_res), preprompt, llm)
+
     @acquire_mutex
     def add_document_context(self, pages, preprompt):
         for page in pages:

@@ -3,6 +3,8 @@ from time import time
 from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
+from multiprocessing.managers import BaseManager
+from hyperion.utils.manager_utils import MANAGER_TOKEN
 from hyperion.utils.threading import Consumer, Producer
 
 import re
@@ -14,11 +16,13 @@ import argparse
 
 class ACTIONS(Enum):
     DRAW = 0
+    QUERY = 1
 
 
 class InterpretedCommandDetector(Consumer, Producer):
     def __init__(self):
         super().__init__()
+        self.chat_delegate = None
         self.img_delegate = None
         self.img_intake = None
         self._commands_file = ProjectPaths().resources_dir / 'default_sentences' / 'interpreted_commands.json'
@@ -26,6 +30,13 @@ class InterpretedCommandDetector(Consumer, Producer):
 
         with open(self._commands_file) as f:
             self._commands = json.load(f)
+
+        self._memoryManager = BaseManager(('', 5602), bytes(MANAGER_TOKEN, encoding='utf8'))
+        self._memoryManager.register('query_index')
+        self._memoryManager.connect()
+
+    def set_chat_delegate(self, chat_delegate):
+        self.chat_delegate = chat_delegate
 
     def set_img_delegate(self, img_delegate):
         self.img_delegate = img_delegate
@@ -79,7 +90,9 @@ class InterpretedCommandDetector(Consumer, Producer):
                     self._dispatch(ack)
 
                     if action == ACTIONS.DRAW.value:
-                        self._on_draw(found_cmd, found_pattern, request_obj)
+                        self._argparsed_command(self._on_draw, found_cmd, found_pattern, request_obj)
+                    elif action == ACTIONS.QUERY.value:
+                        self._argparsed_command(self._on_query, found_cmd, found_pattern, request_obj)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} COMMAND exec. time')
             except queue.Empty:
@@ -97,14 +110,52 @@ class InterpretedCommandDetector(Consumer, Producer):
         parser.add_argument('-m', '--mosaic', action='store_true')
         parser.add_argument('sentence', type=str)
 
-        try:
-            tokens = [t for t in shlex.split(command_line) if t != '/draw']
-            args = parser.parse_args(tokens)
-            for k, v in vars(args).items():
-                request_obj.command_args[k] = v
+        args = self._decompose_args(request_obj, parser, command_line, 'DRAW')
+        request_obj.text_answer = re.sub(regex_pattern, f'"{args.sentence}"', request_obj.text_answer)
+        self.img_intake.put(request_obj)
 
-            request_obj.text_answer = re.sub(regex_pattern, f'"{args.sentence}"', request_obj.text_answer)
-            self.img_intake.put(request_obj)
+    def _on_query(self, command_line, regex_pattern, request_obj):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('query', type=str)
+        args = self._decompose_args(request_obj, parser, command_line, 'QUERY')
+        request_obj.text_answer = re.sub(regex_pattern, f'"{args.query}"', request_obj.text_answer)
+
+        if len(request_obj.indexes) > 0:
+            try:
+                request_obj.text_answer += '\n'
+                for index in request_obj.indexes:
+                    response = self._memoryManager.query_index(index, args.query)
+                    if response is not None:
+                        sanitized_resp = str(response._getvalue())
+                        request_obj.text_answer += sanitized_resp
+                        request_obj.text_answer += '\n'
+
+                        self.chat_delegate.add_indexes_context(sanitized_resp, request_obj.preprompt, request_obj.llm)
+
+                self._dispatch(request_obj)
+            except Exception as e:
+                err = RequestObject.copy(request_obj)
+                err.text_answer = '<ERR>'
+                err.silent = True
+                err.priority = 0
+                self._dispatch(err)
+
+                err_request = RequestObject.copy(request_obj)
+                err_request.text_answer = str(e)
+                err_request.silent = True
+                self._dispatch(err_request)
+
+    def _decompose_args(self, request_obj, parser, command_line, command_name):
+        cmd_token = self._commands[command_name].split(' "')[0]
+        tokens = [t for t in shlex.split(command_line) if t != cmd_token]
+        args = parser.parse_args(tokens)
+        for k, v in vars(args).items():
+            request_obj.command_args[k] = v
+        return args
+
+    def _argparsed_command(self, func, found_cmd, found_pattern, request_obj):
+        try:
+            func(found_cmd, found_pattern, request_obj)
         except (SystemExit, ValueError) as e:
             err = RequestObject.copy(request_obj)
             err.text_answer = '<ERR>'

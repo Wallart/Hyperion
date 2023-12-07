@@ -61,6 +61,7 @@ class Brain:
 
         # delegates
         self.visual_answering.set_chat_delegate(self.chat_gpt)
+        self.interp_commands.set_chat_delegate(self.chat_gpt)
         self.user_commands.set_img_intake(self.images_gen_intake)
         self.interp_commands.set_img_delegate(self.images_gen)
         self.images_gen.set_synthesizer_intake(self.synthesizer_intake)
