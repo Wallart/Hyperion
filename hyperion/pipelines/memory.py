@@ -45,7 +45,7 @@ class Memory:
         ProjectLogger().info(f'Creating empty index {index}')
         with self._lock:
             index_path = self._indexes_dir / index
-            index_path.mkdir(exist_ok=True)
+            os.makedirs(index_path, exist_ok=True)
 
     def list_indexes(self):
         ProjectLogger().info('Listing indexes')
