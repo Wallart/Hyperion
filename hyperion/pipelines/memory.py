@@ -38,7 +38,8 @@ class Memory:
                 self._index[index_name].insert(document)
             else:
                 self._index[index_name] = VectorStoreIndex.from_documents([document])
-                self._index[index_name].storage_context.persist(self._indexes_dir / index_name)
+
+            self._index[index_name].storage_context.persist(self._indexes_dir / index_name)
 
     def create_empty_index(self, index):
         ProjectLogger().info(f'Creating empty index {index}')
