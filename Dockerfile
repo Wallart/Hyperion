@@ -13,12 +13,15 @@ RUN apt update && \
 RUN mkdir hyperion_tmp
 ADD hyperion/ hyperion_tmp/hyperion
 ADD hyperion_server.py hyperion_tmp/.
+ADD memory_server.py hyperion_tmp/.
 ADD requirements.txt hyperion_tmp/.
 ADD setup.py hyperion_tmp/.
 
 RUN cd hyperion_tmp; pip install .
 RUN mv hyperion_tmp/hyperion_server.py /usr/bin/hyperion_server
+RUN mv hyperion_tmp/memory_server.py /usr/bin/memory_server
 RUN chmod +x /usr/bin/hyperion_server
+RUN chmod +x /usr/bin/memory_server
 
 RUN rm -rf hyperion_tmp/
 
@@ -31,5 +34,28 @@ ADD resources/gpt_models.json /root/.hyperion/resources/gpt_models.json
 ADD resources/speakers_samples /root/.hyperion/resources/speakers_samples
 ADD resources/default_sentences /root/.hyperion/resources/default_sentences
 
-ENTRYPOINT ["/usr/bin/hyperion_server"]
-CMD ["--foreground", "restart", "--port", "6450"]
+RUN mkdir -p /etc/service/memory_server/
+RUN <<EOF cat > /etc/service/memory_server/run
+#!/bin/bash
+/usr/bin/memory_server
+EOF
+RUN chmod 755 /etc/service/memory_server/run
+
+RUN mkdir -p /etc/service/hyperion_server/
+RUN <<EOF cat > /etc/service/hyperion_server/run
+#!/bin/bash
+/usr/bin/hyperion_server --foreground restart --port 6450
+EOF
+RUN chmod 755 /etc/service/hyperion_server/run
+
+#ENTRYPOINT ["/usr/bin/hyperion_server"]
+#CMD ["--foreground", "restart", "--port", "6450"]
+
+# Using HEREDOC notation
+RUN <<EOF cat > /usr/sbin/bootstrap
+#!/bin/bash
+exec /usr/local/bin/runsvdir -P /etc/service
+EOF
+RUN chmod 755 /usr/sbin/bootstrap
+
+ENTRYPOINT ["/usr/sbin/bootstrap"]

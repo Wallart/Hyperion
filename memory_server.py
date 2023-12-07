@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from hyperion.pipelines.memory import Memory
 from hyperion.utils.logger import ProjectLogger
 from multiprocessing.managers import BaseManager
