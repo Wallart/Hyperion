@@ -123,6 +123,12 @@ class UserCommandDetector(Consumer, Producer):
         parser.add_argument('query', type=str)
 
         self._decompose_args(request_obj, parser, 'QUERY')
+
+        ack = RequestObject.copy(request_obj)
+        ack.text_answer = '<ACK>'
+        ack.silent = True
+        self._put(request_obj, request_obj.identifier)
+
         if len(request_obj.indexes) > 0:
             try:
                 request_obj.text_answer = ''
