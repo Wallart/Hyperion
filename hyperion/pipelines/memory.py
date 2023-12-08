@@ -15,7 +15,7 @@ class Memory:
     def __init__(self):
         self._index = ConcurrentDict()
         self._state = Manager().Value('c', '')  # Manager is concurrent access safe
-        self._indexes_dir = ProjectPaths().resources_dir / 'indexes'
+        self._indexes_dir = ProjectPaths().cache_dir / 'indexes'
         os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(ProjectPaths().resources_dir / 'keys' / 'openai_api.key')[0]
 
     def _reset_state(self):

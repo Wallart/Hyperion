@@ -19,11 +19,14 @@ class PromptManager:
         self._clear = clear
         self._current_preprompt_name = initial_preprompt_name
 
+        self._db_dir = ProjectPaths().cache_dir / 'prompts_db'
+        self._db_dir.mkdir(exist_ok=True)
+
         self._fetch_db(initial_preprompt_name)
         self._fetch_preprompt(initial_preprompt_name)
 
     def _fetch_db(self, preprompt):
-        db_path = ProjectPaths().cache_dir / f'prompts_db_{preprompt}.json'
+        db_path = self._db_dir / f'{preprompt}.json'
         if self._clear and db_path.exists():
             ProjectLogger().info('Cleared persistent memory.')
             db_path.unlink()
