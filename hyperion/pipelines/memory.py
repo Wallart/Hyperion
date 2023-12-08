@@ -32,7 +32,7 @@ class Memory:
                 storage_context = StorageContext.from_defaults(persist_dir=index_path)
                 self._index[index] = [Lock(), load_index_from_storage(storage_context)]
             except Exception as e:
-                ProjectLogger().error(e)
+                ProjectLogger().warning(e)
 
     def _initialize_index(self, index_name, document):
         self.set_status('indexing')
@@ -125,6 +125,6 @@ class Memory:
             if index_name in self._index:
                 del self._index[index_name]
         except Exception as e:
-            ProjectLogger().error(e)
+            ProjectLogger().warning(e)
         index_path = self._indexes_dir / index_name
         shutil.rmtree(index_path, ignore_errors=True)
