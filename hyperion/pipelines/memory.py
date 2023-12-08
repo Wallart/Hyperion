@@ -107,6 +107,7 @@ class Memory:
         if index_name in self._index:
             with self._index[index_name][0]:
                 self._index[index_name][1].delete_ref_doc(doc_id, delete_from_docstore=True)
+                self._index[index_name][1].storage_context.persist(self._indexes_dir / index_name)
 
     def query_index(self, index_name, query_text):
         ProjectLogger().info(f'Querying {index_name} with {query_text}')
