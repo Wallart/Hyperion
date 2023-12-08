@@ -27,6 +27,7 @@ class InterpretedCommandDetector(Consumer, Producer):
         self.img_intake = None
         self._commands_file = ProjectPaths().resources_dir / 'default_sentences' / 'interpreted_commands.json'
         self._cmd_buffer = ''
+        self._cmd_buffer_timestamp = 0
 
         with open(self._commands_file) as f:
             self._commands = json.load(f)
@@ -47,6 +48,11 @@ class InterpretedCommandDetector(Consumer, Producer):
             try:
                 request_obj = self._consume()
                 t0 = time()
+
+                # Flushing commands stucked for more than 30 secs
+                if time() - self._cmd_buffer_timestamp > 30:
+                    ProjectLogger().warning(f'Flushing "{self._cmd_buffer}". Stucked for more than 30 sec(s)')
+                    self._cmd_buffer = ''
 
                 not_term = request_obj.termination is False
                 not_pending = request_obj.identifier not in self.img_delegate.keep_alive
@@ -76,6 +82,7 @@ class InterpretedCommandDetector(Consumer, Producer):
                     comma_count = text_answer.count('"')
                     if res is not None and comma_count == 1:
                         self._cmd_buffer = text_answer
+                        self._cmd_buffer_timestamp = time()
                         break
                     elif res is not None and comma_count == 0:
                         # command is ill formed...
