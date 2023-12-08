@@ -1,5 +1,5 @@
 from multiprocessing.managers import BaseManager
-from hyperion.utils.manager_utils import MANAGER_TOKEN
+from hyperion.utils.memory_utils import MANAGER_TOKEN
 
 if __name__ == '__main__':
     memoryManager = BaseManager(('', 5602), bytes(MANAGER_TOKEN, encoding='utf8'))

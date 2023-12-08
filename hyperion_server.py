@@ -9,7 +9,7 @@ from flask_socketio import SocketIO, emit
 from hyperion.utils.logger import ProjectLogger
 from multiprocessing.managers import BaseManager
 from hyperion.analysis import CHAT_MODELS
-from hyperion.utils.manager_utils import MANAGER_TOKEN
+from hyperion.utils.memory_utils import MANAGER_TOKEN
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
@@ -291,6 +291,16 @@ def list_indexes():
     return response._getvalue(), 200
 
 
+@app.route('/index/state', methods=['GET'])
+def memory_state():
+    status = 'offline'
+    try:
+        status = memoryManager.get_status()._getvalue()
+    except Exception:
+        pass
+    return status, 200
+
+
 @app.route('/index/<string:index>', methods=['POST'])
 def create_index(index):
     _ = memoryManager.create_empty_index(index)
@@ -334,7 +344,6 @@ def upload_file_to_index(index):
     os.makedirs(upload_dir, exist_ok=True)
 
     for fileindex, uploaded_file in request.files.items():
-        filepath = None
         try:
             filename = secure_filename(uploaded_file.filename)
             filepath = upload_dir / filename
@@ -343,9 +352,6 @@ def upload_file_to_index(index):
             memoryManager.insert_into_index(index, filename, str(filepath))
         except Exception as e:
             return f'File upload failed. {str(e)}', 500
-        finally:
-            if filepath is not None and filepath.exists():
-                os.remove(filepath)
 
     return 'File(s) indexed.', 200
 
@@ -390,6 +396,7 @@ def main(args):
     global memoryManager
 
     memoryManager = BaseManager(('', 5602), bytes(MANAGER_TOKEN, encoding='utf8'))
+    memoryManager.register('get_status')
     memoryManager.register('list_indexes')
     memoryManager.register('create_empty_index')
     memoryManager.register('query_index')

@@ -4,7 +4,7 @@ from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
 from multiprocessing.managers import BaseManager
-from hyperion.utils.manager_utils import MANAGER_TOKEN
+from hyperion.utils.memory_utils import MANAGER_TOKEN
 from hyperion.utils.threading import Consumer, Producer
 
 import re
