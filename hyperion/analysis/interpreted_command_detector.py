@@ -74,8 +74,12 @@ class InterpretedCommandDetector(Consumer, Producer):
                     partial_pattern = regex_pattern.split(' ')[0]
                     res = re.search(fr'{partial_pattern}', text_answer)
                     comma_count = text_answer.count('"')
-                    if res is not None and comma_count < 2:
+                    if res is not None and comma_count == 1:
                         self._cmd_buffer = text_answer
+                        break
+                    elif res is not None and comma_count == 0:
+                        # command is ill formed...
+                        self._cmd_buffer = ''
                         break
 
                 if action is None and self._cmd_buffer == '':
