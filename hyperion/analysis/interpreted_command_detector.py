@@ -50,7 +50,7 @@ class InterpretedCommandDetector(Consumer, Producer):
                 t0 = time()
 
                 # Flushing commands stucked for more than 30 secs
-                if time() - self._cmd_buffer_timestamp > 30:
+                if time() - self._cmd_buffer_timestamp > 30 and self._cmd_buffer != '':
                     ProjectLogger().warning(f'Flushing "{self._cmd_buffer}". Stucked for more than 30 sec(s)')
                     self._cmd_buffer = ''
 
