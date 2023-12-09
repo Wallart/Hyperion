@@ -1,3 +1,4 @@
+from hyperion import HYPERION_VERSION
 from setuptools import setup, find_packages
 
 
@@ -24,7 +25,7 @@ opts = {
     'author': 'Julien WALLART',
     'author_email': 'julien.wallart@outlook.com',
     'name': 'hyperion',
-    'version': '1.4.4',
+    'version': HYPERION_VERSION,
     'packages': found_packages,
     'install_requires': pip_list,
     'dependency_links': download_list,

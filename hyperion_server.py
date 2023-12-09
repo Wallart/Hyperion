@@ -3,19 +3,20 @@ from pathlib import Path
 from flask_cors import CORS
 from time import time, sleep
 from hyperion.utils import get_ctx
+from hyperion import HYPERION_VERSION
+from flask_socketio import SocketIO, emit
+from hyperion.analysis import CHAT_MODELS
 from werkzeug.utils import secure_filename
 from hyperion.pipelines.brain import Brain
-from flask_socketio import SocketIO, emit
 from hyperion.utils.logger import ProjectLogger
 from multiprocessing.managers import BaseManager
-from hyperion.analysis import CHAT_MODELS
 from hyperion.utils.memory_utils import MANAGER_TOKEN
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
+from flask import Flask, Response, request, g, stream_with_context
 from hyperion.voice_processing.voice_synthesizer import VALID_ENGINES
 from hyperion.voice_processing.voice_transcriber import TRANSCRIPT_MODELS
-from flask import Flask, Response, request, g, stream_with_context
 
 import os
 import io
@@ -51,6 +52,11 @@ def disconnect():
     ProjectLogger().info(f'Client {request.sid} disconnected')
 
 
+@app.route('/version', methods=['GET'])
+def version():
+    return HYPERION_VERSION, 200
+
+
 @app.route('/state', methods=['GET'])
 def state():
     return 'Up and running', 200
@@ -71,7 +77,7 @@ def get_preferred_engines():
     return brain.voice_synthesizer.get_preferred_engines(), 200
 
 
-@app.route('/tts-preferred-engines', methods=['POST'])
+@app.route('/tts-preferred-engines', methods=['PUT'])
 def set_preferred_engines():
     res = brain.voice_synthesizer.set_preferred_engines(request.json)
     if not res:
@@ -97,7 +103,7 @@ def get_voice():
     return res, 200
 
 
-@app.route('/voice', methods=['POST'])
+@app.route('/voice', methods=['PUT'])
 def set_voice():
     voice = request.form['voice']
     engine = request.form['engine']
@@ -117,7 +123,7 @@ def get_model():
     return brain.chat_gpt.get_model(), 200
 
 
-@app.route('/model', methods=['POST'])
+@app.route('/model', methods=['PUT'])
 def set_model():
     model = request.form['model']
     if not brain.chat_gpt.set_model(model):
@@ -126,9 +132,21 @@ def set_model():
     return 'Default model changed', 200
 
 
+  #################
+ # PROMPT routes #
+#################
 @app.route('/prompts', methods=['GET'])
 def list_prompts():
     return PromptManager.list_prompts(), 200
+
+
+@app.route('/prompts', methods=['POST'])
+def upload_prompts():
+    if len(request.files) == 0:
+        return 'No file(s) found.', 400
+
+    save_count = brain.chat_gpt.prompt_manager.save_prompts(request.files.to_dict())
+    return f'{save_count} prompt(s) saved', 200
 
 
 @app.route('/prompt', methods=['GET'])
@@ -136,7 +154,7 @@ def get_prompt():
     return brain.chat_gpt.prompt_manager.get_prompt(), 200
 
 
-@app.route('/prompt', methods=['POST'])
+@app.route('/prompt', methods=['PUT'])
 def set_prompt():
     prompt = request.form['prompt']
     if not brain.chat_gpt.prompt_manager.set_prompt(prompt):
@@ -145,7 +163,7 @@ def set_prompt():
     return 'Default prompt changed', 200
 
 
-@app.route('/read-prompt/<string:prompt_name>', methods=['GET'])
+@app.route('/prompt/<string:prompt_name>', methods=['GET'])
 def read_prompt(prompt_name):
     try:
         prompt_content = PromptManager.read_prompt(prompt_name)
@@ -154,23 +172,17 @@ def read_prompt(prompt_name):
         return f'Unable to read prompt {prompt_name}', 500
 
 
-@app.route('/upload-prompts', methods=['POST'])
-def upload_prompts():
-    if len(request.files) == 0:
-        return 'No file(s) found.', 400
-
-    save_count = PromptManager.save_prompts(request.files.to_dict())
-    return f'{save_count} prompt(s) saved', 200
-
-
-@app.route('/delete-prompt/<string:prompt_name>', methods=['DELETE'])
+@app.route('/prompt/<string:prompt_name>', methods=['DELETE'])
 def delete_prompt(prompt_name):
-    deleted = PromptManager.delete_prompt(prompt_name)
+    deleted = brain.chat_gpt.prompt_manager.delete_prompt(prompt_name)
     if deleted:
         return f'{prompt_name} has been deleted', 200
     return f'{prompt_name} not found', 400
 
 
+  ################
+ # OTHER ROUTES #
+################
 @app.route('/speech', methods=['POST'])
 def http_speech_stream():
     request_id = current_request_id()
@@ -285,7 +297,10 @@ def video_stream():
     return 'Frame processed', 200
 
 
-@app.route('/index', methods=['GET'])
+  ##################
+ # INDEXES routes #
+##################
+@app.route('/indexes', methods=['GET'])
 def list_indexes():
     response = memoryManager.list_indexes()
     return response._getvalue(), 200

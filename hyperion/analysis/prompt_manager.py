@@ -91,27 +91,30 @@ class PromptManager:
         prompts = [p.stem for p in (ProjectPaths().resources_dir / 'prompts').glob('*')]
         return prompts
 
-    @staticmethod
-    def delete_prompt(prompt_name):
+    def delete_prompt(self, prompt_name):
         prompts = [p.stem for p in (ProjectPaths().resources_dir / 'prompts').glob(prompt_name)]
         if len(prompts) > 0:
             prompt_path = ProjectPaths().resources_dir / 'prompts' / prompts[0]
             prompt_path.unlink()
+            if prompt_name in self._preprompt:
+                del self._preprompt[prompt_name]
             return True
         return False
 
-    @staticmethod
-    def save_prompts(prompts_dict):
+    def save_prompts(self, prompts_dict):
         count = 0
         upload_dir = ProjectPaths().resources_dir / 'prompts'
-        for filename, uploaded_file in prompts_dict.items():
-            filename = secure_filename(os.path.splitext(filename)[0])
+        for prompt_name, uploaded_file in prompts_dict.items():
+            filename = secure_filename(os.path.splitext(prompt_name)[0])
             mimetype = uploaded_file.content_type
             if mimetype == 'text/plain':
                 try:
                     filepath = upload_dir / filename
                     uploaded_file.save(filepath)
                     count += 1
+
+                    if prompt_name in self._preprompt:
+                        del self._preprompt[prompt_name]
                 except Exception:
                     ProjectLogger().warning(f'Unable to save prompt {filename}')
 
