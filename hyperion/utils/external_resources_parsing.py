@@ -8,24 +8,26 @@ import requests
 def fetch_urls(text, prefix='http://'):
     extractor = URLExtract()
     urls = extractor.find_urls(text)
-    for url in urls:
-        fixed_url = url if prefix in url else f'{prefix}{url}'
-        page_content = get_page_content(fixed_url)
-        if not page_content:
-            continue
-
-        links = extract_rss_links(page_content)
-        if len(links) > 0:
-            rss_feed_content = get_page_content(links[0])
-            if not rss_feed_content:
+    try:
+        for url in urls:
+            fixed_url = url if prefix in url else f'{prefix}{url}'
+            page_content = get_page_content(fixed_url)
+            if not page_content:
                 continue
-            data = summarize_page(rss_feed_content)
-        else:
-            # no RSS feed found. Just summarize webpage.
-            data = summarize_page(page_content)
 
-        text = text.replace(url, f' : {data}')
+            links = extract_rss_links(page_content)
+            if len(links) > 0:
+                rss_feed_content = get_page_content(links[0])
+                if not rss_feed_content:
+                    continue
+                data = summarize_page(rss_feed_content)
+            else:
+                # no RSS feed found. Just summarize webpage.
+                data = summarize_page(page_content)
 
+            text = text.replace(url, f' : {data}')
+    except Exception:
+        pass
     return text
 
 
