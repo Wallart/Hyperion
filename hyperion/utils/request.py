@@ -7,11 +7,12 @@ import numpy as np
 
 class RequestObject:
 
-    def __init__(self, identifier, user, termination=False, priority=1):
+    def __init__(self, identifier, user, termination=False, priority=1, push=False):
         self.priority = priority if not termination else 999
         self.termination = termination
         self.identifier = identifier
         self.user = user
+        self.push = push
 
         self.timestamp = Timer().now()
 

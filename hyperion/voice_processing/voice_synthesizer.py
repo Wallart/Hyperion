@@ -3,8 +3,9 @@ from gtts import gTTS
 from hyperion.utils import load_file
 from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
-from elevenlabs import set_api_key, voices, generate, RateLimitError
+from hyperion.utils.protocol import frame_encode
 from hyperion.utils.threading import Consumer, Producer
+from elevenlabs import set_api_key, voices, generate, RateLimitError
 
 import os
 import io
@@ -19,8 +20,9 @@ VALID_ENGINES = ['eleven', 'google_cloud', 'google_translate']
 
 class VoiceSynthesizer(Consumer, Producer):
 
-    def __init__(self):
+    def __init__(self, sio_delegate):
         super().__init__()
+        self.sio = sio_delegate
 
         self.sample_rate = 24000
         self._preferred_engines = []
@@ -193,7 +195,20 @@ class VoiceSynthesizer(Consumer, Producer):
                 else:
                     ProjectLogger().info(f'Silent answer requested.')
 
-                self._put(request_obj, request_obj.identifier)
+                if request_obj.push:
+                    args = [
+                        request_obj.timestamp,
+                        request_obj.num_answer,
+                        request_obj.user,
+                        request_obj.text_request,
+                        request_obj.text_answer,
+                        request_obj.audio_answer,
+                        request_obj.image_answer
+                    ]
+                    self.sio().emit('data', frame_encode(*args), to=request_obj.socket_id)
+                else:
+                    self._put(request_obj, request_obj.identifier)
+
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:
                 continue

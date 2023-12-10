@@ -132,7 +132,10 @@ class InterpretedCommandDetector(Consumer, Producer):
         time_params = dict(weeks=args.weeks, days=args.days, hours=args.hours, minutes=args.minutes, seconds=args.seconds)
         run_date = datetime.now() + timedelta(**time_params)
 
-        TaskScheduler().add_task(lambda: print(args.sentence), run_date=run_date)
+        scheduled_request = RequestObject.copy(request_obj)
+        scheduled_request.push = True
+        scheduled_request.text_answer = args.sentence
+        TaskScheduler().add_task(lambda: self._dispatch(scheduled_request), run_date=run_date)
 
     def _on_draw(self, command_line, regex_pattern, request_obj):
         parser = argparse.ArgumentParser()
