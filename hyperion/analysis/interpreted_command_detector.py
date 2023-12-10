@@ -1,11 +1,13 @@
 from enum import Enum
 from time import time
+from datetime import datetime, timedelta
 from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
 from multiprocessing.managers import BaseManager
 from hyperion.utils.memory_utils import MANAGER_TOKEN
 from hyperion.utils.threading import Consumer, Producer
+from hyperion.utils.task_scheduler import TaskScheduler
 
 import re
 import json
@@ -17,11 +19,13 @@ import argparse
 class ACTIONS(Enum):
     DRAW = 0
     QUERY = 1
+    SCHEDULE = 2
 
 
 class InterpretedCommandDetector(Consumer, Producer):
-    def __init__(self):
+    def __init__(self, sio_delegate):
         super().__init__()
+        self.sio = sio_delegate
         self.chat_delegate = None
         self.img_delegate = None
         self.img_intake = None
@@ -104,12 +108,31 @@ class InterpretedCommandDetector(Consumer, Producer):
                         self._argparsed_command(self._on_draw, found_cmd, found_pattern, request_obj)
                     elif action == ACTIONS.QUERY.value:
                         self._argparsed_command(self._on_query, found_cmd, found_pattern, request_obj)
+                    elif action == ACTIONS.SCHEDULE.value:
+                        self._argparsed_command(self._on_schedule, found_cmd, found_pattern, request_obj)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} COMMAND exec. time')
             except queue.Empty:
                 continue
 
         ProjectLogger().info('Interpreted Command Detector stopped.')
+
+    def _on_schedule(self, command_line, regex_pattern, request_obj):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-w', '--weeks', type=float, default=0)
+        parser.add_argument('-d', '--days', type=float, default=0)
+        parser.add_argument('-H', '--hours', type=float, default=0)
+        parser.add_argument('-m', '--minutes', type=float, default=0)
+        parser.add_argument('-s', '--seconds', type=float, default=0)
+        parser.add_argument('sentence', type=str)
+
+        args = self._decompose_args(request_obj, parser, command_line, 'SCHEDULE')
+        request_obj.text_answer = re.sub(regex_pattern, f'"{args.sentence}"', request_obj.text_answer)
+
+        time_params = dict(weeks=args.weeks, days=args.days, hours=args.hours, minutes=args.minutes, seconds=args.seconds)
+        run_date = datetime.now() + timedelta(**time_params)
+
+        TaskScheduler().add_task(lambda: print(args.sentence), run_date=run_date)
 
     def _on_draw(self, command_line, regex_pattern, request_obj):
         parser = argparse.ArgumentParser()

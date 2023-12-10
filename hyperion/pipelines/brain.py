@@ -42,7 +42,7 @@ class Brain:
 
         # commands handling block
         self.user_commands = UserCommandDetector(self.chat_gpt.clear_context, lambda: self.sio)
-        self.interp_commands = InterpretedCommandDetector()
+        self.interp_commands = InterpretedCommandDetector(lambda: self.sio)
 
         # pipelines
         self.voice_detector.pipe(self.voice_recognizer)
