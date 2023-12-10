@@ -1,13 +1,14 @@
 from PIL import Image
 from time import time
-from hyperion.utils.threading import Consumer
+from typing import List
 from hyperion.utils.logger import ProjectLogger
 from lavis.models import load_model_and_preprocess
+from hyperion.utils.threading import Consumer, Producer
 
 import queue
 
 
-class VisualQuestionAnswering(Consumer):
+class VisualQuestionAnswering(Consumer, Producer):
 
     def __init__(self, ctx):
         super().__init__()
@@ -24,18 +25,23 @@ class VisualQuestionAnswering(Consumer):
     def set_chat_delegate(self, chat_delegate):
         self.chat_delegate = chat_delegate
 
+    def analyze_frame(self, frame: List):
+        image = Image.fromarray(frame)
+        processed_image = self.vis_processors['eval'](image).unsqueeze(0).to(self._ctx[-1])
+        caption = self.model.generate({'image': processed_image})[0]
+        return caption
+
     def run(self) -> None:
         while self.running:
             try:
                 frame = self._consume()
                 t0 = time()
 
-                image = Image.fromarray(frame)
-                processed_image = self.vis_processors['eval'](image).unsqueeze(0).to(self._ctx[-1])
-                caption = self.model.generate({'image': processed_image})[0]
+                caption = self.analyze_frame(frame)
                 self.chat_delegate.add_video_context(caption)
-                ProjectLogger().info(caption)
+                self._dispatch(caption)
 
+                ProjectLogger().info(caption)
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:
                 continue

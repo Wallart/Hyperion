@@ -58,6 +58,7 @@ class Brain:
 
         # sinks
         self.voice_recognizer_sink = self.voice_recognizer.create_sink()
+        self.vqa_sink = self.visual_answering.create_sink()
 
         # delegates
         self.visual_answering.set_chat_delegate(self.chat_gpt)
@@ -191,8 +192,15 @@ class Brain:
 
     def handle_frame(self, frame):
         jpg_image = Image.open(io.BytesIO(frame))
-        frame = np.asarray(jpg_image)
-        self.vqa_intake.put(frame)
+        self.vqa_intake.put(np.asarray(jpg_image))
+        caption = ''
+        while True:
+            try:
+                caption = self.vqa_sink.drain()
+                break
+            except queue.Empty:
+                continue
+        return caption
 
     def handle_document(self, binary_stream, preprompt=None):
         reader = PdfReader(binary_stream)
