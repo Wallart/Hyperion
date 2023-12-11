@@ -6,6 +6,7 @@ from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
 from multiprocessing.managers import BaseManager
 from hyperion.utils.memory_utils import MANAGER_TOKEN
+from hyperion.utils.identity_store import IdentityStore
 from hyperion.utils.threading import Consumer, Producer
 from hyperion.utils.task_scheduler import TaskScheduler
 
@@ -134,6 +135,7 @@ class InterpretedCommandDetector(Consumer, Producer):
 
         scheduled_request = RequestObject.copy(request_obj)
         scheduled_request.push = True
+        scheduled_request.identifier = IdentityStore()[scheduled_request.socket_id]
         scheduled_request.text_answer = args.sentence
         TaskScheduler().add_task(lambda: self._dispatch(scheduled_request), run_date=run_date)
 

@@ -4,6 +4,7 @@ from hyperion.utils import load_file
 from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.protocol import frame_encode
+from hyperion.utils.identity_store import IdentityStore
 from hyperion.utils.threading import Consumer, Producer
 from elevenlabs import set_api_key, voices, generate, RateLimitError
 
@@ -196,16 +197,18 @@ class VoiceSynthesizer(Consumer, Producer):
                     ProjectLogger().info(f'Silent answer requested.')
 
                 if request_obj.push:
-                    args = [
-                        request_obj.timestamp,
-                        request_obj.num_answer,
-                        request_obj.user,
-                        request_obj.text_request,
-                        request_obj.text_answer,
-                        request_obj.audio_answer,
-                        request_obj.image_answer
-                    ]
-                    self.sio().emit('data', frame_encode(*args), to=request_obj.socket_id)
+                    if request_obj.identifier in IdentityStore().inverse and request_obj.identifier is not None:
+                        socket_id = IdentityStore().inverse[request_obj.identifier][0]
+                        args = [
+                            request_obj.timestamp,
+                            request_obj.num_answer,
+                            request_obj.user,
+                            request_obj.text_request,
+                            request_obj.text_answer,
+                            request_obj.audio_answer,
+                            request_obj.image_answer
+                        ]
+                        self.sio().emit('data', frame_encode(*args), to=socket_id)
                 else:
                     self._put(request_obj, request_obj.identifier)
 

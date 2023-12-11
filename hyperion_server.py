@@ -8,6 +8,7 @@ from flask_socketio import SocketIO, emit
 from hyperion.analysis import CHAT_MODELS
 from werkzeug.utils import secure_filename
 from hyperion.pipelines.brain import Brain
+from hyperion.utils.identity_store import IdentityStore
 from hyperion.utils.logger import ProjectLogger
 from multiprocessing.managers import BaseManager
 from hyperion.utils.memory_utils import MANAGER_TOKEN
@@ -45,11 +46,18 @@ def get_headers_params():
 @sio.on('connect')
 def connect():
     ProjectLogger().info(f'Client {request.sid} connected')
+    IdentityStore()[request.sid] = None
 
 
 @sio.on('disconnect')
 def disconnect():
     ProjectLogger().info(f'Client {request.sid} disconnected')
+    del IdentityStore()[request.sid]
+
+
+@sio.on('identify')
+def on_identify(identity):
+    IdentityStore()[request.sid] = identity
 
 
 @app.route('/version', methods=['GET'])
