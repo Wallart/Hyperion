@@ -1,5 +1,8 @@
 {
   "DRAW": "/draw \"([^\"]*)\"",
   "QUERY": "/query \"([^\"]*)\"",
-  "SCHEDULE": "/schedule \"([^\"]*)\"( --weeks \\d+)?( --days \\d+)?( --hours \\d+)?( --minutes \\d+)?( --seconds \\d+)?"
+  "SCHEDULE": "/schedule \"([^\"]*)\"( --weeks \\d+)?( --days \\d+)?( --hours \\d+)?( --minutes \\d+)?( --seconds \\d+)?",
+  "WIPE": "/wipe",
+  "QUIET": "/quiet",
+  "SEARCH": "/search \"([^\"]*)\""
 }

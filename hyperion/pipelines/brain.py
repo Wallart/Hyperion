@@ -41,7 +41,7 @@ class Brain:
         self.images_gen = ImageGenerator(ctx)
 
         # commands handling block
-        self.user_commands = UserCommandDetector(self.chat_gpt.clear_context, lambda: self.sio)
+        self.user_commands = UserCommandDetector(lambda: self.sio)
         self.interp_commands = InterpretedCommandDetector(lambda: self.sio)
 
         # pipelines
@@ -62,8 +62,9 @@ class Brain:
 
         # delegates
         self.visual_answering.set_chat_delegate(self.chat_gpt)
-        self.interp_commands.set_chat_delegate(self.chat_gpt)
+        self.user_commands.set_chat_delegate(self.chat_gpt)
         self.user_commands.set_img_intake(self.images_gen_intake)
+        self.interp_commands.set_chat_delegate(self.chat_gpt)
         self.interp_commands.set_img_delegate(self.images_gen)
         self.images_gen.set_synthesizer_intake(self.synthesizer_intake)
 
@@ -103,6 +104,7 @@ class Brain:
     def create_identified_sink(self, request_id):
         sink = self.voice_synthesizer.create_identified_sink(request_id)
         self.user_commands.set_identified_sink(request_id, sink)
+        self.interp_commands.set_identified_sink(request_id, sink)
         self.images_gen.set_identified_sink(request_id, sink)
         return sink
 

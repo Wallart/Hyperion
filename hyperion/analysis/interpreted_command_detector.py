@@ -1,5 +1,7 @@
 from enum import Enum
 from time import time
+from googlesearch import search
+from hyperion.utils.timer import Timer
 from datetime import datetime, timedelta
 from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
@@ -9,6 +11,7 @@ from hyperion.utils.memory_utils import MANAGER_TOKEN
 from hyperion.utils.identity_store import IdentityStore
 from hyperion.utils.threading import Consumer, Producer
 from hyperion.utils.task_scheduler import TaskScheduler
+from hyperion.utils.external_resources_parsing import load_url
 
 import re
 import json
@@ -21,6 +24,9 @@ class ACTIONS(Enum):
     DRAW = 0
     QUERY = 1
     SCHEDULE = 2
+    WIPE = 3
+    QUIET = 4
+    SEARCH = 5
 
 
 class InterpretedCommandDetector(Consumer, Producer):
@@ -111,6 +117,12 @@ class InterpretedCommandDetector(Consumer, Producer):
                         self._argparsed_command(self._on_query, found_cmd, found_pattern, request_obj)
                     elif action == ACTIONS.SCHEDULE.value:
                         self._argparsed_command(self._on_schedule, found_cmd, found_pattern, request_obj)
+                    elif action == ACTIONS.SEARCH.value:
+                        self._argparsed_command(self._on_search, found_cmd, found_pattern, request_obj)
+                    elif action == ACTIONS.QUIET.value:
+                        self._on_quiet(request_obj)
+                    elif action == ACTIONS.WIPE.value:
+                        self._on_memory_wipe(request_obj)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} COMMAND exec. time')
             except queue.Empty:
@@ -183,6 +195,68 @@ class InterpretedCommandDetector(Consumer, Producer):
                 err_request.text_answer = str(e)
                 err_request.silent = True
                 self._dispatch(err_request)
+
+    def _on_search(self, command_line, regex_pattern, request_obj):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('query', type=str)
+        args = self._decompose_args(request_obj, parser, command_line, 'SEARCH')
+        request_obj.text_answer = re.sub(regex_pattern, f'"{args.query}"', request_obj.text_answer)
+
+        answers = ''
+        try:
+            responses = search(args.query, advanced=True, num_results=2)
+            for res in responses:
+                text = load_url(res.url)
+                if text is not False:
+                    answers += text
+
+            if answers != '':
+                google_request = RequestObject.copy(request_obj)
+                google_request.silent = True
+                google_request.text_request = answers
+                google_request.user = 'Google Search Engine'
+                self.chat_delegate._process_request(google_request)
+            else:
+                err = RequestObject.copy(request_obj)
+                err.text_answer = '<ERR>'
+                err.silent = True
+                err.priority = 0
+                self._dispatch(err)
+
+                err_request = RequestObject.copy(request_obj)
+                err_request.text_answer = 'Empty search results'
+                err_request.silent = True
+                self._dispatch(err_request)
+        except Exception as e:
+            err = RequestObject.copy(request_obj)
+            err.text_answer = '<ERR>'
+            err.silent = True
+            err.priority = 0
+            self._dispatch(err)
+
+            err_request = RequestObject.copy(request_obj)
+            err_request.text_answer = 'Unable to contact Google servers'
+            err_request.silent = True
+            self._dispatch(err_request)
+
+    def _on_quiet(self, request_obj):
+        termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
+        termination_request.priority = 0
+        self._put(termination_request, request_obj.identifier)
+        self.sio().emit('interrupt', Timer().now(), to=request_obj.socket_id)
+
+    def _on_memory_wipe(self, request_obj):
+        self.chat_delegate.clear_context(request_obj.preprompt)
+
+        termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
+        termination_request.priority = 0
+
+        ack = RequestObject.copy(request_obj)
+        ack.text_answer = '<MEMWIPE>'
+        ack.silent = True
+
+        self._put(ack, request_obj.identifier)
+        self._put(termination_request, request_obj.identifier)
 
     def _decompose_args(self, request_obj, parser, command_line, command_name):
         cmd_token = self._commands[command_name].split(' "')[0]

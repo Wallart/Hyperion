@@ -25,12 +25,12 @@ class ACTIONS(Enum):
 
 
 class UserCommandDetector(Consumer, Producer):
-    def __init__(self, clear_ctx_delegate, sio_delegate):
+    def __init__(self, sio_delegate):
         super().__init__()
         self.frozen = False
         self.sio = sio_delegate
+        self.chat_delegate = None
         self.img_intake = None
-        self.clear_context = clear_ctx_delegate
 
         self._commands_file = ProjectPaths().resources_dir / 'default_sentences' / 'user_commands.json'
 
@@ -40,6 +40,9 @@ class UserCommandDetector(Consumer, Producer):
         self._memoryManager = BaseManager(('', 5602), bytes(MANAGER_TOKEN, encoding='utf8'))
         self._memoryManager.register('query_index')
         self._memoryManager.connect()
+
+    def set_chat_delegate(self, chat_delegate):
+        self.chat_delegate = chat_delegate
 
     def set_img_intake(self, img_intake_delegate):
         self.img_intake = img_intake_delegate
@@ -192,7 +195,7 @@ class UserCommandDetector(Consumer, Producer):
         self._put(termination_request, request_obj.identifier)
 
     def _on_memory_wipe(self, request_obj, termination_request):
-        self.clear_context(request_obj.preprompt)
+        self.chat_delegate.clear_context(request_obj.preprompt)
 
         ack = RequestObject.copy(request_obj)
         ack.text_answer = '<MEMWIPE>'

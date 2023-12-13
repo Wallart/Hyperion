@@ -57,6 +57,7 @@ plotly
 # other
 ntplib
 urlextract
+googlesearch-python
 bs4
 lxml
 readability-lxml
