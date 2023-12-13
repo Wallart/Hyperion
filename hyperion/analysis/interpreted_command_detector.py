@@ -204,7 +204,7 @@ class InterpretedCommandDetector(Consumer, Producer):
 
         answers = ''
         try:
-            responses = search(args.query, advanced=True, num_results=2)
+            responses = search(args.query, advanced=True, num_results=1)
             for res in responses:
                 text = load_url(res.url)
                 if text is not False:
