@@ -7,6 +7,7 @@ from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.request import RequestObject
 from multiprocessing.managers import BaseManager
+from concurrent.futures import ThreadPoolExecutor
 from hyperion.utils.memory_utils import MANAGER_TOKEN
 from hyperion.utils.identity_store import IdentityStore
 from hyperion.utils.threading import Consumer, Producer
@@ -55,80 +56,87 @@ class InterpretedCommandDetector(Consumer, Producer):
         self.img_intake = img_delegate.get_intake()
 
     def run(self):
-        while self.running:
-            try:
-                request_obj = self._consume()
-                t0 = time()
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            while self.running:
+                try:
+                    request_obj = self._consume()
+                    t0 = time()
 
-                # Flushing commands stucked for more than 30 secs
-                if time() - self._cmd_buffer_timestamp > 30 and self._cmd_buffer != '':
-                    ProjectLogger().warning(f'Flushing "{self._cmd_buffer}". Stucked for more than 30 sec(s)')
-                    self._cmd_buffer = ''
+                    # Flushing commands stucked for more than 30 secs
+                    if time() - self._cmd_buffer_timestamp > 30 and self._cmd_buffer != '':
+                        ProjectLogger().warning(f'Flushing "{self._cmd_buffer}". Stucked for more than 30 sec(s)')
+                        self._cmd_buffer = ''
 
-                not_term = request_obj.termination is False
-                not_pending = request_obj.identifier not in self.img_delegate.keep_alive
-                # don't forward termination requests if there is work still pending
-                if request_obj.text_answer is None:
-                    if not_term or not_pending:
+                    not_term = request_obj.termination is False
+                    not_pending = request_obj.identifier not in self.img_delegate.keep_alive
+                    # don't forward termination requests if there is work still pending
+                    if request_obj.text_answer is None:
+                        if not_term or not_pending:
+                            self._dispatch(request_obj)
+                        continue
+
+                    text_answer = self._cmd_buffer + request_obj.text_answer
+                    action, found_cmd, found_pattern = self._search_command(request_obj, text_answer)
+
+                    if action is None and self._cmd_buffer == '':
                         self._dispatch(request_obj)
+                    elif action is not None:
+                        ProjectLogger().info(f'Command found in "{found_cmd}"')
+
+                        ack = RequestObject.copy(request_obj)
+                        ack.text_answer = '<CMD>'
+                        ack.silent = True
+                        ack.priority = 0
+                        self._dispatch(ack)
+
+                        _ = executor.submit(self._process_command, request_obj, action, found_cmd, found_pattern)
+
+                    ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} COMMAND exec. time')
+                except queue.Empty:
                     continue
 
-                text_answer = self._cmd_buffer + request_obj.text_answer
-
-                action = None
-                found_cmd = None
-                found_pattern = None
-                for i, regex_pattern in enumerate(self._commands.values()):
-                    found_pattern = fr'{regex_pattern}'
-                    res = re.search(found_pattern, text_answer)
-                    if res is not None:
-                        found_cmd = res.group()
-                        action = i
-                        request_obj.text_answer = text_answer
-                        self._cmd_buffer = ''
-                        break
-
-                    partial_pattern = regex_pattern.split(' ')[0]
-                    res = re.search(fr'{partial_pattern}', text_answer)
-                    comma_count = text_answer.count('"')
-                    if res is not None and comma_count == 1:
-                        self._cmd_buffer = text_answer
-                        self._cmd_buffer_timestamp = time()
-                        break
-                    elif res is not None and comma_count == 0:
-                        # command is ill formed...
-                        self._cmd_buffer = ''
-                        break
-
-                if action is None and self._cmd_buffer == '':
-                    self._dispatch(request_obj)
-                elif action is not None:
-                    ProjectLogger().info(f'Command found in "{found_cmd}"')
-
-                    ack = RequestObject.copy(request_obj)
-                    ack.text_answer = '<CMD>'
-                    ack.silent = True
-                    ack.priority = 0
-                    self._dispatch(ack)
-
-                    if action == ACTIONS.DRAW.value:
-                        self._argparsed_command(self._on_draw, found_cmd, found_pattern, request_obj)
-                    elif action == ACTIONS.QUERY.value:
-                        self._argparsed_command(self._on_query, found_cmd, found_pattern, request_obj)
-                    elif action == ACTIONS.SCHEDULE.value:
-                        self._argparsed_command(self._on_schedule, found_cmd, found_pattern, request_obj)
-                    elif action == ACTIONS.SEARCH.value:
-                        self._argparsed_command(self._on_search, found_cmd, found_pattern, request_obj)
-                    elif action == ACTIONS.QUIET.value:
-                        self._on_quiet(request_obj)
-                    elif action == ACTIONS.WIPE.value:
-                        self._on_memory_wipe(request_obj)
-
-                ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} COMMAND exec. time')
-            except queue.Empty:
-                continue
-
         ProjectLogger().info('Interpreted Command Detector stopped.')
+
+    def _search_command(self, request_obj, text_answer):
+        action = None
+        found_cmd = None
+        found_pattern = None
+        for i, regex_pattern in enumerate(self._commands.values()):
+            found_pattern = fr'{regex_pattern}'
+            res = re.search(found_pattern, text_answer)
+            if res is not None:
+                found_cmd = res.group()
+                action = i
+                request_obj.text_answer = text_answer
+                self._cmd_buffer = ''
+                break
+
+            partial_pattern = regex_pattern.split(' ')[0]
+            res = re.search(fr'{partial_pattern}', text_answer)
+            comma_count = text_answer.count('"')
+            if res is not None and comma_count == 1:
+                self._cmd_buffer = text_answer
+                self._cmd_buffer_timestamp = time()
+                break
+            elif res is not None and comma_count == 0:
+                # command is ill formed...
+                self._cmd_buffer = ''
+                break
+        return action, found_cmd, found_pattern
+
+    def _process_command(self, request_obj, action, found_cmd, found_pattern):
+        if action == ACTIONS.DRAW.value:
+            self._argparsed_command(self._on_draw, found_cmd, found_pattern, request_obj)
+        elif action == ACTIONS.QUERY.value:
+            self._argparsed_command(self._on_query, found_cmd, found_pattern, request_obj)
+        elif action == ACTIONS.SCHEDULE.value:
+            self._argparsed_command(self._on_schedule, found_cmd, found_pattern, request_obj)
+        elif action == ACTIONS.SEARCH.value:
+            self._argparsed_command(self._on_search, found_cmd, found_pattern, request_obj)
+        elif action == ACTIONS.QUIET.value:
+            self._on_quiet(request_obj)
+        elif action == ACTIONS.WIPE.value:
+            self._on_memory_wipe(request_obj)
 
     def _on_schedule(self, command_line, regex_pattern, request_obj):
         parser = argparse.ArgumentParser()
