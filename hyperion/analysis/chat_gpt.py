@@ -21,14 +21,13 @@ import numpy as np
 
 class ChatGPT(Consumer, Producer):
 
-    def __init__(self, name, model, no_memory, clear, prompt='base'):
+    def __init__(self, name, model, no_memory, clear, prompt='base', base_url=None):
         super().__init__()
         ProjectLogger().info(f'{name} using {model} as chat backend. No memory -> {no_memory}')
 
         self._mutex = Lock()
         self._model = model
         self._no_memory = no_memory
-        self._tokenizer = tiktoken.encoding_for_model(self._model)
 
         self.prompt_manager = PromptManager(name, prompt, clear)
 
@@ -37,8 +36,12 @@ class ChatGPT(Consumer, Producer):
         self._error_sentences = load_file(sentences_path / 'dead')
         self._memory_sentences = load_file(sentences_path / 'memory')
 
-        openai_api = ProjectPaths().resources_dir / 'keys' / 'openai_api.key'
-        self._client = OpenAI(api_key=os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(openai_api)[0])
+        api_key = None
+        if base_url is None:
+            openai_api = ProjectPaths().resources_dir / 'keys' / 'openai_api.key'
+            api_key = os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(openai_api)[0]
+
+        self._client = OpenAI(api_key=api_key, base_url=base_url)
 
         self._video_ctx = None
         self._video_ctx_timestamp = time()
@@ -63,6 +66,7 @@ class ChatGPT(Consumer, Producer):
         Returns the number of tokens used by a list of messages.
         See https://platform.openai.com/docs/guides/vision for images token count.
         """
+        tokenizer = tiktoken.encoding_for_model(self._model if llm is None else llm)
         tokens_per_message, tokens_per_name = get_model_token_specs(self._model if llm is None else llm)
 
         num_tokens = 0
@@ -70,9 +74,9 @@ class ChatGPT(Consumer, Producer):
             num_tokens += tokens_per_message
             for key, value in message.items():
                 if type(value) == str:
-                    num_tokens += len(self._tokenizer.encode(value))
+                    num_tokens += len(tokenizer.encode(value))
                 elif value[0]['type'] == 'text':
-                    num_tokens += len(self._tokenizer.encode(value[0]['text']))
+                    num_tokens += len(tokenizer.encode(value[0]['text']))
                 elif value[0]['image_url']['detail'] == 'low':
                     num_tokens += 85
                 elif value[0]['image_url']['detail'] == 'high':
