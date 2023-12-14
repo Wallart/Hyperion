@@ -198,7 +198,7 @@ class VoiceSynthesizer(Consumer, Producer):
 
                 if request_obj.push:
                     if request_obj.identifier in IdentityStore().inverse and request_obj.identifier is not None:
-                        socket_id = IdentityStore().inverse[request_obj.identifier][0]
+                        socket_ids = IdentityStore().inverse[request_obj.identifier]
                         args = [
                             request_obj.timestamp,
                             request_obj.num_answer,
@@ -208,7 +208,7 @@ class VoiceSynthesizer(Consumer, Producer):
                             request_obj.audio_answer,
                             request_obj.image_answer
                         ]
-                        self.sio().emit('data', frame_encode(*args), to=socket_id)
+                        _ = [self.sio().emit('data', frame_encode(*args), to=socket_id) for socket_id in socket_ids]
                 else:
                     self._put(request_obj, request_obj.identifier)
 
