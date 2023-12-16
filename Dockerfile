@@ -18,6 +18,8 @@ ADD requirements.txt hyperion_tmp/.
 ADD setup.py hyperion_tmp/.
 
 RUN cd hyperion_tmp; pip install .
+# Temporary workaround to bypass conflicts
+RUN pip install TTS==0.22.0
 RUN mv hyperion_tmp/hyperion_server.py /usr/bin/hyperion_server
 RUN mv hyperion_tmp/memory_server.py /usr/bin/memory_server
 RUN chmod +x /usr/bin/hyperion_server

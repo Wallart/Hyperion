@@ -1,6 +1,8 @@
 from time import time
 from gtts import gTTS
+from TTS.api import TTS
 from hyperion.utils import load_file
+from hyperion.audio import float32_to_int16
 from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.protocol import frame_encode
@@ -11,40 +13,40 @@ from elevenlabs import set_api_key, voices, generate, RateLimitError
 import os
 import io
 import queue
-import torch
 import pydub
 import numpy as np
 import google.cloud.texttospeech as tts
 
-VALID_ENGINES = ['eleven', 'google_cloud', 'google_translate']
+VALID_ENGINES = ['local', 'eleven', 'google_cloud', 'google_translate']
 
 
 class VoiceSynthesizer(Consumer, Producer):
 
-    def __init__(self, sio_delegate):
+    def __init__(self, ctx, sio_delegate):
         super().__init__()
         self.sio = sio_delegate
-
         self.sample_rate = 24000
-        self._preferred_engines = []
 
         eleven_key_path = ProjectPaths().resources_dir / 'keys' / 'elevenlabs_api.key'
         google_key_path = ProjectPaths().resources_dir / 'keys' / 'google_api.key'
 
+        self._init_local_model(ctx)
+        self._preferred_engines = [VALID_ENGINES[0]]
+
         if eleven_key_path.exists() or 'ELEVENLABS_API' in os.environ:
             eleven_api_key = load_file(eleven_key_path)[0] if eleven_key_path.exists() else os.environ['ELEVENLABS_API']
             self._init_elevenlabs(eleven_api_key)
-            self._preferred_engines.append('eleven')
+            self._preferred_engines.append(VALID_ENGINES[1])
 
         if google_key_path.exists() or 'GOOGLE_API' in os.environ:
             google_api_key = load_file(google_key_path)[0] if google_key_path.exists() else os.environ['GOOGLE_API']
             try:
                 self._init_google_cloud_synth(google_api_key)
-                self._preferred_engines.append('google_cloud')
+                self._preferred_engines.append(VALID_ENGINES[2])
             except Exception as e:
                 ProjectLogger().warning(e.message)
 
-        self._preferred_engines.append('google_translate')
+        self._preferred_engines.append(VALID_ENGINES[3])
 
     def get_preferred_engines(self):
         return self._preferred_engines
@@ -62,6 +64,8 @@ class VoiceSynthesizer(Consumer, Producer):
             return self._valid_google_voices
         elif engine == 'eleven':
             return self._valid_eleven_voices
+        elif engine == 'local':
+            return self._valid_local_voices
         return False
 
     def get_engine_default_voice(self, engine):
@@ -69,6 +73,8 @@ class VoiceSynthesizer(Consumer, Producer):
             return self._default_google_voice
         elif engine == 'eleven':
             return self._default_eleven_voice
+        elif engine == 'local':
+            return self._default_local_voice
         return False
 
     def set_engine_default_voice(self, engine, voice):
@@ -78,7 +84,9 @@ class VoiceSynthesizer(Consumer, Producer):
         elif engine == 'eleven' and voice in self._valid_eleven_voices:
             self._default_eleven_voice = voice
             return True
-
+        elif engine == 'local' and voice in self._valid_local_voices:
+            self._default_local_voice = voice
+            return True
         return False
 
     def _init_elevenlabs(self, api_key):
@@ -92,6 +100,12 @@ class VoiceSynthesizer(Consumer, Producer):
         self._client = tts.TextToSpeechClient(client_options={'api_key': api_key})
         voices = self._client.list_voices().voices
         self._valid_google_voices = [v.name for v in voices if v.language_codes[0] == self._language_code]
+
+    def _init_local_model(self, ctx):
+        self._sample_dir = ProjectPaths().resources_dir / 'speakers_samples'
+        self._default_local_voice = 'tim'
+        self._valid_local_voices = [e.name for e in self._sample_dir.glob('*') if e.is_dir()]
+        self._local_tts = TTS('xtts_v2.0.2').to(ctx[0])
 
     def _eleven_synthesizer(self, text, voice=None):
         voice_name = self._default_eleven_voice if voice is None or voice not in self._valid_eleven_voices else voice
@@ -135,29 +149,12 @@ class VoiceSynthesizer(Consumer, Producer):
         wav_array = np.array(sound.get_array_of_samples(), dtype=np.int16)
         return wav_array
 
-    def _init_local_model(self):
-        from fairseq.models.text_to_speech.hub_interface import TTSHubInterface
-        from fairseq.checkpoint_utils import load_model_ensemble_and_task_from_hf_hub
-
-        # TODO Use librosa to resample to 24000 Hz
-        self.sample_rate = 22050
-        self._gpu = torch.device('cuda:0')
-
-        models, cfg, self._task = load_model_ensemble_and_task_from_hf_hub('facebook/tts_transformer-fr-cv7_css10', arg_overrides={'vocoder': 'hifigan', 'fp16': False})
-        self._model = models[0].to(self._gpu)
-        TTSHubInterface.update_cfg_with_data_cfg(cfg, self._task.data_cfg)
-        self._generator = self._task.build_generator(models, cfg)
-
-    def _local_model(self, text):
-        # FairSeq
-        sample = TTSHubInterface.get_model_input(self._task, text)
-        sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to(self._gpu)
-        sample['net_input']['src_lengths'] = sample['net_input']['src_lengths'].to(self._gpu)
-        sample['speaker'] = sample['speaker'].to(self._gpu)
-
-        wav, sample_rate = TTSHubInterface.get_prediction(self._task, self._model, self._generator, sample)
-        wav = wav.cpu().numpy()
-        return wav
+    def _local_synthesizer(self, text, voice=None):
+        voice_name = self._default_local_voice if voice is None or voice not in self._valid_local_voices else voice
+        samples = list((self._sample_dir / voice_name).glob('*.wav'))
+        wav_sound = self._local_tts.tts(text=text, speaker_wav=samples, language='fr')
+        wav = np.array(wav_sound, dtype=np.float32)
+        return float32_to_int16(wav)
 
     def _infer(self, text, engine=None, voice=None):
         if engine is None:
@@ -174,6 +171,8 @@ class VoiceSynthesizer(Consumer, Producer):
             return self._eleven_synthesizer(text, voice)
         elif engine == 'google_cloud':
             return self._google_cloud_synthesizer(text, voice)
+        elif engine == 'local':
+            return self._local_synthesizer(text)
         else:
             return self._google_translate_synthesizer(text)
 
