@@ -6,6 +6,7 @@ from hyperion.audio import float32_to_int16
 from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from hyperion.utils.protocol import frame_encode
+from hyperion.voice_processing import download_model
 from hyperion.utils.identity_store import IdentityStore
 from hyperion.utils.threading import Consumer, Producer
 from elevenlabs import set_api_key, voices, generate, RateLimitError
@@ -105,7 +106,10 @@ class VoiceSynthesizer(Consumer, Producer):
         self._sample_dir = ProjectPaths().resources_dir / 'speakers_samples'
         self._default_local_voice = 'tim'
         self._valid_local_voices = [e.name for e in self._sample_dir.glob('*') if e.is_dir()]
-        self._local_tts = TTS('xtts_v2.0.2').to(ctx[0])
+
+        model_name = 'xtts_v2.0.2'
+        download_model(model_name)
+        self._local_tts = TTS(model_name).to(ctx[0])
 
     def _eleven_synthesizer(self, text, voice=None):
         voice_name = self._default_eleven_voice if voice is None or voice not in self._valid_eleven_voices else voice
