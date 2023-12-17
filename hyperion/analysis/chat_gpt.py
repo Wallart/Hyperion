@@ -143,7 +143,7 @@ class ChatGPT(Consumer, Producer):
         return response, dropped_messages
 
     def _dispatch_sentence(self, sentence, sentence_num, t0, request_obj):
-        sentence = sentence.strip()
+        #sentence = sentence.strip()
 
         new_request_obj = RequestObject.copy(request_obj)
         new_request_obj.text_answer = sentence
@@ -213,7 +213,9 @@ class ChatGPT(Consumer, Producer):
                     sentence += content
                     memory += content
 
-                    sentence_ends = [sentence.find(e) for e in ['. ', '! ', '? ', '; ']]
+                    # Need to comment line 146
+                    # sentence_ends = [sentence.find(e) for e in ['. ', '! ', '? ', '; ']]
+                    sentence_ends = [sentence.find(e) for e in ['. ', '.\n', '! ', '!\n', '? ', '?\n', '; ', ';\n', ': ', ':\n']]
                     sentence_end = sentence_ends[np.argmax(sentence_ends)] + 1
                     # if sentence.endswith('.') or sentence.endswith('!') or sentence.endswith('?'):
                     if sentence_end > 0:
