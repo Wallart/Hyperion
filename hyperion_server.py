@@ -3,15 +3,15 @@ from pathlib import Path
 from flask_cors import CORS
 from time import time, sleep
 from hyperion.utils import get_ctx
-from hyperion import HYPERION_VERSION
 from flask_socketio import SocketIO, emit
 from hyperion.analysis import CHAT_MODELS
 from werkzeug.utils import secure_filename
 from hyperion.pipelines.brain import Brain
-from hyperion.utils.identity_store import IdentityStore
 from hyperion.utils.logger import ProjectLogger
 from multiprocessing.managers import BaseManager
 from hyperion.utils.memory_utils import MANAGER_TOKEN
+from hyperion.utils.identity_store import IdentityStore
+from hyperion import HYPERION_VERSION, THEIA_MIN_VERSION
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
@@ -400,6 +400,18 @@ def upload_file_to_context():
 @app.before_request
 def before_request():
     g.start = time()
+
+    # Don't block pre-flight requests.
+    if request.method != 'OPTIONS':
+        client_version = request.headers.get('version')
+        if client_version is None:
+            return 'Client update required', 426  # HTTP : Upgrade required
+
+        min_version = THEIA_MIN_VERSION.split('.')
+        client_version = client_version.split('.')
+        valid = [int(acc_vers) <= int(client_vers) for acc_vers, client_vers in zip(min_version, client_version)]
+        if not all(valid):
+            return 'Client update required', 426  # HTTP : Upgrade required
 
 
 @app.after_request
