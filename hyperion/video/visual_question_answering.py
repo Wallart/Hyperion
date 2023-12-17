@@ -28,7 +28,9 @@ class VisualQuestionAnswering(Consumer, Producer):
     def analyze_frame(self, frame: List):
         image = Image.fromarray(frame)
         processed_image = self.vis_processors['eval'](image).unsqueeze(0).to(self._ctx[-1])
-        caption = self.model.generate({'image': processed_image})[0]
+        # use_nucleus_sampling workaround to use Blip with transformers>4.25.0
+        # https://github.com/salesforce/LAVIS/issues/142
+        caption = self.model.generate({'image': processed_image}, use_nucleus_sampling=True)[0]
         return caption
 
     def run(self) -> None:
