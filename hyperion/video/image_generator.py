@@ -21,7 +21,7 @@ class ImageGenerator(Consumer, Producer):
         # Use the DPMSolverMultistepScheduler (DPM-Solver++) scheduler here instead
         self._pipe = StableDiffusionPipeline.from_pretrained(model_name, torch_dtype=torch.float16)
         self._pipe.scheduler = DPMSolverMultistepScheduler.from_config(self._pipe.scheduler.config)
-        self._pipe = self._pipe.to(ctx[-1])
+        self._pipe = self._pipe.to(ctx[0])
 
     def set_synthesizer_intake(self, synthesizer_intake_delegate):
         self.synthesizer_intake = synthesizer_intake_delegate

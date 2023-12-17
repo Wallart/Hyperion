@@ -32,13 +32,13 @@ class Brain:
         self.voice_recognizer = VoiceRecognizer(ctx[-1:])
 
         # logical thinking and speech synthesis block
-        self.voice_transcriber = VoiceTranscriber(ctx, opts.whisper)
+        self.voice_transcriber = VoiceTranscriber(ctx[:1], opts.whisper)
         self.chat_gpt = ChatGPT(opts.name, opts.gpt, opts.no_memory, opts.clear, opts.prompt)
         self.voice_synthesizer = VoiceSynthesizer(ctx[-1:], lambda: self.sio)
 
         # video/image processing
-        self.visual_answering = VisualQuestionAnswering(ctx)
-        self.images_gen = ImageGenerator(ctx)
+        self.visual_answering = VisualQuestionAnswering(ctx[:1])
+        self.images_gen = ImageGenerator(ctx[-1:])
 
         # commands handling block
         self.user_commands = UserCommandDetector(lambda: self.sio)

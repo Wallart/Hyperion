@@ -17,7 +17,7 @@ class VisualQuestionAnswering(Consumer, Producer):
             'name': 'blip_caption',
             'model_type': 'base_coco',
             'is_eval': True,
-            'device': ctx[-1]
+            'device': ctx[0]
         }
         self.model, self.vis_processors, _ = load_model_and_preprocess(**opts)
         self.chat_delegate = None
