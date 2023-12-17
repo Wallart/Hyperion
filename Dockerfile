@@ -20,6 +20,13 @@ ADD setup.py hyperion_tmp/.
 RUN cd hyperion_tmp; pip install .
 # Temporary workaround to bypass conflicts
 RUN pip install TTS==0.22.0
+RUN git clone https://github.com/salesforce/LAVIS
+RUN cd LAVIS; git checkout ac8fc98; \
+    sed -i '38s/open3d==0.13.0/open3d==0.17.0/' requirements.txt; \
+    sed -i '24d' lavis/models/blip_models/blip.py; \
+    sed -i '23d' lavis/models/blip_models/blip.py
+RUN cd LAVIS; pip install .
+RUN rm -rf LAVIS
 RUN mv hyperion_tmp/hyperion_server.py /usr/bin/hyperion_server
 RUN mv hyperion_tmp/memory_server.py /usr/bin/memory_server
 RUN chmod +x /usr/bin/hyperion_server

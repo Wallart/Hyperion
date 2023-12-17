@@ -7,7 +7,8 @@ openai==1.2.4
 openai-whisper==20231117
 tiktoken==0.5.2
 # vqa
-salesforce-lavis==1.0.2
+# currently causing conflict must be installed outside of requirements.txt
+#salesforce-lavis==1.0.2
 # documents indexes
 llama_index==0.9.15
 
@@ -31,11 +32,12 @@ diffusers==0.24.0
 phonemizer==3.2.1
 accelerate==0.25.0
 speechbrain==0.5.16
-transformers==4.26.1
+transformers==4.33.2
 
 # Sound processing
 pydub==0.25.1
 librosa==0.10.1
+noisereduce==3.0.0
 
 # HTTP server side
 flask==2.3.3
