@@ -16,6 +16,7 @@ import io
 import queue
 import pydub
 import numpy as np
+import noisereduce as nr
 import google.cloud.texttospeech as tts
 
 VALID_ENGINES = ['local', 'eleven', 'google_cloud', 'google_translate']
@@ -158,7 +159,8 @@ class VoiceSynthesizer(Consumer, Producer):
         samples = list((self._sample_dir / voice_name).glob('*.wav'))
         wav_sound = self._local_tts.tts(text=text, speaker_wav=samples, language='fr')
         wav = np.array(wav_sound, dtype=np.float32)
-        return float32_to_int16(wav)
+        wav = float32_to_int16(wav)
+        return nr.reduce_noise(wav, self.sample_rate)
 
     def _infer(self, text, engine=None, voice=None):
         if engine is None:
