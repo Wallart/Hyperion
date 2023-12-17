@@ -34,6 +34,7 @@ ADD resources/ssl /root/.hyperion/resources/ssl
 ADD resources/prompts /root/.hyperion/resources/prompts
 ADD resources/gpt_models.json /root/.hyperion/resources/gpt_models.json
 ADD resources/speakers_samples /root/.hyperion/resources/speakers_samples
+ADD resources/voices_samples /root/.hyperion/resources/voices_samples
 ADD resources/default_sentences /root/.hyperion/resources/default_sentences
 
 RUN mkdir -p /etc/service/memory_server/

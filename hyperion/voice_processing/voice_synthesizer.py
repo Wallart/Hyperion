@@ -103,8 +103,8 @@ class VoiceSynthesizer(Consumer, Producer):
         self._valid_google_voices = [v.name for v in voices if v.language_codes[0] == self._language_code]
 
     def _init_local_model(self, ctx):
-        self._sample_dir = ProjectPaths().resources_dir / 'speakers_samples'
-        self._default_local_voice = 'tim'
+        self._sample_dir = ProjectPaths().resources_dir / 'voices_samples'
+        self._default_local_voice = 'josh'
         self._valid_local_voices = [e.name for e in self._sample_dir.glob('*') if e.is_dir()]
 
         model_name = 'xtts_v2.0.2'
