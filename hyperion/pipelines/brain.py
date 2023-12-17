@@ -38,7 +38,7 @@ class Brain:
 
         # video/image processing
         self.visual_answering = VisualQuestionAnswering(ctx[:1])
-        self.images_gen = ImageGenerator(ctx[-1:])
+        self.images_gen = ImageGenerator(ctx[:1])
 
         # commands handling block
         self.user_commands = UserCommandDetector(lambda: self.sio)
