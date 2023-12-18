@@ -36,6 +36,7 @@ RUN rm -rf hyperion_tmp/
 
 RUN mkdir -p /root/.hyperion/resources
 RUN mkdir /root/.hyperion/resources/keys
+RUN mkdir /root/.hyperion/resources/secret
 ADD resources/ssl /root/.hyperion/resources/ssl
 #ADD resources/keys /root/.hyperion/resources/keys
 ADD resources/prompts /root/.hyperion/resources/prompts
@@ -43,6 +44,7 @@ ADD resources/gpt_models.json /root/.hyperion/resources/gpt_models.json
 ADD resources/speakers_samples /root/.hyperion/resources/speakers_samples
 ADD resources/voices_samples /root/.hyperion/resources/voices_samples
 ADD resources/default_sentences /root/.hyperion/resources/default_sentences
+ADD resources/secret/private_key.pem /root/.hyperion/resources/secret/private_key.pem
 
 RUN mkdir -p /etc/service/memory_server/
 RUN <<EOF cat > /etc/service/memory_server/run

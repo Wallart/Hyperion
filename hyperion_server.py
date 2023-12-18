@@ -1,23 +1,29 @@
 #!/usr/bin/env python
 from pathlib import Path
 from flask_cors import CORS
+from base64 import b64decode
 from time import time, sleep
+from Crypto.Signature import pss
+from Crypto.PublicKey import RSA
 from hyperion.utils import get_ctx
+from Crypto.Hash import SHA256, SHA1
+from Crypto.Cipher import PKCS1_OAEP
 from flask_socketio import SocketIO, emit
 from hyperion.analysis import CHAT_MODELS
 from werkzeug.utils import secure_filename
 from hyperion.pipelines.brain import Brain
+from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
 from multiprocessing.managers import BaseManager
 from hyperion.utils.memory_utils import MANAGER_TOKEN
 from hyperion.utils.identity_store import IdentityStore
-from hyperion import HYPERION_VERSION, THEIA_MIN_VERSION
 from hyperion.analysis.prompt_manager import PromptManager
 from hyperion.utils.execution import startup, handle_errors
 from flask_log_request_id import RequestID, current_request_id
 from flask import Flask, Response, request, g, stream_with_context
 from hyperion.voice_processing.voice_synthesizer import VALID_ENGINES
 from hyperion.voice_processing.voice_transcriber import TRANSCRIPT_MODELS
+from hyperion import HYPERION_VERSION, THEIA_MIN_VERSION, HYPERION_RAW_SECRET
 
 import os
 import io
@@ -30,6 +36,9 @@ app = Flask(__name__)
 CORS(app)
 RequestID(app)
 sio = SocketIO(app, async_mode='threading', cors_allowed_origins='*')
+# Load private key
+private_key = RSA.import_key(open(ProjectPaths().resources_dir / 'secret' / 'private_key.pem').read())
+cipher_rsa = PKCS1_OAEP.new(private_key, hashAlgo=SHA256, mgfunc=lambda x, y: pss.MGF1(x, y, SHA1))
 
 
 def get_headers_params():
@@ -397,6 +406,18 @@ def upload_file_to_context():
         return 'No file added. Invalid format', 500
 
 
+def secret_check():
+    try:
+        encrypted_secret = request.headers.get('secret')
+        decrypted_secret = cipher_rsa.decrypt(b64decode(encrypted_secret)).decode('utf-8')
+        if decrypted_secret != HYPERION_RAW_SECRET:
+            raise Exception()
+    except Exception as e:
+        # request_id = current_request_id()
+        ProjectLogger().warning(f'Invalid secret for request {request.method} {request.base_url}')
+        return 'Invalid secret', 401  # HTTP : Unauthorized
+
+
 @app.before_request
 def before_request():
     g.start = time()
@@ -412,6 +433,8 @@ def before_request():
         valid = [int(acc_vers) <= int(client_vers) for acc_vers, client_vers in zip(min_version, client_version)]
         if not all(valid):
             return 'Client update required', 426  # HTTP : Upgrade required
+
+        return secret_check()
 
 
 @app.after_request

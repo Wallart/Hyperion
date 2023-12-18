@@ -9,5 +9,6 @@ dist/
 **/resources/speakers_samples/*/
 **/resources/voices_samples/*/
 **/resources/keys/*.key
+**/resources/secret/*.pem
 *.spec
 venv/
