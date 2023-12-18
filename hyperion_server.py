@@ -410,12 +410,11 @@ def secret_check():
     try:
         encrypted_secret = request.headers.get('secret')
         decrypted_secret = cipher_rsa.decrypt(b64decode(encrypted_secret)).decode('utf-8')
-        if decrypted_secret != HYPERION_RAW_SECRET:
-            raise Exception()
+        if decrypted_secret == HYPERION_RAW_SECRET:
+            return True
     except Exception as e:
-        # request_id = current_request_id()
-        ProjectLogger().warning(f'Invalid secret for request {request.method} {request.base_url}')
-        return 'Invalid secret', 401  # HTTP : Unauthorized
+        pass
+    return False
 
 
 @app.before_request
@@ -434,7 +433,9 @@ def before_request():
         if not all(valid):
             return 'Client update required', 426  # HTTP : Upgrade required
 
-        return secret_check()
+        if not secret_check():
+            ProjectLogger().warning(f'Invalid secret for request {request.method} {request.base_url}')
+            return 'Invalid secret', 401  # HTTP : Unauthorized
 
 
 @app.after_request
