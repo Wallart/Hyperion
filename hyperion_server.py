@@ -38,7 +38,7 @@ RequestID(app)
 sio = SocketIO(app, async_mode='threading', cors_allowed_origins='*')
 # Load private key
 private_key = RSA.import_key(open(ProjectPaths().resources_dir / 'secret' / 'private_key.pem').read())
-cipher_rsa = PKCS1_OAEP.new(private_key, hashAlgo=SHA256, mgfunc=lambda x, y: pss.MGF1(x, y, SHA1))
+cipher_rsa = PKCS1_OAEP.new(private_key, hashAlgo=SHA256)
 
 
 def get_headers_params():
