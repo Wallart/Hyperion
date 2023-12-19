@@ -21,7 +21,7 @@ import numpy as np
 
 class ChatGPT(Consumer, Producer):
 
-    def __init__(self, name, model, no_memory, clear, prompt='base', base_url=None):
+    def __init__(self, name, model, no_memory, clear, prompt='base', llama_host='localhost', llama_port=8080):
         super().__init__()
         ProjectLogger().info(f'{name} using {model} as chat backend. No memory -> {no_memory}')
 
@@ -36,12 +36,15 @@ class ChatGPT(Consumer, Producer):
         self._error_sentences = load_file(sentences_path / 'dead')
         self._memory_sentences = load_file(sentences_path / 'memory')
 
-        api_key = None
-        if base_url is None:
+        llama_cpp_url = f'http://{llama_host}:{llama_port}/v1'
+        self._mistral_client = OpenAI(api_key='sk-no-key-required', base_url=llama_cpp_url)
+        self._open_ai_client = None
+        try:
             openai_api = ProjectPaths().resources_dir / 'keys' / 'openai_api.key'
             api_key = os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(openai_api)[0]
-
-        self._client = OpenAI(api_key=api_key, base_url=base_url)
+            self._open_ai_client = OpenAI(api_key=api_key)
+        except Exception:
+            ProjectLogger().warning('No OpenAI api key found. GPT models won\'t be available.')
 
         self._video_ctx = None
         self._video_ctx_timestamp = time()
@@ -66,7 +69,13 @@ class ChatGPT(Consumer, Producer):
         Returns the number of tokens used by a list of messages.
         See https://platform.openai.com/docs/guides/vision for images token count.
         """
-        tokenizer = tiktoken.encoding_for_model(self._model if llm is None else llm)
+        model = self._model if llm is None else llm
+        if model.startswith('mixtral'):
+            model = 'gpt-4-32k'
+        elif model.startswith('mistral'):
+            model = 'gpt-4'
+
+        tokenizer = tiktoken.encoding_for_model(model)
         tokens_per_message, tokens_per_name = get_model_token_specs(self._model if llm is None else llm)
 
         num_tokens = 0
@@ -139,8 +148,13 @@ class ChatGPT(Consumer, Producer):
         messages, dropped_messages = self._add_to_context(build_context_line(role, chat_input, name=name), preprompt, llm)
         # TODO vision-preview workaround for cutted sentences
         max_tokens = 4096 if llm is not None and 'vision-preview' in llm else NOT_GIVEN
-        response = self._client.chat.completions.create(model=self._model if llm is None else llm, messages=messages, stream=stream, max_tokens=max_tokens)
+        response = self._chat_completion(llm, messages, stream, max_tokens)
         return response, dropped_messages
+
+    def _chat_completion(self, llm, messages, stream, max_tokens):
+        model = self._model if llm is None else llm
+        client = self._open_ai_client if model.startswith('gpt') else self._mistral_client
+        return client.chat.completions.create(model=model, messages=messages, stream=stream, max_tokens=max_tokens)
 
     def _dispatch_sentence(self, sentence, sentence_num, t0, request_obj):
         #sentence = sentence.strip()

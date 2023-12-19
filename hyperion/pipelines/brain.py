@@ -33,7 +33,7 @@ class Brain:
 
         # logical thinking and speech synthesis block
         self.voice_transcriber = VoiceTranscriber(ctx[:1], opts.whisper)
-        self.chat_gpt = ChatGPT(opts.name, opts.gpt, opts.no_memory, opts.clear, opts.prompt)
+        self.chat_gpt = ChatGPT(opts.name, opts.gpt, opts.no_memory, opts.clear, opts.prompt, llama_host=opts.llama_host, llama_port=opts.llama_port)
         self.voice_synthesizer = VoiceSynthesizer(ctx[-1:], lambda: self.sio)
 
         # video/image processing

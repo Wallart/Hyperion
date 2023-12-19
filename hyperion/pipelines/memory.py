@@ -1,5 +1,6 @@
 from typing import List
 from pathlib import Path
+from llama_index.llms import OpenAI
 from hyperion.utils.paths import ProjectPaths
 from multiprocessing import Lock, Manager, Process
 from hyperion.utils import load_file, ProjectLogger
@@ -16,7 +17,10 @@ class Memory:
         self._index = ConcurrentDict()
         self._state = Manager().Value('c', '')  # Manager is concurrent access safe
         self._indexes_dir = ProjectPaths().cache_dir / 'indexes'
-        os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(ProjectPaths().resources_dir / 'keys' / 'openai_api.key')[0]
+        # TODO Add base_url switching
+        os.environ['OPENAI_API_BASE'] = 'http://localhost:8080/v1'
+        os.environ['OPENAI_API_KEY'] = 'sk-no-key-required'
+        # os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(ProjectPaths().resources_dir / 'keys' / 'openai_api.key')[0]
 
     def _reset_state(self):
         self._state.value = ''

@@ -1,10 +1,11 @@
-ARG PYTORCH_STACK_VERSION=latest
-FROM wallart/dl_pytorch:${PYTORCH_STACK_VERSION}
+ARG LLAMA_CPP_VERSION=latest
+FROM wallart/llama_cpp:${LLAMA_CPP_VERSION}
+#ARG PYTORCH_STACK_VERSION=latest
+#FROM wallart/dl_pytorch:${STACK_VERSION}
 LABEL Author='Julien WALLART'
 
 EXPOSE 6450
 WORKDIR /tmp
-
 SHELL ["/bin/bash", "-c"]
 
 RUN apt update && \
@@ -40,7 +41,7 @@ RUN mkdir /root/.hyperion/resources/secret
 ADD resources/ssl /root/.hyperion/resources/ssl
 #ADD resources/keys /root/.hyperion/resources/keys
 ADD resources/prompts /root/.hyperion/resources/prompts
-ADD resources/gpt_models.json /root/.hyperion/resources/gpt_models.json
+ADD resources/llm_models.json /root/.hyperion/resources/llm_models.json
 ADD resources/speakers_samples /root/.hyperion/resources/speakers_samples
 ADD resources/voices_samples /root/.hyperion/resources/voices_samples
 ADD resources/default_sentences /root/.hyperion/resources/default_sentences
@@ -65,8 +66,18 @@ fi
 EOF
 RUN chmod 755 /etc/service/hyperion_server/run
 
-#ENTRYPOINT ["/usr/bin/hyperion_server"]
-#CMD ["--foreground", "restart", "--port", "6450"]
+RUN mkdir -p /etc/service/llama_cpp_server/
+RUN <<EOF cat > /etc/service/llama_cpp_server/run
+#!/bin/bash
+host=0.0.0.0
+port=8080
+threads=8
+parallel_requests=32
+model_path=/root/$MISTRAL_MODEL/ggml-model-q4_0.gguf
+opts="-m \$model_path --embedding --host \$host --port \$port -t \$threads -np \$parallel_requests"
+/root/llama.cpp/server -c $MISTRAL_TOKENS -a $MISTRAL_ALIAS \$opts
+EOF
+RUN chmod 755 /etc/service/llama_cpp_server/run
 
 # Using HEREDOC notation
 RUN <<EOF cat > /usr/sbin/bootstrap

@@ -476,6 +476,8 @@ def main(args):
 if __name__ == '__main__':
     def add_opts(sub_parser):
         sub_parser.add_argument('-p', '--port', type=int, default=9999, help='Listening port.')
+        sub_parser.add_argument('--llama-host', type=str, default='localhost', help='Llama server host')
+        sub_parser.add_argument('--llama-port', type=int, default=8080, help='Llama server port')
         sub_parser.add_argument('--clear', action='store_true', help='Clean persistent memory at startup')
         sub_parser.add_argument('--no-memory', action='store_true', help='Start bot without persistent memory.')
         sub_parser.add_argument('--name', type=str, default='Hypérion', help='Set bot name.')

@@ -5,7 +5,7 @@ from hyperion.utils.logger import ProjectLogger
 import re
 import json
 
-with open(ProjectPaths().resources_dir / 'gpt_models.json') as f:
+with open(ProjectPaths().resources_dir / 'llm_models.json') as f:
     CHAT_MODELS = json.load(f)
 
 
@@ -59,6 +59,8 @@ def get_model_token_specs(model):
     elif model == 'gpt-4-0314':
         tokens_per_message = 3
         tokens_per_name = 1
+    elif model.startswith('mistral') or model.startswith('mixtral'):
+        return get_model_token_specs('gpt-4-0314')
     else:
         raise NotImplementedError(f'num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens.')
 
