@@ -1,7 +1,9 @@
+ARG PYTORCH_STACK_VERSION=latest
 ARG LLAMA_CPP_VERSION=latest
-FROM wallart/llama_cpp:${LLAMA_CPP_VERSION}
-#ARG PYTORCH_STACK_VERSION=latest
-#FROM wallart/dl_pytorch:${STACK_VERSION}
+FROM wallart/dl_pytorch:${PYTORCH_STACK_VERSION} AS base
+FROM wallart/llama_cpp:${LLAMA_CPP_VERSION} AS llama
+
+FROM base
 LABEL Author='Julien WALLART'
 
 EXPOSE 6450
@@ -71,11 +73,14 @@ RUN <<EOF cat > /etc/service/llama_cpp_server/run
 #!/bin/bash
 host=0.0.0.0
 port=8080
-threads=8
-parallel_requests=32
-model_path=/root/$MISTRAL_MODEL/ggml-model-q4_0.gguf
-opts="-m \$model_path --embedding --host \$host --port \$port -t \$threads -np \$parallel_requests"
-/root/llama.cpp/server -c $MISTRAL_TOKENS -a $MISTRAL_ALIAS \$opts
+threads=\$(nproc --all)
+parallel_requests=1
+num_layers=33
+tokens=8192
+model_dir=\$(ls -I llama.cpp /root)
+model_path=/root/\$model_dir/ggml-model-q4_0.gguf
+opts="-m \$model_path --embedding --host \$host --port \$port -ngl \$num_layers -t \$threads -np \$parallel_requests"
+/root/llama.cpp/server -c \$tokens \$opts
 EOF
 RUN chmod 755 /etc/service/llama_cpp_server/run
 
@@ -85,5 +90,7 @@ RUN <<EOF cat > /usr/sbin/bootstrap
 exec /usr/local/bin/runsvdir -P /etc/service
 EOF
 RUN chmod 755 /usr/sbin/bootstrap
+
+COPY --from=llama /root /root
 
 ENTRYPOINT ["/usr/sbin/bootstrap"]
