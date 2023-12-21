@@ -153,7 +153,14 @@ class ChatGPT(Consumer, Producer):
 
     def _chat_completion(self, llm, messages, stream, max_tokens):
         model = self._model if llm is None else llm
-        client = self._open_ai_client if model.startswith('gpt') else self._mistral_client
+        client = self._open_ai_client
+        if not model.startswith('gpt'):
+            client = self._mistral_client
+            for message in messages:
+                if 'name' in message:
+                    name = message['name']
+                    content = message['content']
+                    message['content'] = f'{name} : {content}'
         return client.chat.completions.create(model=model, messages=messages, stream=stream, max_tokens=max_tokens)
 
     def _dispatch_sentence(self, sentence, sentence_num, t0, request_obj):
