@@ -16,9 +16,12 @@ def load_url(url):
         # no RSS feed found. Just summarize webpage.
         return summarize_page(page_content)
     else:
-        rss_feed_content = get_page_content(links[0])
-        if not rss_feed_content:
-            # no RSS feed found. Just summarize webpage.
+        try:
+            rss_feed_content = get_page_content(links[0])
+            if not rss_feed_content:
+                # no RSS feed found. Just summarize webpage.
+                return summarize_page(page_content)
+        except Exception as e:
             return summarize_page(page_content)
         return summarize_page(rss_feed_content)
 
