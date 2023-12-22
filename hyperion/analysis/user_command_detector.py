@@ -59,6 +59,8 @@ class UserCommandDetector(Consumer, Producer):
                     analyzed_text = request_obj.text_request.lower()
                     action = None
                     for i, sentences in enumerate(self._commands.values()):
+                        # TODO Fix Sentences like this one (-> QUIET):
+                        # Ok, et si tu nous racontais une histoire marrante pour se changer les idées ?
                         for sentence in sentences:
                             tokens = sentence.lower().split(' ')
                             found_tokens = sum([1 for t in tokens if t in analyzed_text])
