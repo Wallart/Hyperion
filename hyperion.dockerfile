@@ -1,9 +1,5 @@
 ARG PYTORCH_STACK_VERSION=latest
-ARG LLAMA_CPP_VERSION=latest
-FROM wallart/dl_pytorch:${PYTORCH_STACK_VERSION} AS base
-FROM wallart/llama_cpp:${LLAMA_CPP_VERSION} AS llama
-
-FROM base
+FROM wallart/dl_pytorch:${PYTORCH_STACK_VERSION}
 LABEL Author='Julien WALLART'
 
 EXPOSE 6450
@@ -64,33 +60,26 @@ if [[ -n \$NAME ]]
 then
     name_opt="--name \$NAME"
 fi
-/usr/bin/hyperion_server --foreground restart --port 6450 \$name_opt
+
+llama_host_opt=""
+if [[ -n \$LLAMA_HOST ]]
+then
+    llama_host_opt="--llama-host \$LLAMA_HOST"
+fi
+
+llama_port_opt=""
+if [[ -n \$LLAMA_PORT ]]
+then
+    llama_port_opt="--llama-port \$LLAMA_PORT"
+fi
+/usr/bin/hyperion_server --foreground restart --port 6450 \$name_opt \$llama_host_opt \$llama_port_opt
 EOF
 RUN chmod 755 /etc/service/hyperion_server/run
 
-RUN mkdir -p /etc/service/llama_cpp_server/
-RUN <<EOF cat > /etc/service/llama_cpp_server/run
-#!/bin/bash
-host=0.0.0.0
-port=8080
-threads=\$(nproc --all)
-parallel_requests=1
-num_layers=33
-tokens=8192
-model_dir=\$(ls -I llama.cpp /root)
-model_path=/root/\$model_dir/ggml-model-q4_0.gguf
-opts="-m \$model_path --embedding --host \$host --port \$port -ngl \$num_layers -t \$threads -np \$parallel_requests"
-/root/llama.cpp/server -c \$tokens \$opts
-EOF
-RUN chmod 755 /etc/service/llama_cpp_server/run
-
-# Using HEREDOC notation
 RUN <<EOF cat > /usr/sbin/bootstrap
 #!/bin/bash
 exec /usr/local/bin/runsvdir -P /etc/service
 EOF
 RUN chmod 755 /usr/sbin/bootstrap
-
-COPY --from=llama /root /root
 
 ENTRYPOINT ["/usr/sbin/bootstrap"]
