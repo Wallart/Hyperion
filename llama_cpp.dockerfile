@@ -4,23 +4,56 @@ FROM wallart/dl_pytorch:${PYTORCH_STACK_VERSION}
 LABEL Author='Julien WALLART'
 
 # After a FROM, ARG is local to next build stage
-ARG MODEL
-ENV MISTRAL_MODEL=${MODEL:-Mixtral-8x7B-Instruct-v0.1}
-ARG ALIAS
-ENV MISTRAL_ALIAS=${ALIAS:-mixtral-8x7B}
-ARG TOKENS
-ENV MISTRAL_TOKENS=${TOKENS:-32000}
+ARG CUDA_ARCH=compute_86
+ENV CUDA_DOCKER_ARCH=$CUDA_ARCH
+
+ARG MODEL_PREFIX=mistralai
+ARG MODEL=Mistral-7B-Instruct-v0.2
+ENV LLM_MODEL=$MODEL
+
+ARG ALIAS=mistral-7B
+ENV LLM_ALIAS=$ALIAS
+
+ARG TOKENS=8192
+ENV LLM_TOKENS=$TOKENS
+
+ARG LAYERS=33
+ENV LLM_LAYERS=$LAYERS
+
+ARG PAR_REQUESTS=2
+ENV PARALLEL_REQUESTS=$PAR_REQUESTS
 
 WORKDIR /root
 
 RUN apt install git-lfs && \
   git lfs install && \
-  git clone https://huggingface.co/mistralai/$MISTRAL_MODEL && \
+  mkdir models; cd models; git clone https://huggingface.co/$MODEL_PREFIX/$LLM_MODEL; cd .. && \
   git clone https://github.com/ggerganov/llama.cpp && \
-  cd llama.cpp && make LLAMA_CUBLAS=1 && pip install -r requirements.txt && \
-  python ./convert.py /root/$MISTRAL_MODEL && \
-  ./quantize /root/$MISTRAL_MODEL/ggml-model-f16.gguf /root/$MISTRAL_MODEL/ggml-model-q4_0.gguf q4_0 && \
-  cp /root/$MISTRAL_MODEL/ggml-model-q4_0.gguf /root/.; \
-  rm -rf /root/$MISTRAL_MODEL; \
-  mkdir /root/$MISTRAL_MODEL; \
-  mv /root/ggml-model-q4_0.gguf /root/$MISTRAL_MODEL/.
+  cd llama.cpp && make LLAMA_CUBLAS=1 CUDA_DOCKER_ARCH=$CUDA_DOCKER_ARCH && pip install -r requirements.txt && \
+  python ./convert.py /root/models/$LLM_MODEL && \
+  ./quantize /root/models/$LLM_MODEL/ggml-model-f16.gguf /root/models/$LLM_MODEL/ggml-model-q4_0.gguf q4_0 && \
+  cp /root/models/$LLM_MODEL/ggml-model-q4_0.gguf /root/.; \
+  rm -rf /root/models/$LLM_MODEL; \
+  mkdir /root/models/$LLM_MODEL; \
+  mv /root/ggml-model-q4_0.gguf /root/models/$LLM_MODEL/.
+
+RUN mkdir -p /etc/service/llama_cpp_server/
+RUN <<EOF cat > /etc/service/llama_cpp_server/run
+#!/bin/bash
+host=0.0.0.0
+port=8080
+threads=\$(nproc --all)
+model_dir=\$(ls /root/models | cut -d ' ' -f 1)
+model_path=/root/models/\$model_dir/ggml-model-q4_0.gguf
+opts="-m \$model_path --embedding --host \$host --port \$port -t \$threads"
+/root/llama.cpp/server -a \$LLM_ALIAS -c \$LLM_TOKENS -ngl \$LLM_LAYERS -np \$PARALLEL_REQUESTS \$opts
+EOF
+RUN chmod 755 /etc/service/llama_cpp_server/run
+
+RUN <<EOF cat > /usr/sbin/bootstrap
+#!/bin/bash
+exec /usr/local/bin/runsvdir -P /etc/service
+EOF
+RUN chmod 755 /usr/sbin/bootstrap
+
+ENTRYPOINT ["/usr/sbin/bootstrap"]
