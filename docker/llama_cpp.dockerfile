@@ -43,7 +43,7 @@ RUN <<EOF cat > /etc/service/llama_cpp_server/run
 host=0.0.0.0
 port=8080
 threads=\$(nproc --all)
-model_dir=\$(ls /root/models | cut -d ' ' -f 1)
+model_dir=\$(ls /root/models | xargs | cut -d ' ' -f 1)
 model_path=/root/models/\$model_dir/ggml-model-q4_0.gguf
 opts="-m \$model_path --embedding --host \$host --port \$port -t \$threads"
 /root/llama.cpp/server -a \$LLM_ALIAS -c \$LLM_TOKENS -ngl \$LLM_LAYERS -np \$PARALLEL_REQUESTS \$opts
