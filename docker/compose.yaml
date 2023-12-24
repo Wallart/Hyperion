@@ -1,0 +1,32 @@
+services:
+  hyperion:
+    image: 'wallart/hyperion_server:1.6.0.rc0'
+    environment:
+      - LLAMA_HOST=llama_cpp
+    ports:
+      - 6450:6450
+    volumes:
+      - ~/.hyperion/indexes:/root/.hyperion/indexes
+      - ~/.hyperion/whisper:/root/.hyperion/whisper
+      - ~/.hyperion/prompts_db:/root/.hyperion/prompts_db
+      - ~/workspaces/Hyperion/resources/keys:/root/.hyperion/resources/keys
+      - ~/.cache:/root/.cache
+      - ~/.local/share/tts:/root/.local/share/tts
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [ gpu ]
+              count: 'all'
+  llama_cpp:
+    image: 'wallart/llama_cpp:mistral-ft-optimized-1218'
+    ports:
+      - 8080:8080
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [ gpu ]
+              device_ids: [ '1' ]
