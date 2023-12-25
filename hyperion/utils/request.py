@@ -1,8 +1,35 @@
 from copy import deepcopy
 from hyperion.utils.timer import Timer
 from hyperion.audio import int16_to_float32
+from hyperion.utils.singleton import Singleton
 
 import numpy as np
+
+
+class KeepAliveSet(metaclass=Singleton):
+    # TODO Is it threadsafe ?
+    def __init__(self):
+        self._ka_set = dict()
+
+    def __contains__(self, key):
+        return key in self._ka_set
+
+    def add(self, key):
+        if key in self._ka_set:
+            self._ka_set[key]['pending'] += 1
+        else:
+            self._ka_set[key] = dict(pending=1, retained_term=None)
+
+    def add_termination(self, key, term_req):
+        if key in self._ka_set:
+            self._ka_set[key]['retained_term'] = term_req
+
+    def remove(self, key):
+        if key in self._ka_set:
+            self._ka_set[key]['pending'] -= 1
+            term_req = self._ka_set[key]['retained_term']
+            del self._ka_set[key]
+            return term_req
 
 
 class RequestObject:

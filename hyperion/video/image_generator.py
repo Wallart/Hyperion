@@ -1,8 +1,8 @@
 from time import time
 from PIL import Image
 from hyperion.utils.logger import ProjectLogger
-from hyperion.utils.request import RequestObject
 from hyperion.utils.threading import Producer, Consumer
+from hyperion.utils.request import RequestObject, KeepAliveSet
 from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
 
 import io
@@ -16,7 +16,6 @@ class ImageGenerator(Consumer, Producer):
         self._ctx = ctx
 
         self.synthesizer_intake = None
-        self.keep_alive = set()
 
         # Use the DPMSolverMultistepScheduler (DPM-Solver++) scheduler here instead
         self._pipe = StableDiffusionPipeline.from_pretrained(model_name, torch_dtype=torch.float16)
@@ -61,7 +60,6 @@ class ImageGenerator(Consumer, Producer):
                 request_obj = self._consume()
                 t0 = time()
 
-                self.keep_alive.add(request_obj.identifier)
                 is_terminal = True if request_obj.text_answer is None else False
 
                 ack = RequestObject.copy(request_obj)
@@ -106,9 +104,10 @@ class ImageGenerator(Consumer, Producer):
                     err_response.silent = True
                     self._forward(err_response, is_terminal)
 
-                self.keep_alive.remove(request_obj.identifier)
-                termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
-                self._forward(termination_request, is_terminal)
+                # termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
+                term_req = KeepAliveSet().remove(request_obj.identifier)
+                if term_req is not None:
+                    self._forward(term_req, is_terminal)
 
                 ProjectLogger().info(f'{self.__class__.__name__} {time() - t0:.3f} exec. time')
             except queue.Empty:

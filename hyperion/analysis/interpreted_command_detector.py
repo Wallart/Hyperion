@@ -5,13 +5,13 @@ from hyperion.utils.timer import Timer
 from datetime import datetime, timedelta
 from hyperion.utils.paths import ProjectPaths
 from hyperion.utils.logger import ProjectLogger
-from hyperion.utils.request import RequestObject
 from multiprocessing.managers import BaseManager
 from concurrent.futures import ThreadPoolExecutor
 from hyperion.utils.memory_utils import MANAGER_TOKEN
 from hyperion.utils.identity_store import IdentityStore
 from hyperion.utils.threading import Consumer, Producer
 from hyperion.utils.task_scheduler import TaskScheduler
+from hyperion.utils.request import RequestObject, KeepAliveSet
 from hyperion.utils.external_resources_parsing import load_url
 
 import re
@@ -67,12 +67,14 @@ class InterpretedCommandDetector(Consumer, Producer):
                         ProjectLogger().warning(f'Flushing "{self._cmd_buffer}". Stucked for more than 30 sec(s)')
                         self._cmd_buffer = ''
 
-                    not_term = request_obj.termination is False
-                    not_pending = request_obj.identifier not in self.img_delegate.keep_alive
                     # don't forward termination requests if there is work still pending
-                    if request_obj.text_answer is None:
-                        if not_term or not_pending:
+                    pending = request_obj.identifier in KeepAliveSet()
+                    if request_obj.termination:
+                        if pending:
+                            KeepAliveSet().add_termination(request_obj.identifier, request_obj)
+                        else:
                             self._dispatch(request_obj)
+
                         continue
 
                     text_answer = self._cmd_buffer + request_obj.text_answer
@@ -160,6 +162,8 @@ class InterpretedCommandDetector(Consumer, Producer):
         TaskScheduler().add_task(lambda: self._dispatch(scheduled_request), run_date=run_date)
 
     def _on_draw(self, command_line, regex_pattern, request_obj):
+        KeepAliveSet().add(request_obj.identifier)
+
         parser = argparse.ArgumentParser()
         parser.add_argument('-b', '--batch', type=int)
         parser.add_argument('-W', '--width', type=int)
@@ -174,6 +178,8 @@ class InterpretedCommandDetector(Consumer, Producer):
         self.img_intake.put(request_obj)
 
     def _on_query(self, command_line, regex_pattern, request_obj):
+        KeepAliveSet().add(request_obj.identifier)
+
         parser = argparse.ArgumentParser()
         parser.add_argument('query', type=str)
         args = self._decompose_args(request_obj, parser, command_line, 'QUERY')
@@ -184,8 +190,9 @@ class InterpretedCommandDetector(Consumer, Producer):
                 request_obj.text_answer += '\n'
                 for index in request_obj.indexes:
                     response = self._memoryManager.query_index(index, args.query)
+                    response = response._getvalue()
                     if response is not None:
-                        sanitized_resp = str(response._getvalue())
+                        sanitized_resp = str(response)
                         request_obj.text_answer += sanitized_resp
                         request_obj.text_answer += '\n'
 
@@ -204,7 +211,13 @@ class InterpretedCommandDetector(Consumer, Producer):
                 err_request.silent = True
                 self._dispatch(err_request)
 
+        term_req = KeepAliveSet().remove(request_obj.identifier)
+        if term_req is not None:
+            self._dispatch(term_req)
+
     def _on_search(self, command_line, regex_pattern, request_obj):
+        KeepAliveSet().add(request_obj.identifier)
+
         parser = argparse.ArgumentParser()
         parser.add_argument('query', type=str)
         args = self._decompose_args(request_obj, parser, command_line, 'SEARCH')
@@ -246,6 +259,10 @@ class InterpretedCommandDetector(Consumer, Producer):
             err_request.text_answer = 'Unable to contact Google servers'
             err_request.silent = True
             self._dispatch(err_request)
+
+        term_req = KeepAliveSet().remove(request_obj.identifier)
+        if term_req is not None:
+            self._dispatch(term_req)
 
     def _on_quiet(self, request_obj):
         termination_request = RequestObject(request_obj.identifier, request_obj.user, termination=True)
