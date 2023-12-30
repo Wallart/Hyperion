@@ -37,6 +37,8 @@ RUN apt install git-lfs && \
   mkdir /root/models/$LLM_MODEL; \
   mv /root/ggml-model-q4_0.gguf /root/models/$LLM_MODEL/.
 
+RUN pip install uvicorn anyio starlette sse_starlette starlette_context fastapi pydantic_settings; \
+    CMAKE_ARGS="-DLLAMA_CUBLAS=ON -DCUDA_DOCKER_ARCH=$CUDA_DOCKER_ARCH" pip install llama-cpp-python
 RUN mkdir -p /etc/service/llama_cpp_server/
 RUN <<EOF cat > /etc/service/llama_cpp_server/run
 #!/bin/bash
@@ -45,8 +47,10 @@ port=8080
 threads=\$(nproc --all)
 model_dir=\$(ls /root/models | xargs | cut -d ' ' -f 1)
 model_path=/root/models/\$model_dir/ggml-model-q4_0.gguf
-opts="-m \$model_path --embedding --host \$host --port \$port -t \$threads"
-/root/llama.cpp/server -a \$LLM_ALIAS -c \$LLM_TOKENS -ngl \$LLM_LAYERS -np \$PARALLEL_REQUESTS \$opts
+#opts="-m \$model_path --embedding --host \$host --port \$port -t \$threads"
+#/root/llama.cpp/server -a \$LLM_ALIAS -c \$LLM_TOKENS -ngl \$LLM_LAYERS -np \$PARALLEL_REQUESTS \$opts
+opts="--model \$model_path --host \$host --port \$port --n_threads \$threads"
+python -m llama_cpp.server \$opts --model_alias \$LLM_ALIAS --n_gpu_layers \$LLM_LAYERS --n_ctx \$LLM_TOKENS
 EOF
 RUN chmod 755 /etc/service/llama_cpp_server/run
 
