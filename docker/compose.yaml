@@ -1,6 +1,6 @@
 services:
   hyperion:
-    image: 'wallart/hyperion_server:1.6.0.rc0'
+    image: 'wallart/hyperion_server:1.6.0.rc1'
     environment:
       - LLAMA_HOST=llama_cpp
     ports:

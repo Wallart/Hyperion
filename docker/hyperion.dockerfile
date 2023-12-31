@@ -48,7 +48,20 @@ ADD resources/secret/private_key.pem /root/.hyperion/resources/secret/private_ke
 RUN mkdir -p /etc/service/memory_server/
 RUN <<EOF cat > /etc/service/memory_server/run
 #!/bin/bash
-/usr/bin/memory_server
+
+llama_host_opt=""
+if [[ -n \$LLAMA_HOST ]]
+then
+    llama_host_opt="--llama-host \$LLAMA_HOST"
+fi
+
+llama_port_opt=""
+if [[ -n \$LLAMA_PORT ]]
+then
+    llama_port_opt="--llama-port \$LLAMA_PORT"
+fi
+
+/usr/bin/memory_server \$llama_host_opt \$llama_port_opt
 EOF
 RUN chmod 755 /etc/service/memory_server/run
 
