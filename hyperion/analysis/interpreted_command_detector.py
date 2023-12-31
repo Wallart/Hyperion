@@ -189,7 +189,7 @@ class InterpretedCommandDetector(Consumer, Producer):
             try:
                 request_obj.text_answer += '\n'
                 for index in request_obj.indexes:
-                    response = self._memoryManager.query_index(index, args.query)
+                    response = self._memoryManager.query_index(index, args.query, llm=request_obj.llm)
                     response = response._getvalue()
                     if response is not None:
                         sanitized_resp = str(response)

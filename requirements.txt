@@ -10,7 +10,7 @@ tiktoken==0.5.2
 # currently causing conflict must be installed outside of requirements.txt
 #salesforce-lavis==1.0.2
 # documents indexes
-llama_index==0.9.15
+llama_index==0.9.23
 
 # General deps
 # To avoid compatibility issues with accelerate

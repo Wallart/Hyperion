@@ -4,8 +4,16 @@ from hyperion.utils.logger import ProjectLogger
 from multiprocessing.managers import BaseManager
 from hyperion.utils.memory_utils import MANAGER_TOKEN
 
+import argparse
+
 if __name__ == '__main__':
-    memory = Memory()
+    parser = argparse.ArgumentParser(description='Hyperion\'s memory server')
+    parser.add_argument('--llama-host', type=str, default='localhost', help='Llama server host')
+    parser.add_argument('--llama-port', type=int, default=8080, help='Llama server port')
+
+    args = parser.parse_args()
+
+    memory = Memory(llama_host=args.llama_host, llama_port=args.llama_port)
     manager = BaseManager(('', 5602), bytes(MANAGER_TOKEN, encoding='utf8'))
     manager.register('get_status', memory.get_status)
     manager.register('list_indexes', memory.list_indexes)

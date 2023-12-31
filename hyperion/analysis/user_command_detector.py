@@ -138,7 +138,7 @@ class UserCommandDetector(Consumer, Producer):
             try:
                 request_obj.text_answer = ''
                 for index in request_obj.indexes:
-                    response = self._memoryManager.query_index(index, request_obj.command_args['query'])
+                    response = self._memoryManager.query_index(index, request_obj.command_args['query'], llm=request_obj.llm)
                     if response is not None:
                         request_obj.text_answer += str(response._getvalue())
                         request_obj.text_answer += '\n'

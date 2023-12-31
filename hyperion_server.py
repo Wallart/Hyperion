@@ -343,7 +343,9 @@ def delete_index(index):
 
 @app.route('/index/<string:index>/documents', methods=['GET'])
 def list_documents(index):
-    response = memoryManager.list_documents(index)
+    _, _, llm, _, _, _, _ = get_headers_params()
+
+    response = memoryManager.list_documents(index, llm=llm)
     return response._getvalue(), 200
 
 
@@ -355,16 +357,20 @@ def delete_from_index(index, doc_id):
 
 @app.route('/index/<string:index>/query', methods=['GET'])
 def query_index(index):
+    _, _, llm, _, _, _, _ = get_headers_params()
+
     query_value = request.args.get('value', None)
     if query_value is None:
         return 'Missing query param', 400
 
-    response = memoryManager.query_index(index, query_value)
+    response = memoryManager.query_index(index, query_value, llm=llm)
     return str(response._getvalue()), 200
 
 
 @app.route('/index/<string:index>/upload', methods=['POST'])
 def upload_file_to_index(index):
+    _, _, llm, _, _, _, _ = get_headers_params()
+
     if len(request.files) == 0:
         return 'No file(s) found.', 400
 
@@ -377,7 +383,7 @@ def upload_file_to_index(index):
             filepath = upload_dir / filename
             uploaded_file.save(filepath)
 
-            memoryManager.insert_into_index(index, filename, str(filepath))
+            memoryManager.insert_into_index(index, filename, str(filepath), llm=llm)
         except Exception as e:
             return f'File upload failed. {str(e)}', 500
 
