@@ -19,14 +19,14 @@ class Memory:
         self._state = Manager().Value('c', '')  # Manager is concurrent access safe
         self._indexes_dir = ProjectPaths().cache_dir / 'indexes'
 
-        llama_cpp_url = f'http://{llama_host}:{llama_port}/v1'
+        llama_cpp_url = f'http://{llama_host}:{llama_port}'
         api_key = os.environ['OPENAI_API'] if 'OPENAI_API' in os.environ else load_file(ProjectPaths().resources_dir / 'keys' / 'openai_api.key')[0]
         open_ai = ServiceContext.from_defaults(
             llm=OpenAI(api_key=api_key),
             embed_model=OpenAIEmbedding(api_key=api_key)
         )
         local = ServiceContext.from_defaults(
-            llm=OpenAI(api_key='sk-no-key-required', api_base=llama_cpp_url),
+            llm=OpenAI(api_key='sk-no-key-required', api_base=f'{llama_cpp_url}/v1'),
             embed_model=OpenAIEmbedding(api_key='sk-no-key-required', api_base=llama_cpp_url)
         )
         self._service_ctx = dict(openai=open_ai, local=local)
