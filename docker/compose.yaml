@@ -1,6 +1,7 @@
 services:
   hyperion:
-    image: 'wallart/hyperion_server:1.6.0.rc1'
+    image: 'wallart/hyperion_server:1.6.0.rc2'
+    restart: always
     environment:
       - LLAMA_HOST=llama_cpp
     ports:
@@ -21,6 +22,7 @@ services:
               count: 'all'
   llama_cpp:
     image: 'wallart/llama_cpp:mistral-ft-optimized-1218'
+    restart: always
     ports:
       - 8080:8080
     deploy:

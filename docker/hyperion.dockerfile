@@ -26,6 +26,8 @@ RUN cd LAVIS; git checkout ac8fc98; \
     sed -i '23d' lavis/models/blip_models/blip.py
 RUN cd LAVIS; pip install .
 RUN rm -rf LAVIS
+# New temporary workaround to bypass conflicts
+RUN pip install numpy==1.22.4
 RUN mv hyperion_tmp/hyperion_server.py /usr/bin/hyperion_server
 RUN mv hyperion_tmp/memory_server.py /usr/bin/memory_server
 RUN chmod +x /usr/bin/hyperion_server

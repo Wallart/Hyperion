@@ -5,7 +5,7 @@ torchvision==0.16.1
 # openai
 openai==1.2.4
 openai-whisper==20231117
-tiktoken==0.5.2
+tiktoken==0.7.0
 # vqa
 # currently causing conflict must be installed outside of requirements.txt
 #salesforce-lavis==1.0.2
@@ -18,6 +18,7 @@ protobuf==3.20.3
 numpy==1.22.4
 # To avoid whisper using deprecated functions
 numba==0.57.0
+opencv-python==4.8.0.74
 
 # TTS
 # currently causing conflict must be installed outside of requirements.txt

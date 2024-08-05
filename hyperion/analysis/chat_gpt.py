@@ -146,8 +146,7 @@ class ChatGPT(Consumer, Producer):
             name = sanitize_username(name)
 
         messages, dropped_messages = self._add_to_context(build_context_line(role, chat_input, name=name), preprompt, llm)
-        # TODO vision-preview workaround for cutted sentences
-        max_tokens = 4096 if llm is not None and 'vision-preview' in llm else NOT_GIVEN
+        max_tokens = NOT_GIVEN
         response = self._chat_completion(llm, messages, stream, max_tokens)
         return response, dropped_messages
 
